@@ -1,8 +1,7 @@
 export const ROLES = {
-  PROMOTER: 'promoter',
-  BUSINESS: 'business',      
-  ADMIN:    'admin',
-} as const
+  PROMOTER: 'promoter' as const,
+  BUSINESS: 'business' as const,
+  ADMIN:    'admin'    as const,
+}
 
-export type Role = typeof ROLES[keyof typeof ROLES]
-// Role = 'promoter' | 'business' | 'admin'
+export type Role = 'promoter' | 'business' | 'admin'

@@ -1,29 +1,15 @@
-import { User, RegisterPayload } from '../types/auth.types'
+import type { User, RegisterPayload } from '../types/auth.types'
 
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
-    // Replace with real API call
-    const res = await fetch('/api/auth/login', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, password }),
-    })
-    if (!res.ok) throw new Error('Login failed')
-    return res.json()
+    // swap with real API later
+    return { id: '1', name: 'Test User', email, role: 'promoter' }
   },
 
   register: async (data: RegisterPayload): Promise<User> => {
-    // Replace with real API call
-    const res = await fetch('/api/auth/register', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(data),
-    })
-    if (!res.ok) throw new Error('Registration failed')
-    return res.json()
+    // swap with real API later
+    return { id: '2', name: data.name, email: data.email, role: data.role }
   },
 
-  logout: async (): Promise<void> => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-  },
+  logout: async (): Promise<void> => {},
 }

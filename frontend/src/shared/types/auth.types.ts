@@ -1,19 +1,10 @@
-import { Role } from '../constants/roles'
+import type { Role } from '../constants/roles'
 
 export interface User {
-  id: string
-  name: string
+  id:    string
+  name:  string
   email: string
-  role: Role
-}
-
-export interface AuthContextType {
-  user: User | null
-  role: Role | null
-  login:    (email: string, password: string) => Promise<void>
-  logout:   () => void
-  register: (data: RegisterPayload) => Promise<void>      // ← NEW
-  isAuthenticated: boolean
+  role:  Role
 }
 
 export interface RegisterPayload {
@@ -21,4 +12,13 @@ export interface RegisterPayload {
   email:    string
   password: string
   role:     Role
+}
+
+export interface AuthContextType {
+  user:            User | null
+  role:            Role | null
+  login:           (email: string, password: string) => Promise<void>
+  logout:          () => void
+  register:        (data: RegisterPayload) => Promise<void>
+  isAuthenticated: boolean
 }
