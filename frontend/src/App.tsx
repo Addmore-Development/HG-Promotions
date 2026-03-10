@@ -1,11 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@shared/context/AuthContext'
 
-import LoginPage    from './auth/LoginPage'
-import RegisterPage from './auth/RegisterPage'
+import LoginPage    from './shared/auth/LoginPage'
+import RegisterPage from './shared/auth/RegisterPage'
 
 import PromoterRoutes from './promoter/index'
-import BusinessRoutes from './business/index'    // ← was SupervisorRoutes
+import BusinessRoutes from './business/index'    
 import AdminRoutes    from './admin/index'
 
 export default function App() {
