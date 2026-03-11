@@ -473,9 +473,27 @@ export default function RegisterPage() {
     existing.push(record)
     localStorage.setItem('hg_users', JSON.stringify(existing))
 
+    // Auto-create session immediately after registration
+    const sessionName  = isPromoter ? `${firstName} ${lastName}` : companyName
+    const sessionEmail = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
+    const session = {
+      role,
+      email:    sessionEmail,
+      name:     sessionName,
+      loggedIn: true,
+      status:   'pending_review',
+    }
+    localStorage.setItem('hg_session', JSON.stringify(session))
+
     await new Promise(r => setTimeout(r, 800))
     setDone(true)
     setSubmitting(false)
+
+    // Business → redirect to dashboard (pending status is visible there)
+    // Promoter → stay on success screen, button goes to /login
+    if (!isPromoter) {
+      setTimeout(() => navigate('/business/dashboard'), 1400)
+    }
   }
 
   const switchRole = (r: Role) => {
@@ -540,29 +558,63 @@ export default function RegisterPage() {
             padding: '52px 40px', textAlign: 'center', position: 'relative',
           }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
-            <div style={{ fontSize: 40, marginBottom: 20 }}>⏳</div>
-            <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
-              Application Submitted
-            </h2>
-            <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
-              Your account is <span style={{ color: GOLD, fontWeight: 600 }}>pending review</span> by our admin team.
-              You will be notified once approved.
-            </p>
-            <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
-              This typically takes 1–2 business days.
-            </p>
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
-                textTransform: 'uppercase', background: GOLD, color: BLACK,
-                border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
-            >
-              Go to Login
-            </button>
+
+            {isPromoter ? (
+              /* ── Promoter: pending review, go to login ── */
+              <>
+                <div style={{ fontSize: 40, marginBottom: 20 }}>⏳</div>
+                <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
+                  Application Submitted
+                </h2>
+                <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
+                  Your account is <span style={{ color: GOLD, fontWeight: 600 }}>pending review</span> by our admin team.
+                  You will be notified once approved.
+                </p>
+                <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
+                  This typically takes 1–2 business days.
+                </p>
+                <button
+                  onClick={() => navigate('/login')}
+                  style={{
+                    fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
+                    textTransform: 'uppercase', background: GOLD, color: BLACK,
+                    border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
+                >
+                  Go to Login
+                </button>
+              </>
+            ) : (
+              /* ── Business: auto-redirect to dashboard ── */
+              <>
+                <div style={{ fontSize: 40, marginBottom: 20 }}>◈</div>
+                <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
+                  Welcome Aboard
+                </h2>
+                <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
+                  Your business account has been created. Your account is{' '}
+                  <span style={{ color: GOLD, fontWeight: 600 }}>pending admin approval</span> — you can still
+                  explore your dashboard in the meantime.
+                </p>
+                <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
+                  Redirecting you to your dashboard…
+                </p>
+                <button
+                  onClick={() => navigate('/business/dashboard')}
+                  style={{
+                    fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
+                    textTransform: 'uppercase', background: GOLD, color: BLACK,
+                    border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
+                >
+                  Go to Dashboard →
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <>
