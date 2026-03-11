@@ -1,50 +1,96 @@
-import { Role } from '../constants/roles'
+// shared/types/user.types.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Single source of truth for the User / Profile shape.
+// Used by Admin (review), Supervisor (team view), and Promoter (own profile).
+//
+// RECONCILED: merges the roles-based User fields (id, name, email, role) with
+// the promoter-specific profile fields (fullName, reliabilityScore, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export type OnboardingStatus = 'incomplete' | 'pending_review' | 'approved' | 'rejected' | 'blacklisted';
+import type { Role } from '../constants/roles';
+
+export type OnboardingStatus =
+  | 'incomplete'
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'blacklisted';
 
 export interface PhysicalAttributes {
-  height: number; // cm
-  clothingSize: string;
+  height: number;        // centimetres
+  clothingSize: string;  // XS / S / M / L / XL
   shoeSize?: string;
 }
 
 export interface BankDetails {
   bankName: string;
   accountNumber: string;
-  accountType: string;
+  accountType: string;   // Cheque | Savings | Transmission
   branchCode: string;
 }
 
 export interface DocumentVault {
-  idFront?: string;       // file URL / base64 placeholder
+  idFront?: string;          // file URL or mock:// placeholder
   idBack?: string;
   taxNumber?: string;
   bankConfirmation?: string;
   cv?: string;
-  profilePhotos: string[]; // max 3
+  profilePhotos: string[];   // max 3
 }
 
+// ─── Full promoter profile ────────────────────────────────────────────────────
+// `id` and `name` align with the auth User shape.
+// `fullName` is the legal name as on their SA ID (separate from display name).
 export interface UserProfile {
-  id:        string
-  name:      string
-  email:     string
-  phone?:    string
-  role:      Role
-  avatarUrl?: string
-  createdAt: string
+  // ── Auth / identity fields ──────────────────────────────────────────────────
+  userId: string;          // matches User.id from AuthContext
+  id?: string;             // alias kept for backwards compatibility
+  name?: string;           // display name (optional, used by supervisor/admin views)
+  email?: string;
+  phone?: string;
+  role?: Role;
+
+  // ── Legal identity ──────────────────────────────────────────────────────────
+  fullName: string;        // as per SA ID document
+  idNumber: string;
+  dateOfBirth: string;
   gender: 'male' | 'female' | 'other';
+
+  // ── Contact & location ──────────────────────────────────────────────────────
+  address: string;
+  city: string;
+  province: string;
+  coordinates?: { lat: number; lng: number };
+
+  // ── Profile media ───────────────────────────────────────────────────────────
+  profilePhoto?: string;   // URL or base64
+  avatarUrl?: string;      // alias for profilePhoto used by some views
+
+  // ── Attributes ──────────────────────────────────────────────────────────────
   physicalAttributes: PhysicalAttributes;
+  socialMedia?: { instagram?: string; tiktok?: string };
+
+  // ── Documents & banking ─────────────────────────────────────────────────────
+  documents: DocumentVault;
+  bankDetails?: BankDetails;
+
+  // ── Onboarding & scoring ────────────────────────────────────────────────────
+  onboardingStatus: OnboardingStatus;
+  rejectionReason?: string;  // set by Admin on rejection
+  reliabilityScore: number;  // 0–5, updated by supervisor ratings
+
+  // ── Timestamps ──────────────────────────────────────────────────────────────
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface TeamMember extends UserProfile {
-  businessId:   string      
-  jobsAssigned: number
-}
-
+// ─── Lightweight team view (used by Supervisor) ───────────────────────────────
 export interface TeamMember {
   userId: string;
   fullName: string;
   profilePhoto?: string;
   reliabilityScore: number;
   onboardingStatus: OnboardingStatus;
+  businessId?: string;
+  jobsAssigned?: number;
 }
