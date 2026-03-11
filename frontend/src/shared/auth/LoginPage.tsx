@@ -123,7 +123,7 @@ export default function LoginPage() {
         const session = { role: 'admin', email, name: 'Administrator', loggedIn: true }
         localStorage.setItem('hg_session', JSON.stringify(session))
         setSuccess(true)
-        setTimeout(() => navigate('/admin/dashboard'), 900)
+        setTimeout(() => navigate('/admin'), 900)
         setLoading(false); return
       } else {
         setError('Invalid admin credentials.')
