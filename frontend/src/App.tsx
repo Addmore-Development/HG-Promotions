@@ -1,20 +1,21 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './shared/context/AuthContext'
-import LandingPage       from './shared/auth/LandingPage'
-import LoginPage         from './shared/auth/LoginPage'
-import RegisterPage      from './shared/auth/RegisterPage'
-import AdminDashboard    from './Admin/dashboard/adminDashboard'
-import FullCRUDUsers     from './Admin/users/FullCRUDUsers'
-import CRUDJobsLogic     from './Admin/jobs/CRUDJobsLogic'
-import ViewLiveMap       from './Admin/shifts/ViewLiveMap'
-import ApproveExport     from './Admin/payments/ApproveExport'
-import ReviewApproveDocs from './Admin/onboarding/ReviewApproveDocs'
-import BusinessLayout    from './Business/BusinessLayout'
-import BusinessDashboard from './Business/Businessdashboard'
-import BusinessJobs      from './Business/Businessjobs'
-import BusinessPayroll   from './Business/Businesspayroll'
-import BusinessTracking  from './Business/Businesstracking'
-import JobDetailPage     from './shared/jobs/JobDetailPage'
+import { AuthProvider }      from './shared/context/AuthContext'
+import LandingPage           from './shared/auth/LandingPage'
+import LoginPage             from './shared/auth/LoginPage'
+import RegisterPage          from './shared/auth/RegisterPage'
+import AdminDashboard        from './Admin/dashboard/adminDashboard'
+import FullCRUDUsers         from './Admin/users/FullCRUDUsers'
+import CRUDJobsLogic         from './Admin/jobs/CRUDJobsLogic'
+import ViewLiveMap           from './Admin/shifts/ViewLiveMap'
+import ApproveExport         from './Admin/payments/ApproveExport'
+import ReviewApproveDocs     from './Admin/onboarding/ReviewApproveDocs'
+import { ViewAcceptJobs }    from './promoter/jobs/ViewAcceptJobs'
+import JobDetailPage         from './shared/jobs/JobdetailPage'
+import BusinessLayout        from './Business/BusinessLayout'
+import BusinessDashboard     from './Business/Businessdashboard'
+import BusinessJobs          from './Business/Businessjobs'
+import BusinessTracking      from './Business/Businesstracking'
+import BusinessPayroll       from './Business/Businesspayroll'
 
 export default function App() {
   return (
@@ -22,12 +23,13 @@ export default function App() {
       <AuthProvider>
         <Routes>
           {/* ── Public ── */}
-          <Route path="/"         element={<LandingPage />}   />
-          <Route path="/login"    element={<LoginPage />}     />
-          <Route path="/register" element={<RegisterPage />}  />
+          <Route path="/"         element={<LandingPage />}  />
+          <Route path="/login"    element={<LoginPage />}    />
+          <Route path="/register" element={<RegisterPage />} />
 
-          {/* ── Job Detail (accessible to logged-in promoters + businesses) ── */}
-          <Route path="/jobs/:jobId" element={<JobDetailPage />} />
+          {/* ── Jobs (promoter browse + detail) ── */}
+          <Route path="/jobs"        element={<ViewAcceptJobs />} />
+          <Route path="/jobs/:jobId" element={<JobDetailPage />}  />
 
           {/* ── Admin ── */}
           <Route path="/admin"            element={<AdminDashboard />}    />
@@ -39,11 +41,11 @@ export default function App() {
 
           {/* ── Business ── */}
           <Route path="/business" element={<BusinessLayout />}>
-            <Route index             element={<Navigate to="/business/dashboard" replace />} />
-            <Route path="dashboard"  element={<BusinessDashboard />} />
-            <Route path="jobs"       element={<BusinessJobs />}      />
-            <Route path="payroll"    element={<BusinessPayroll />}   />
-            <Route path="tracking"   element={<BusinessTracking />}  />
+            <Route index            element={<Navigate to="/business/dashboard" replace />} />
+            <Route path="dashboard" element={<BusinessDashboard />} />
+            <Route path="jobs"      element={<BusinessJobs />}      />
+            <Route path="tracking"  element={<BusinessTracking />}  />
+            <Route path="payroll"   element={<BusinessPayroll />}   />
           </Route>
 
           {/* ── Fallback ── */}
