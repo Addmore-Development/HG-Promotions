@@ -1,4 +1,4 @@
-import type { Role } from '../constants/roles'
+export type Role = 'promoter' | 'business' | 'admin'
 
 export interface User {
   id:    string

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { ROLES } from '../constants/roles'
-import { RegisterPayload } from '../types/auth.types'
+import type { RegisterPayload } from '../types/auth.types'
 
 interface Field {
   id:          string

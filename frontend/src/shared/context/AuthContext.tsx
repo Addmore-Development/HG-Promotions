@@ -1,5 +1,5 @@
 import { createContext, useState, ReactNode } from 'react'
-import { AuthContextType, User, RegisterPayload } from '../types/auth.types'
+import type { AuthContextType, User, RegisterPayload } from '../types/auth.types'
 import { authService } from '../services/authService'
 
 export const AuthContext = createContext<AuthContextType | null>(null)
