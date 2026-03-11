@@ -23,9 +23,6 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: #111; }
   ::-webkit-scrollbar-thumb { background: ${GOLD}; }
-  @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-  .hg-marquee { display: flex; width: max-content; animation: marquee 32s linear infinite; }
-  .hg-marquee:hover { animation-play-state: paused; }
   .hg-reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
   .hg-reveal.hg-visible { opacity: 1; transform: translateY(0); }
   @keyframes hg-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(196,151,58,0.45); } 50% { box-shadow: 0 0 0 14px rgba(196,151,58,0); } }
@@ -106,7 +103,6 @@ export default function LandingPage() {
   const [loginOpen,     setLoginOpen]     = useState(false);
   const [registerOpen,  setRegisterOpen]  = useState(false);
 
-  const rStats    = useReveal();
   const rFeatures = useReveal();
   const rCaps     = useReveal();
   const rRoles    = useReveal();
@@ -117,13 +113,6 @@ export default function LandingPage() {
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
   }, []);
-
-  const stats = [
-    { num: '280+',   label: 'Active Promoters' },
-    { num: '5,000+', label: 'Growth Target'    },
-    { num: '99.9%',  label: 'Platform Uptime'  },
-    { num: '< 5min', label: 'Onboarding Time'  },
-  ];
 
   const features = [
     { tag: 'Smart Dispatch',      icon: '◎', title: 'Right person.\nRight place.\nEvery time.',  body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.' },
@@ -143,8 +132,6 @@ export default function LandingPage() {
     { role: 'Supervisor', icon: '◈', color: GOLD,      perks: ['Monitor attendance live', 'Traffic-light status', 'Flag issues instantly', 'View team profiles'] },
     { role: 'Admin',      icon: '◆', color: '#8B5CF6', perks: ['Full CRUD users & jobs', 'Approve payroll & export', 'Live operations map', 'Generate PDF reports'] },
   ];
-
-  const ticker = ['Promoter Onboarding','◆','Geo-Verified Shifts','◆','Smart Job Dispatch','◆','Automated Payroll','◆','Live Operations Map','◆','Client Reports','◆','280+ Promoters Nationwide','◆'];
 
   return (
     <div style={{ fontFamily: FB, background: BLACK, color: WHITE, overflowX: 'hidden', width: '100%' }}>
@@ -191,21 +178,25 @@ export default function LandingPage() {
         </div>
         <div style={{ position: 'absolute', top: '18%', right: '30%', width: 1, height: 200, background: `linear-gradient(to bottom, transparent, ${GOLD}, transparent)`, opacity: 0.28 }} />
 
-        <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1360, margin: '0 auto', padding: '0 80px', paddingTop: 140 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.42em', textTransform: 'uppercase', color: GOLD, marginBottom: 34 }}>
+        <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1360, margin: '0 auto', padding: '0 80px', paddingTop: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.42em', textTransform: 'uppercase', color: GOLD, marginBottom: 28 }}>
             <div style={{ width: 44, height: 1, background: GOLD }} />
             National Promoter Management Platform
+            <div style={{ width: 44, height: 1, background: GOLD }} />
           </div>
-          <h1 style={{ fontFamily: FD, fontSize: 'clamp(64px, 10vw, 130px)', fontWeight: 900, lineHeight: 0.94, letterSpacing: '-0.02em', marginBottom: 40, maxWidth: 900 }}>
-            <span style={{ display: 'block', color: WHITE }}>We put</span>
-            <span style={{ display: 'block', color: GOLD, fontStyle: 'italic' }}>promoters</span>
-            <span style={{ display: 'block', color: WHITE }}>centre stage.</span>
+
+          <h1 style={{ fontFamily: FD, fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 700, lineHeight: 1.3, letterSpacing: '-0.01em', marginBottom: 28 }}>
+            <span style={{ color: WHITE }}>We put </span>
+            <span style={{ color: GOLD, fontStyle: 'italic' }}>promoters </span>
+            <span style={{ color: WHITE }}>centre stage.</span>
           </h1>
-          <p style={{ fontFamily: FB, fontSize: 18, fontWeight: 300, lineHeight: 1.8, color: WHITE_MUTED, maxWidth: 560, marginBottom: 56 }}>
+
+          <p style={{ fontFamily: FB, fontSize: 16, fontWeight: 300, lineHeight: 1.8, color: WHITE_MUTED, maxWidth: 520, marginBottom: 48 }}>
             Honey Group manages 280+ brand promoters across South Africa — now fully digital. From onboarding to geo-verified shifts to automated payroll.
           </p>
+
           <button onClick={() => setRegisterOpen(true)}
-            style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '20px 56px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
+            style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
           >Join as a Promoter</button>
@@ -217,29 +208,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MARQUEE */}
-      <div style={{ background: GOLD, padding: '13px 0', overflow: 'hidden', borderTop: '1px solid #DDB55A', borderBottom: '1px solid #A07830' }}>
-        <div className="hg-marquee" style={{ fontFamily: FD, fontWeight: 700, fontSize: 13, color: BLACK, letterSpacing: '0.07em' }}>
-          {[0, 1, 2].flatMap((n) => ticker.map((t, i) => (
-            <span key={`${n}-${i}`} style={{ whiteSpace: 'nowrap', padding: '0 28px' }}>{t}</span>
-          )))}
-        </div>
-      </div>
-
-      {/* STATS */}
-      <section ref={rStats} className="hg-reveal" style={{ padding: '120px 80px', maxWidth: 1360, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', border: `1px solid ${BLACK_BORDER}` }}>
-          {stats.map((s, i) => (
-            <div key={i} style={{ padding: '60px 40px', borderRight: i < 3 ? `1px solid ${BLACK_BORDER}` : 'none', background: BLACK_CARD, textAlign: 'center' }}>
-              <div style={{ fontFamily: FD, fontSize: 56, fontWeight: 900, color: GOLD, lineHeight: 1 }}>{s.num}</div>
-              <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: WHITE_MUTED, marginTop: 14 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* FEATURES */}
-      <section ref={rFeatures} className="hg-reveal" style={{ padding: '40px 0 120px' }}>
+      <section ref={rFeatures} className="hg-reveal" style={{ padding: '120px 0' }}>
         <div style={{ maxWidth: 1360, margin: '0 auto 64px', padding: '0 80px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Platform Capabilities</div>
