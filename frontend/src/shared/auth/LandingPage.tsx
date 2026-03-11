@@ -117,7 +117,12 @@ const PREVIEW_JOBS = [
 ];
 
 /* ── JOB CARD COMPONENT ── */
-function JobCard({ job, onLock }: { job: typeof PREVIEW_JOBS[0], onLock: () => void }) {
+function JobCard({ job, isLoggedIn, onLock, onView }: {
+  job: typeof PREVIEW_JOBS[0];
+  isLoggedIn: boolean;
+  onLock: () => void;
+  onView: (id: string) => void;
+}) {
   const [hovered, setHovered] = useState(false);
   const filled = parseInt(job.slots) - parseInt(job.slotsLeft);
   const pct = Math.round((filled / parseInt(job.slots)) * 100);
@@ -134,9 +139,7 @@ function JobCard({ job, onLock }: { job: typeof PREVIEW_JOBS[0], onLock: () => v
         boxShadow: hovered ? `0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px ${job.accentLine}22` : 'none',
       }}
     >
-      {/* gradient bg */}
       <div style={{ position: 'absolute', inset: 0, background: job.gradient, opacity: hovered ? 1 : 0.6, transition: 'opacity 0.35s' }} />
-      {/* top accent line */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: job.accentLine }} />
 
       <div style={{ position: 'relative', padding: '28px 28px 24px' }}>
@@ -157,10 +160,8 @@ function JobCard({ job, onLock }: { job: typeof PREVIEW_JOBS[0], onLock: () => v
           </div>
         </div>
 
-        {/* title */}
         <h3 style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: WHITE, lineHeight: 1.25, marginBottom: 14 }}>{job.title}</h3>
 
-        {/* meta */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 18 }}>
           {[
             { icon: '◎', text: job.location },
@@ -174,14 +175,12 @@ function JobCard({ job, onLock }: { job: typeof PREVIEW_JOBS[0], onLock: () => v
           ))}
         </div>
 
-        {/* tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
           {job.tags.map((tag, i) => (
             <span key={i} style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: WHITE_DIM, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BLACK_BORDER}`, padding: '3px 10px', borderRadius: 2 }}>{tag}</span>
           ))}
         </div>
 
-        {/* slots progress bar */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 10, color: WHITE_DIM, letterSpacing: '0.1em' }}>SLOTS FILLED</span>
@@ -192,30 +191,46 @@ function JobCard({ job, onLock }: { job: typeof PREVIEW_JOBS[0], onLock: () => v
           </div>
         </div>
 
-        {/* locked CTA */}
-        <button
-          onClick={onLock}
-          style={{
-            width: '100%', padding: '13px', border: `1px solid ${job.accentLine}66`, background: hovered ? `${job.accentLine}18` : 'transparent',
-            color: hovered ? job.accentLine : WHITE_MUTED, fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em',
-            textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 13 }}>🔒</span> View Full Details — Login Required
-        </button>
+        {/* CTA — changes based on login state */}
+        {isLoggedIn ? (
+          <button
+            onClick={() => onView(job.id)}
+            style={{
+              width: '100%', padding: '13px', border: `1px solid ${job.accentLine}66`,
+              background: hovered ? `${job.accentLine}28` : `${job.accentLine}14`,
+              color: job.accentLine, fontFamily: FB, fontSize: 11, fontWeight: 700, letterSpacing: '0.16em',
+              textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            View Full Details →
+          </button>
+        ) : (
+          <button
+            onClick={onLock}
+            style={{
+              width: '100%', padding: '13px', border: `1px solid ${job.accentLine}66`,
+              background: hovered ? `${job.accentLine}18` : 'transparent',
+              color: hovered ? job.accentLine : WHITE_MUTED, fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em',
+              textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            <span style={{ fontSize: 13 }}>🔒</span> View Full Details — Login Required
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── LOGIN PROMPT MODAL ── */
-function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => void, onLogin: () => void, onRegister: () => void }) {
+function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => void; onLogin: () => void; onRegister: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{ background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`, padding: '52px 48px', maxWidth: 420, width: '100%', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
-        {/* decorative circle */}
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: `${GOLD}14`, border: `1px solid ${GOLD}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 28, animation: 'float 3s ease-in-out infinite' }}>🔒</div>
         <div style={{ fontSize: 10, letterSpacing: '0.35em', textTransform: 'uppercase', color: GOLD, marginBottom: 12 }}>Members Only</div>
         <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 14, lineHeight: 1.2 }}>Unlock Job Details</h2>
@@ -225,13 +240,13 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => voi
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button onClick={onRegister}
             style={{ width: '100%', padding: '15px', background: GOLD, border: 'none', color: BLACK, fontFamily: FB, fontSize: 12, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; }}
           >Create Free Account</button>
           <button onClick={onLogin}
             style={{ width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${BLACK_BORDER}`, color: WHITE_MUTED, fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = WHITE_MUTED }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = WHITE_MUTED; }}
           >I Already Have an Account</button>
         </div>
         <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: WHITE_DIM, fontSize: 18 }}>✕</button>
@@ -247,17 +262,47 @@ export default function LandingPage() {
   const [activeFeature, setActiveFeature] = useState(0);
   const [showLoginPrompt, setLoginPrompt] = useState(false);
 
+  /* ── Session state ── */
+  const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null);
+  useEffect(() => {
+    const s = localStorage.getItem('hg_session');
+    if (s) {
+      try { setSession(JSON.parse(s)); } catch { /* ignore */ }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('hg_session');
+    setSession(null);
+  };
+
+  const handleDashboard = () => {
+    if (!session) return;
+    const map: Record<string, string> = { admin: '/admin', business: '/business/dashboard', promoter: '/promoter/dashboard' };
+    navigate(map[session.role] || '/');
+  };
+
   const rFeatures = useReveal();
   const rJobs     = useReveal();
   const rCaps     = useReveal();
   const rRoles    = useReveal();
   const rCta      = useReveal();
 
+  /* Scroll refs for nav links */
+  const secFeatures = useRef<HTMLElement>(null);
+  const secJobs     = useRef<HTMLElement>(null);
+  const secCaps     = useRef<HTMLElement>(null);
+  const secRoles    = useRef<HTMLElement>(null);
+
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
   }, []);
+
+  const scrollTo = (ref: React.RefObject<HTMLElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const features = [
     { tag: 'Smart Dispatch',      icon: '◎', title: 'Right person.\nRight place.\nEvery time.',  body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.' },
@@ -284,26 +329,58 @@ export default function LandingPage() {
 
       {/* ── NAV ── */}
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: scrolled ? '14px 80px' : '26px 80px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: scrolled ? 'rgba(8,8,8,0.96)' : 'transparent', backdropFilter: scrolled ? 'blur(24px)' : 'none', borderBottom: scrolled ? `1px solid ${BLACK_BORDER}` : 'none', transition: 'all 0.4s ease' }}>
-        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700 }}>
+        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <span style={{ color: GOLD }}>HONEY</span><span style={{ color: WHITE }}> GROUP</span>
         </div>
+
+        {/* Nav links — all functional */}
         <ul style={{ display: 'flex', gap: 44, listStyle: 'none' }}>
-          {['Platform', 'Features', 'Jobs', 'About'].map(l => (
-            <li key={l}><a href={l === 'Jobs' ? '#jobs' : '#'} style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: WHITE_MUTED, textDecoration: 'none', transition: 'color 0.25s' }}
-              onMouseEnter={e => e.currentTarget.style.color = GOLD} onMouseLeave={e => e.currentTarget.style.color = WHITE_MUTED}>{l}</a></li>
+          {[
+            { label: 'Platform',  ref: secFeatures },
+            { label: 'Features',  ref: secFeatures },
+            { label: 'Jobs',      ref: secJobs     },
+            { label: 'About',     ref: secRoles    },
+          ].map(({ label, ref }) => (
+            <li key={label}>
+              <button
+                onClick={() => scrollTo(ref)}
+                style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: WHITE_MUTED, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.25s', padding: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = GOLD}
+                onMouseLeave={e => e.currentTarget.style.color = WHITE_MUTED}
+              >{label}</button>
+            </li>
           ))}
         </ul>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={() => navigate('/login')}
-            style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${WHITE_DIM}`, color: WHITE, padding: '10px 26px', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE; }}
-          >Log In</button>
-          <button onClick={() => navigate('/register')}
-            style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', background: GOLD, border: 'none', color: BLACK, padding: '10px 28px', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >Register</button>
+
+        {/* Auth buttons — change when logged in */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {session ? (
+            <>
+              <button onClick={handleDashboard}
+                style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', background: GOLD, border: 'none', color: BLACK, padding: '10px 24px', cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; }}
+                onMouseLeave={e => { e.currentTarget.style.background = GOLD; }}
+              >My Dashboard</button>
+              <button onClick={handleLogout}
+                style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${WHITE_DIM}`, color: WHITE_MUTED, padding: '10px 20px', cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#EF4444'; e.currentTarget.style.color = '#EF4444'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
+              >Log Out</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => navigate('/login')}
+                style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${WHITE_DIM}`, color: WHITE, padding: '10px 26px', cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE; }}
+              >Log In</button>
+              <button onClick={() => navigate('/register')}
+                style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', background: GOLD, border: 'none', color: BLACK, padding: '10px 28px', cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >Register</button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -332,17 +409,36 @@ export default function LandingPage() {
           <p style={{ fontFamily: FB, fontSize: 16, fontWeight: 300, lineHeight: 1.8, color: WHITE_MUTED, maxWidth: 520, marginBottom: 48 }}>
             Honey Group manages 280+ brand promoters across South Africa — now fully digital. From onboarding to geo-verified shifts to automated payroll.
           </p>
+
+          {/* Hero CTA — changes when logged in */}
           <div style={{ display: 'flex', gap: 16 }}>
-            <button onClick={() => navigate('/register')}
-              style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
-              onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-            >Join as a Promoter</button>
-            <button onClick={() => { const el = document.getElementById('jobs'); el?.scrollIntoView({ behavior: 'smooth' }); }}
-              style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: WHITE_MUTED, border: `1px solid ${WHITE_DIM}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
-            >Browse Jobs ↓</button>
+            {session ? (
+              <>
+                <button onClick={handleDashboard}
+                  style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >Go to Dashboard</button>
+                <button onClick={() => scrollTo(secJobs)}
+                  style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: WHITE_MUTED, border: `1px solid ${WHITE_DIM}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
+                >Browse Jobs ↓</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => navigate('/register')}
+                  style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >Join as a Promoter</button>
+                <button onClick={() => scrollTo(secJobs)}
+                  style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: WHITE_MUTED, border: `1px solid ${WHITE_DIM}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
+                >Browse Jobs ↓</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -353,7 +449,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section ref={rFeatures} className="hg-reveal" style={{ padding: '120px 0' }}>
+      <section ref={(el) => { (rFeatures as any).current = el; (secFeatures as any).current = el; }} className="hg-reveal" style={{ padding: '120px 0' }}>
         <div style={{ maxWidth: 1360, margin: '0 auto 64px', padding: '0 80px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Platform Capabilities</div>
@@ -376,47 +472,65 @@ export default function LandingPage() {
       </section>
 
       {/* ── JOBS SECTION ── */}
-      <section id="jobs" ref={rJobs as any} className="hg-reveal" style={{ padding: '100px 80px', background: BLACK_SOFT, borderTop: `1px solid ${BLACK_BORDER}`, borderBottom: `1px solid ${BLACK_BORDER}` }}>
+      <section ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el; }} className="hg-reveal" style={{ padding: '100px 80px', background: BLACK_SOFT, borderTop: `1px solid ${BLACK_BORDER}`, borderBottom: `1px solid ${BLACK_BORDER}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
-          {/* section header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 56 }}>
             <div>
               <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Current Opportunities</div>
               <h2 style={{ fontFamily: FD, fontSize: 'clamp(34px,5vw,60px)', fontWeight: 900, lineHeight: 1 }}>Live Jobs</h2>
               <p style={{ fontFamily: FB, fontSize: 15, color: WHITE_MUTED, marginTop: 14, maxWidth: 440, lineHeight: 1.7 }}>
-                New activations are posted daily across South Africa. <span style={{ color: GOLD, fontStyle: 'italic' }}>Login or register</span> to apply and see full job details.
+                {session
+                  ? `Logged in as ${session.name}. Click any job to view full details.`
+                  : <>New activations posted daily. <span style={{ color: GOLD, fontStyle: 'italic' }}>Login or register</span> to apply.</>
+                }
               </p>
             </div>
-            {/* locked badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: `${GOLD}10`, border: `1px solid ${GOLD}33`, borderRadius: 2 }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD }}>Members only</div>
-                <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>Login to apply</div>
+            {!session && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: `${GOLD}10`, border: `1px solid ${GOLD}33`, borderRadius: 2 }}>
+                <span style={{ fontSize: 16 }}>🔒</span>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD }}>Members only</div>
+                  <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>Login to apply</div>
+                </div>
               </div>
-            </div>
+            )}
+            {session && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: 'rgba(34,197,94,0.08)', border: `1px solid rgba(34,197,94,0.3)`, borderRadius: 2 }}>
+                <span style={{ fontSize: 16 }}>✅</span>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#22C55E' }}>Logged In</div>
+                  <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>{session.name}</div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* job cards grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
-            {PREVIEW_JOBS.map(job => <JobCard key={job.id} job={job} onLock={() => setLoginPrompt(true)} />)}
+            {PREVIEW_JOBS.map(job => (
+              <JobCard
+                key={job.id}
+                job={job}
+                isLoggedIn={!!session}
+                onLock={() => setLoginPrompt(true)}
+                onView={(id) => navigate(`/jobs/${id}`)}
+              />
+            ))}
           </div>
 
-          {/* more jobs CTA */}
           <div style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, textAlign: 'center' }}>
             <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${GOLD}, transparent)` }} />
             <p style={{ fontSize: 13, color: WHITE_DIM }}>Showing 4 of <strong style={{ color: WHITE }}>24 active jobs</strong> this week</p>
-            <button onClick={() => setLoginPrompt(true)}
+            <button onClick={() => session ? navigate('/jobs') : setLoginPrompt(true)}
               style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${GOLD}44`, color: GOLD, padding: '12px 36px', cursor: 'pointer', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14`; e.currentTarget.style.borderColor = GOLD; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${GOLD}44`; }}
-            >View All 24 Jobs — Login Required</button>
+            >{session ? 'View All Jobs →' : 'View All 24 Jobs — Login Required'}</button>
           </div>
         </div>
       </section>
 
       {/* ── CAPABILITIES ── */}
-      <section ref={rCaps} className="hg-reveal" style={{ background: BLACK, padding: '100px 80px', borderBottom: `1px solid ${BLACK_BORDER}` }}>
+      <section ref={(el) => { (rCaps as any).current = el; (secCaps as any).current = el; }} className="hg-reveal" style={{ background: BLACK, padding: '100px 80px', borderBottom: `1px solid ${BLACK_BORDER}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>What We Offer</div>
           <h2 style={{ fontFamily: FD, fontSize: 'clamp(34px,5vw,60px)', fontWeight: 900, marginBottom: 60, textDecoration: 'line-through', textDecorationColor: GOLD, textDecorationThickness: '3px' }}>Capabilities</h2>
@@ -436,7 +550,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── ROLES ── */}
-      <section ref={rRoles} className="hg-reveal" style={{ padding: '120px 80px' }}>
+      <section ref={(el) => { (rRoles as any).current = el; (secRoles as any).current = el; }} className="hg-reveal" style={{ padding: '120px 80px' }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Built for Everyone</div>
           <h2 style={{ fontFamily: FD, fontSize: 'clamp(34px,5vw,60px)', fontWeight: 900, marginBottom: 60 }}>Three roles.<br /><span style={{ color: GOLD, fontStyle: 'italic' }}>One platform.</span></h2>
@@ -470,11 +584,19 @@ export default function LandingPage() {
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.5)', marginBottom: 24 }}>Ready to Scale?</div>
           <h2 style={{ fontFamily: FD, fontSize: 'clamp(38px,6vw,80px)', fontWeight: 900, color: BLACK, lineHeight: 1, marginBottom: 44 }}>Join the platform<br /><span style={{ fontStyle: 'italic' }}>powering SA promotions.</span></h2>
-          <button onClick={() => navigate('/register')}
-            style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: BLACK, color: GOLD, border: 'none', padding: '20px 56px', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#1a1a1a'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = BLACK; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >Register Now</button>
+          {session ? (
+            <button onClick={handleDashboard}
+              style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: BLACK, color: GOLD, border: 'none', padding: '20px 56px', cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1a1a1a'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = BLACK; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >Go to Dashboard</button>
+          ) : (
+            <button onClick={() => navigate('/register')}
+              style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: BLACK, color: GOLD, border: 'none', padding: '20px 56px', cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1a1a1a'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = BLACK; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >Register Now</button>
+          )}
         </div>
       </section>
 
@@ -487,10 +609,15 @@ export default function LandingPage() {
               <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, lineHeight: 1.75, maxWidth: 300 }}>South Africa's premier promoter management platform. Fully digital.</p>
             </div>
             <div style={{ display: 'flex', gap: 64 }}>
-              {[{ label: 'Platform', links: ['Features','Pricing','Security'] }, { label: 'Company', links: ['About','Careers','Contact'] }].map(col => (
+              {[{ label: 'Platform', links: ['Features', 'Pricing', 'Security'] }, { label: 'Company', links: ['About', 'Careers', 'Contact'] }].map(col => (
                 <div key={col.label}>
                   <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.3em', textTransform: 'uppercase', color: GOLD, marginBottom: 22 }}>{col.label}</div>
-                  {col.links.map(l => <div key={l} style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, marginBottom: 12, cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = WHITE} onMouseLeave={e => e.currentTarget.style.color = WHITE_MUTED}>{l}</div>)}
+                  {col.links.map(l => (
+                    <div key={l} style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, marginBottom: 12, cursor: 'pointer', transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = WHITE}
+                      onMouseLeave={e => e.currentTarget.style.color = WHITE_MUTED}
+                    >{l}</div>
+                  ))}
                 </div>
               ))}
             </div>
