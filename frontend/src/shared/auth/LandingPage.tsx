@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /* ─── TOKENS ─────────────────────────────────────────────────── */
 const BLACK        = '#080808';
@@ -44,64 +45,11 @@ function useReveal() {
   return ref;
 }
 
-/* ─── MODAL ──────────────────────────────────────────────────── */
-function Modal({ title, subtitle, onClose, children }: {
-  title: string; subtitle: string; onClose: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-      style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-    >
-      <div style={{ background: '#141414', border: `1px solid ${BLACK_BORDER}`, padding: '52px 48px', width: '100%', maxWidth: 480, position: 'relative', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 40px 100px rgba(0,0,0,0.7)' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
-        <button
-          onClick={onClose}
-          style={{ position: 'absolute', top: 18, right: 22, background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: WHITE_MUTED, lineHeight: 1, transition: 'color 0.2s' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = WHITE_MUTED)}
-        >✕</button>
-        <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 14 }}>Honey Group</p>
-        <h2 style={{ fontFamily: FD, fontSize: 30, fontWeight: 700, color: WHITE, marginBottom: 8 }}>{title}</h2>
-        <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, marginBottom: 36 }}>{subtitle}</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function MInput({ label, type = 'text', placeholder }: { label: string; type?: string; placeholder: string; }) {
-  return (
-    <div>
-      <label style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: WHITE_MUTED, display: 'block', marginBottom: 8 }}>{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BLACK_BORDER}`, padding: '14px 16px', fontFamily: FB, fontSize: 14, color: WHITE, outline: 'none', transition: 'border-color 0.2s' }}
-        onFocus={(e) => (e.currentTarget.style.borderColor = GOLD)}
-        onBlur={(e) => (e.currentTarget.style.borderColor = BLACK_BORDER)}
-      />
-    </div>
-  );
-}
-
-function MBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void; }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{ width: '100%', padding: '16px 0', background: GOLD, border: 'none', fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: BLACK, cursor: 'pointer', marginTop: 4, transition: 'all 0.25s' }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; }}
-    >{children}</button>
-  );
-}
-
 /* ─── LANDING PAGE ───────────────────────────────────────────── */
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [scrolled,      setScrolled]      = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [loginOpen,     setLoginOpen]     = useState(false);
-  const [registerOpen,  setRegisterOpen]  = useState(false);
 
   const rFeatures = useReveal();
   const rCaps     = useReveal();
@@ -154,12 +102,12 @@ export default function LandingPage() {
           ))}
         </ul>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={() => setLoginOpen(true)}
+          <button onClick={() => navigate('/login')}
             style={{ fontFamily: FB, fontSize: 11, fontWeight: 500, letterSpacing: '0.16em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${WHITE_DIM}`, color: WHITE, padding: '10px 26px', cursor: 'pointer', transition: 'all 0.3s' }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE; }}
           >Log In</button>
-          <button onClick={() => setRegisterOpen(true)}
+          <button onClick={() => navigate('/register')}
             style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', background: GOLD, border: 'none', color: BLACK, padding: '10px 28px', cursor: 'pointer', transition: 'all 0.3s' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -195,7 +143,7 @@ export default function LandingPage() {
             Honey Group manages 280+ brand promoters across South Africa — now fully digital. From onboarding to geo-verified shifts to automated payroll.
           </p>
 
-          <button onClick={() => setRegisterOpen(true)}
+          <button onClick={() => navigate('/register')}
             style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: GOLD, color: BLACK, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'hg-pulse 3s 2s infinite' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
@@ -294,7 +242,7 @@ export default function LandingPage() {
             Join the platform<br />
             <span style={{ fontStyle: 'italic' }}>powering SA promotions.</span>
           </h2>
-          <button onClick={() => setRegisterOpen(true)}
+          <button onClick={() => navigate('/register')}
             style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', background: BLACK, color: GOLD, border: 'none', padding: '20px 56px', cursor: 'pointer', transition: 'all 0.3s' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#1a1a1a'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = BLACK; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -332,48 +280,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* LOGIN MODAL */}
-      {loginOpen && (
-        <Modal title="Welcome back" subtitle="Log in to your account" onClose={() => setLoginOpen(false)}>
-          <MInput label="Email address" type="email" placeholder="you@honeygroup.co.za" />
-          <MInput label="Password" type="password" placeholder="••••••••" />
-          <MBtn>Log In</MBtn>
-          <div style={{ textAlign: 'center', marginTop: 4 }}>
-            <span style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED }}>Don't have an account? </span>
-            <button onClick={() => { setLoginOpen(false); setRegisterOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600 }}>Register</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* REGISTER MODAL */}
-      {registerOpen && (
-        <Modal title="Join Honey Group" subtitle="Create your promoter account" onClose={() => setRegisterOpen(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <MInput label="First name" placeholder="Ayanda" />
-            <MInput label="Last name" placeholder="Dlamini" />
-          </div>
-          <MInput label="Mobile number" placeholder="+27 71 000 0000" />
-          <MInput label="Email address" type="email" placeholder="you@example.com" />
-          <MInput label="Password" type="password" placeholder="Min. 8 characters" />
-          <div>
-            <label style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: WHITE_MUTED, display: 'block', marginBottom: 10 }}>Role</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['Promoter', 'Supervisor', 'Admin'].map((r) => (
-                <label key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: FB, fontSize: 12, color: WHITE_MUTED, flex: 1, padding: '11px 14px', border: `1px solid ${BLACK_BORDER}` }}>
-                  <input type="radio" name="role" value={r.toLowerCase()} style={{ accentColor: GOLD }} />
-                  {r}
-                </label>
-              ))}
-            </div>
-          </div>
-          <MBtn>Create Account</MBtn>
-          <div style={{ textAlign: 'center', marginTop: 4 }}>
-            <span style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED }}>Already have an account? </span>
-            <button onClick={() => { setRegisterOpen(false); setLoginOpen(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600 }}>Log In</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
