@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ALL_JOBS, getActiveJobs } from '../jobs/JobsPage';
 
 const BLACK        = '#080808';
 const BLACK_SOFT   = '#111111';
@@ -40,93 +41,16 @@ function useReveal() {
   return ref;
 }
 
-/* ── PLACEHOLDER JOB DATA ── */
-const PREVIEW_JOBS = [
-  {
-    id: 'JB-201',
-    title: 'Brand Promoter — Castle Lager Launch',
-    company: 'SABMiller SA',
-    companyInitial: 'S',
-    companyColor: '#3A7BD5',
-    location: 'Sandton City, Johannesburg',
-    type: 'Brand Activation',
-    pay: 'R 950',
-    payPer: 'per shift',
-    date: 'Sat 22 Mar 2026',
-    slots: '6',
-    slotsLeft: '2',
-    duration: '8 hrs',
-    tags: ['Female preferred', 'English', 'Own transport'],
-    gradient: 'linear-gradient(135deg, rgba(58,123,213,0.12) 0%, rgba(196,151,58,0.06) 100%)',
-    accentLine: '#3A7BD5',
-  },
-  {
-    id: 'JB-202',
-    title: 'Red Bull Sampling — Activations Team',
-    company: 'Red Bull South Africa',
-    companyInitial: 'R',
-    companyColor: '#EF4444',
-    location: 'V&A Waterfront, Cape Town',
-    type: 'Sampling',
-    pay: 'R 800',
-    payPer: 'per shift',
-    date: 'Sun 23 Mar 2026',
-    slots: '4',
-    slotsLeft: '4',
-    duration: '6 hrs',
-    tags: ['Any gender', 'Afrikaans + English', 'High energy'],
-    gradient: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(196,151,58,0.06) 100%)',
-    accentLine: '#EF4444',
-  },
-  {
-    id: 'JB-203',
-    title: 'In-Store Promoter — Shoprite Durban',
-    company: 'FreshBrands Ltd',
-    companyInitial: 'F',
-    companyColor: '#22C55E',
-    location: 'Musgrave Centre, Durban',
-    type: 'In-Store',
-    pay: 'R 700',
-    payPer: 'per shift',
-    date: 'Mon 24 – Fri 28 Mar 2026',
-    slots: '3',
-    slotsLeft: '1',
-    duration: '5 hrs / day',
-    tags: ['Female', 'Zulu + English', 'Neat appearance'],
-    gradient: 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(196,151,58,0.06) 100%)',
-    accentLine: '#22C55E',
-  },
-  {
-    id: 'JB-204',
-    title: 'Event Hostess — Menlyn Fashion Night',
-    company: 'Acme Events Corp',
-    companyInitial: 'A',
-    companyColor: GOLD,
-    location: 'Menlyn Mall, Pretoria',
-    type: 'Events & Hosting',
-    pay: 'R 1,200',
-    payPer: 'per shift',
-    date: 'Fri 21 Mar 2026',
-    slots: '8',
-    slotsLeft: '3',
-    duration: '10 hrs',
-    tags: ['Female', '1.70m+', 'Smart evening wear provided'],
-    gradient: `linear-gradient(135deg, rgba(196,151,58,0.14) 0%, rgba(196,151,58,0.04) 100%)`,
-    accentLine: GOLD,
-  },
-];
-
-/* ── JOB CARD COMPONENT ── */
 function JobCard({ job, isLoggedIn, onLock, onView }: {
-  job: typeof PREVIEW_JOBS[0];
+  job: ReturnType<typeof getActiveJobs>[0];
   isLoggedIn: boolean;
   onLock: () => void;
   onView: (id: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const filled = parseInt(job.slots) - parseInt(job.slotsLeft);
-  const pct = Math.round((filled / parseInt(job.slots)) * 100);
-  const almostFull = parseInt(job.slotsLeft) <= 2;
+  const filled = job.slots - job.slotsLeft;
+  const pct = Math.round((filled / job.slots) * 100);
+  const almostFull = job.slotsLeft <= 2;
 
   return (
     <div
@@ -143,7 +67,6 @@ function JobCard({ job, isLoggedIn, onLock, onView }: {
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: job.accentLine }} />
 
       <div style={{ position: 'relative', padding: '28px 28px 24px' }}>
-        {/* header row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${job.companyColor}22`, border: `1px solid ${job.companyColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: job.companyColor, flexShrink: 0, fontFamily: FD }}>
@@ -191,7 +114,6 @@ function JobCard({ job, isLoggedIn, onLock, onView }: {
           </div>
         </div>
 
-        {/* CTA — changes based on login state */}
         {isLoggedIn ? (
           <button
             onClick={() => onView(job.id)}
@@ -224,7 +146,6 @@ function JobCard({ job, isLoggedIn, onLock, onView }: {
   );
 }
 
-/* ── LOGIN PROMPT MODAL ── */
 function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => void; onLogin: () => void; onRegister: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 24 }}
@@ -255,27 +176,23 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => voi
   );
 }
 
-/* ── MAIN LANDING PAGE ── */
 export default function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled]           = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [showLoginPrompt, setLoginPrompt] = useState(false);
 
-  /* ── Session state ── */
   const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null);
   useEffect(() => {
     const s = localStorage.getItem('hg_session');
-    if (s) {
-      try { setSession(JSON.parse(s)); } catch { /* ignore */ }
-    }
+    if (s) { try { setSession(JSON.parse(s)); } catch { /* ignore */ } }
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('hg_session');
-    setSession(null);
-  };
+  // Get the 4 newest approved active jobs — these are what appear on the landing page
+  const previewJobs = getActiveJobs(ALL_JOBS).slice(0, 4);
+  const totalActiveJobs = getActiveJobs(ALL_JOBS).length;
 
+  const handleLogout = () => { localStorage.removeItem('hg_session'); setSession(null); };
   const handleDashboard = () => {
     if (!session) return;
     const map: Record<string, string> = { admin: '/admin', business: '/business/dashboard', promoter: '/promoter/dashboard' };
@@ -288,7 +205,6 @@ export default function LandingPage() {
   const rRoles    = useReveal();
   const rCta      = useReveal();
 
-  /* Scroll refs for nav links */
   const secFeatures = useRef<HTMLElement>(null);
   const secJobs     = useRef<HTMLElement>(null);
   const secCaps     = useRef<HTMLElement>(null);
@@ -300,9 +216,7 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  const scrollTo = (ref: React.RefObject<HTMLElement>) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollTo = (ref: React.RefObject<HTMLElement>) => { ref.current?.scrollIntoView({ behavior: 'smooth' }); };
 
   const features = [
     { tag: 'Smart Dispatch',      icon: '◎', title: 'Right person.\nRight place.\nEvery time.',  body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.' },
@@ -333,13 +247,11 @@ export default function LandingPage() {
           <span style={{ color: GOLD }}>HONEY</span><span style={{ color: WHITE }}> GROUP</span>
         </div>
 
-        {/* Nav links — all functional */}
         <ul style={{ display: 'flex', gap: 44, listStyle: 'none' }}>
           {[
-            { label: 'Platform',  ref: secFeatures },
-            { label: 'Features',  ref: secFeatures },
-            { label: 'Jobs',      ref: secJobs     },
-            { label: 'About',     ref: secRoles    },
+            { label: 'Features', ref: secFeatures },
+            { label: 'Jobs',     ref: secJobs     },
+            { label: 'About',    ref: secRoles    },
           ].map(({ label, ref }) => (
             <li key={label}>
               <button
@@ -352,7 +264,6 @@ export default function LandingPage() {
           ))}
         </ul>
 
-        {/* Auth buttons — change when logged in */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {session ? (
             <>
@@ -410,7 +321,6 @@ export default function LandingPage() {
             Honey Group manages 280+ brand promoters across South Africa — now fully digital. From onboarding to geo-verified shifts to automated payroll.
           </p>
 
-          {/* Hero CTA — changes when logged in */}
           <div style={{ display: 'flex', gap: 16 }}>
             {session ? (
               <>
@@ -419,11 +329,11 @@ export default function LandingPage() {
                   onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
                 >Go to Dashboard</button>
-                <button onClick={() => scrollTo(secJobs)}
+                <button onClick={() => navigate('/jobs')}
                   style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: WHITE_MUTED, border: `1px solid ${WHITE_DIM}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
-                >Browse Jobs ↓</button>
+                >Browse All Jobs ↓</button>
               </>
             ) : (
               <>
@@ -432,11 +342,11 @@ export default function LandingPage() {
                   onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(196,151,58,0.35)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
                 >Join as a Promoter</button>
-                <button onClick={() => scrollTo(secJobs)}
+                <button onClick={() => navigate('/jobs')}
                   style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: WHITE_MUTED, border: `1px solid ${WHITE_DIM}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = WHITE_DIM; e.currentTarget.style.color = WHITE_MUTED; }}
-                >Browse Jobs ↓</button>
+                >Browse All Jobs ↓</button>
               </>
             )}
           </div>
@@ -471,42 +381,42 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── JOBS SECTION ── */}
+      {/* ── JOBS PREVIEW SECTION ── */}
       <section ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el; }} className="hg-reveal" style={{ padding: '100px 80px', background: BLACK_SOFT, borderTop: `1px solid ${BLACK_BORDER}`, borderBottom: `1px solid ${BLACK_BORDER}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 56 }}>
             <div>
               <div style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Current Opportunities</div>
               <h2 style={{ fontFamily: FD, fontSize: 'clamp(34px,5vw,60px)', fontWeight: 900, lineHeight: 1 }}>Live Jobs</h2>
-              <p style={{ fontFamily: FB, fontSize: 15, color: WHITE_MUTED, marginTop: 14, maxWidth: 440, lineHeight: 1.7 }}>
-                {session
-                  ? `Logged in as ${session.name}. Click any job to view full details.`
-                  : <>New activations posted daily. <span style={{ color: GOLD, fontStyle: 'italic' }}>Login or register</span> to apply.</>
-                }
+              <p style={{ fontFamily: FB, fontSize: 15, color: WHITE_MUTED, marginTop: 14, maxWidth: 480, lineHeight: 1.7 }}>
+                Showing the <strong style={{ color: WHITE }}>4 newest approved jobs</strong> — sorted by approval date, newest first. Jobs are automatically removed after their event date.
+                {!session && <> <span style={{ color: GOLD, fontStyle: 'italic' }}>Login or register</span> to apply.</>}
               </p>
             </div>
-            {!session && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: `${GOLD}10`, border: `1px solid ${GOLD}33`, borderRadius: 2 }}>
-                <span style={{ fontSize: 16 }}>🔒</span>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD }}>Members only</div>
-                  <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>Login to apply</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+              {!session ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: `${GOLD}10`, border: `1px solid ${GOLD}33`, borderRadius: 2 }}>
+                  <span style={{ fontSize: 16 }}>🔒</span>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD }}>Members only</div>
+                    <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>Login to apply</div>
+                  </div>
                 </div>
-              </div>
-            )}
-            {session && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: 'rgba(34,197,94,0.08)', border: `1px solid rgba(34,197,94,0.3)`, borderRadius: 2 }}>
-                <span style={{ fontSize: 16 }}>✅</span>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#22C55E' }}>Logged In</div>
-                  <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>{session.name}</div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px', background: 'rgba(34,197,94,0.08)', border: `1px solid rgba(34,197,94,0.3)`, borderRadius: 2 }}>
+                  <span style={{ fontSize: 16 }}>✅</span>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#22C55E' }}>Logged In</div>
+                    <div style={{ fontSize: 11, color: WHITE_DIM, marginTop: 2 }}>{session.name}</div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
+          {/* ── TOP 4 NEWEST APPROVED JOBS ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
-            {PREVIEW_JOBS.map(job => (
+            {previewJobs.map(job => (
               <JobCard
                 key={job.id}
                 job={job}
@@ -517,14 +427,21 @@ export default function LandingPage() {
             ))}
           </div>
 
+          {/* ── VIEW ALL CTA ── */}
           <div style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, textAlign: 'center' }}>
             <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${GOLD}, transparent)` }} />
-            <p style={{ fontSize: 13, color: WHITE_DIM }}>Showing 4 of <strong style={{ color: WHITE }}>24 active jobs</strong> this week</p>
-            <button onClick={() => session ? navigate('/jobs') : setLoginPrompt(true)}
+            <p style={{ fontSize: 13, color: WHITE_DIM }}>
+              Showing 4 of <strong style={{ color: WHITE }}>{totalActiveJobs} active jobs</strong> this week
+            </p>
+            {/* ✅ FIX: Always navigate to /jobs regardless of login state */}
+            <button
+              onClick={() => navigate('/jobs')}
               style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${GOLD}44`, color: GOLD, padding: '12px 36px', cursor: 'pointer', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14`; e.currentTarget.style.borderColor = GOLD; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `${GOLD}44`; }}
-            >{session ? 'View All Jobs →' : 'View All 24 Jobs — Login Required'}</button>
+            >
+              View All {totalActiveJobs} Jobs →
+            </button>
           </div>
         </div>
       </section>

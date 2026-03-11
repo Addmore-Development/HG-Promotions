@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-/* ─── DESIGN TOKENS (mirrored from LandingPage) ──────────────── */
+/* ─── DESIGN TOKENS ──────────────────────────────────────────── */
 const BLACK        = '#080808'
 const BLACK_CARD   = '#161616'
 const BLACK_BORDER = 'rgba(255,255,255,0.07)'
 const GOLD         = '#C4973A'
-const GOLD_LIGHT   = '#DDB55A'
-const GOLD_MUTED   = 'rgba(196,151,58,0.08)'
 const WHITE        = '#F4EFE6'
 const WHITE_MUTED  = 'rgba(244,239,230,0.55)'
 const WHITE_DIM    = 'rgba(244,239,230,0.22)'
@@ -38,7 +36,14 @@ const ROLE_CONFIG: Record<Role, { label: string; icon: string; accentColor: stri
   },
 }
 
-/* ─── HARDCODED ADMIN CREDENTIALS (embedded, not registerable) ─ */
+/* ─── ROLE → DASHBOARD MAP ───────────────────────────────────── */
+const DASHBOARD_ROUTE: Record<Role, string> = {
+  promoter: '/promoter/dashboard',
+  business: '/business/dashboard',
+  admin:    '/admin',
+}
+
+/* ─── HARDCODED ADMIN CREDENTIALS ───────────────────────────── */
 const ADMIN_CREDENTIALS = {
   email:    'admin@honeygroup.co.za',
   password: 'Admin@HG2026!',
@@ -99,13 +104,13 @@ function FloatingInput({
 }
 
 export default function LoginPage() {
-  const navigate                  = useNavigate()
-  const [role, setRole]           = useState<Role>('promoter')
-  const [email, setEmail]         = useState('')
-  const [password, setPassword]   = useState('')
-  const [error, setError]         = useState<string | null>(null)
-  const [loading, setLoading]     = useState(false)
-  const [success, setSuccess]     = useState(false)
+  const navigate                   = useNavigate()
+  const [role, setRole]            = useState<Role>('promoter')
+  const [email, setEmail]          = useState('')
+  const [password, setPassword]    = useState('')
+  const [error, setError]          = useState<string | null>(null)
+  const [loading, setLoading]      = useState(false)
+  const [success, setSuccess]      = useState(false)
   const [focusedField, setFocused] = useState<string | null>(null)
 
   const cfg = ROLE_CONFIG[role]
@@ -115,53 +120,76 @@ export default function LoginPage() {
     if (!email || !password) { setError('Please enter your email and password.'); return }
 
     setLoading(true)
-    await new Promise(r => setTimeout(r, 700)) // simulate async
+    await new Promise(r => setTimeout(r, 700))
 
     /* ── Admin hard-coded credentials ── */
     if (role === 'admin') {
       if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        const session = { role: 'admin', email, name: 'Administrator', loggedIn: true }
-        localStorage.setItem('hg_session', JSON.stringify(session))
+        localStorage.setItem('hg_session', JSON.stringify({
+          role: 'admin', email, name: 'Administrator', loggedIn: true,
+        }))
         setSuccess(true)
-        setTimeout(() => navigate('/admin'), 900)
-        setLoading(false); return
+        setTimeout(() => navigate(DASHBOARD_ROUTE.admin), 900)
+        setLoading(false)
+        return
       } else {
         setError('Invalid admin credentials.')
-        setLoading(false); return
+        setLoading(false)
+        return
       }
     }
 
     /* ── Promoter / Business — check localStorage registrations ── */
     const allUsers: Record<string, unknown>[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
-    const match = allUsers.find((u: Record<string, unknown>) => u.email === email && u.role === role)
+    const match = allUsers.find(u => u.email === email.toLowerCase() && u.role === role)
+
     if (!match) {
       setError(`No ${cfg.label} account found with this email.`)
-      setLoading(false); return
+      setLoading(false)
+      return
     }
     if (match.password !== password) {
       setError('Incorrect password. Please try again.')
-      setLoading(false); return
+      setLoading(false)
+      return
     }
 
-    const session = { role, email, name: match.fullName || match.contactName || email, loggedIn: true, status: match.status }
-    localStorage.setItem('hg_session', JSON.stringify(session))
+    /* ── Build display name — handles both promoter and business field shapes ── */
+    const displayName =
+      (match.fullName as string) ||
+      (`${match.firstName ?? ''} ${match.lastName ?? ''}`.trim()) ||
+      (match.contactName as string) ||
+      (match.companyName as string) ||
+      email
+
+    /* ── Save session ── */
+    localStorage.setItem('hg_session', JSON.stringify({
+      role,
+      email: email.toLowerCase(),
+      name:  displayName,
+      loggedIn: true,
+      status: match.status,
+    }))
+
     setSuccess(true)
-
-    const redirectMap: Record<Role, string> = {
-      promoter: '/promoter/dashboard',
-      business: '/business/dashboard',
-      admin:    '/admin/dashboard',
-    }
-    setTimeout(() => navigate(redirectMap[role]), 900)
+    setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
     setLoading(false)
   }
 
+  /* Allow Enter key to submit */
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleLogin()
+  }
+
   return (
-    <div style={{
-      minHeight: '100vh', background: BLACK,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: FB, padding: '40px 16px', position: 'relative', overflow: 'hidden',
-    }}>
+    <div
+      onKeyDown={handleKeyDown}
+      style={{
+        minHeight: '100vh', background: BLACK,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: FB, padding: '40px 16px', position: 'relative', overflow: 'hidden',
+      }}
+    >
       <style>{GLOBAL_CSS}</style>
 
       {/* Grid background */}
@@ -171,7 +199,7 @@ export default function LoginPage() {
         backgroundSize: '72px 72px',
       }} />
 
-      {/* Radial glow — shifts with role */}
+      {/* Radial glow */}
       <div style={{
         position: 'fixed', top: '-10%', left: '50%', transform: 'translateX(-50%)',
         width: 700, height: 400, borderRadius: '50%', zIndex: 0, pointerEvents: 'none',
@@ -179,7 +207,7 @@ export default function LoginPage() {
         transition: 'background 0.6s ease',
       }} />
 
-      {/* Decorative concentric rings */}
+      {/* Decorative rings */}
       <div style={{
         position: 'fixed', right: -240, top: '50%', transform: 'translateY(-50%)',
         width: 600, height: 600, borderRadius: '50%',
@@ -241,7 +269,7 @@ export default function LoginPage() {
           {/* Top accent bar */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: cfg.accentColor, transition: 'background 0.4s' }} />
 
-          {/* Role description pill */}
+          {/* Role description */}
           <div style={{
             background: `${cfg.accentColor}0f`,
             border: `1px solid ${cfg.accentColor}30`,
@@ -254,25 +282,17 @@ export default function LoginPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <FloatingInput
-              label="Email Address"
-              type="email"
-              placeholder="you@honeygroup.co.za"
-              value={email}
-              onChange={setEmail}
+              label="Email Address" type="email" placeholder="you@honeygroup.co.za"
+              value={email} onChange={setEmail}
               focused={focusedField === 'email'}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
+              onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
               accentColor={cfg.accentColor}
             />
             <FloatingInput
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={setPassword}
+              label="Password" type="password" placeholder="••••••••"
+              value={password} onChange={setPassword}
               focused={focusedField === 'password'}
-              onFocus={() => setFocused('password')}
-              onBlur={() => setFocused(null)}
+              onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
               accentColor={cfg.accentColor}
             />
           </div>
@@ -293,7 +313,7 @@ export default function LoginPage() {
               background: `${cfg.accentColor}12`, border: `1px solid ${cfg.accentColor}40`,
               fontFamily: FB, fontSize: 12, color: cfg.accentColor,
             }}>
-              ✓ Login successful — redirecting…
+              ✓ Login successful — redirecting to your dashboard…
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-/* ─── DESIGN TOKENS (mirrored from LandingPage) ──────────────── */
+/* ─── DESIGN TOKENS ──────────────────────────────────────────── */
 const BLACK        = '#080808'
 const BLACK_SOFT   = '#0e0e0e'
 const BLACK_CARD   = '#161616'
@@ -16,10 +16,15 @@ const FB           = "'DM Sans', system-ui, sans-serif"
 
 type Role = 'promoter' | 'business'
 
-/* ─── SA VALIDATION HELPERS ─────────────────────────────────── */
+/* ─── ROLE → DASHBOARD MAP ───────────────────────────────────── */
+const DASHBOARD_ROUTE: Record<Role, string> = {
+  promoter: '/promoter/dashboard',
+  business: '/business/dashboard',
+}
+
+/* ─── SA VALIDATION HELPERS ──────────────────────────────────── */
 const validateSAID = (id: string): boolean => {
   if (!/^\d{13}$/.test(id)) return false
-  // Luhn check
   let sum = 0
   for (let i = 0; i < 13; i++) {
     let n = parseInt(id[i])
@@ -60,7 +65,6 @@ const validatePassword = (pw: string): {
   special: /[!@#$%^&*(),.?":{}|<>]/.test(pw),
 })
 
-/* ─── FILE-TO-BASE64 ─────────────────────────────────────────── */
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((res, rej) => {
     const r = new FileReader()
@@ -183,7 +187,7 @@ function FileUploadZone({
   )
 }
 
-/* ─── IMAGE UPLOAD (ID photos) ───────────────────────────────── */
+/* ─── ID PHOTO UPLOAD ────────────────────────────────────────── */
 function IDPhotoUpload({
   label, file, onChange,
 }: {
@@ -300,7 +304,7 @@ function SectionDivider({ label }: { label: string }) {
   )
 }
 
-/* ─── STEP INDICATOR ─────────────────────────────────────────── */
+/* ─── STEP BAR ────────────────────────────────────────────────── */
 function StepBar({ current, total }: { current: number; total: number }) {
   return (
     <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
@@ -318,24 +322,24 @@ function StepBar({ current, total }: { current: number; total: number }) {
 /* ─── MAIN REGISTER PAGE ─────────────────────────────────────── */
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [role, setRole] = useState<Role>('promoter')
-  const [step, setStep] = useState(0) // 0 = personal, 1 = documents, 2 = account
+  const [role, setRole]       = useState<Role>('promoter')
+  const [step, setStep]       = useState(0)
   const [focused, setFocused] = useState<string | null>(null)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors]   = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState(false)
+  const [done, setDone]       = useState(false)
 
   /* ── Promoter fields ── */
-  const [firstName,    setFirstName]    = useState('')
-  const [lastName,     setLastName]     = useState('')
-  const [phone,        setPhone]        = useState('')
-  const [idNumber,     setIdNumber]     = useState('')
-  const [address,      setAddress]      = useState('')
-  const [bankName,     setBankName]     = useState('')
-  const [accountNo,    setAccountNo]    = useState('')
-  const [email,        setEmail]        = useState('')
-  const [password,     setPassword]     = useState('')
-  const [confirmPw,    setConfirmPw]    = useState('')
+  const [firstName,  setFirstName]  = useState('')
+  const [lastName,   setLastName]   = useState('')
+  const [phone,      setPhone]      = useState('')
+  const [idNumber,   setIdNumber]   = useState('')
+  const [address,    setAddress]    = useState('')
+  const [bankName,   setBankName]   = useState('')
+  const [accountNo,  setAccountNo]  = useState('')
+  const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
+  const [confirmPw,  setConfirmPw]  = useState('')
 
   /* ── Business fields ── */
   const [companyName,  setCompanyName]  = useState('')
@@ -356,7 +360,7 @@ export default function RegisterPage() {
   const [taxPin,       setTaxPin]       = useState<File | null>(null)
   const [bizBankProof, setBizBankProof] = useState<File | null>(null)
 
-  const isPromoter = role === 'promoter'
+  const isPromoter  = role === 'promoter'
   const TOTAL_STEPS = 3
 
   /* ── Validation per step ── */
@@ -374,8 +378,8 @@ export default function RegisterPage() {
       if (step === 1) {
         if (!idFrontFile) errs.idFront = 'ID front photo is required'
         if (!idBackFile)  errs.idBack  = 'ID back photo is required'
-        if (!bankName.trim())   errs.bankName   = 'Required'
-        if (!accountNo.trim())  errs.accountNo  = 'Required'
+        if (!bankName.trim())  errs.bankName  = 'Required'
+        if (!accountNo.trim()) errs.accountNo = 'Required'
         if (!bankProof)   errs.bankProof = 'Bank proof document is required'
       }
       if (step === 2) {
@@ -385,7 +389,6 @@ export default function RegisterPage() {
         if (password !== confirmPw) errs.confirmPw = 'Passwords do not match'
       }
     } else {
-      // Business
       if (step === 0) {
         if (!companyName.trim()) errs.companyName = 'Required'
         if (!contactName.trim()) errs.contactName = 'Required'
@@ -394,7 +397,7 @@ export default function RegisterPage() {
         if (!bizAddress.trim()) errs.bizAddress = 'Required'
       }
       if (step === 1) {
-        if (!cipcDoc) errs.cipcDoc = 'CIPC registration document is required'
+        if (!cipcDoc)      errs.cipcDoc      = 'CIPC registration document is required'
         if (!bizBankProof) errs.bizBankProof = 'Bank confirmation letter is required'
       }
       if (step === 2) {
@@ -422,46 +425,45 @@ export default function RegisterPage() {
     if (!validateStep()) return
     setSubmitting(true)
 
-    // Serialize files to base64
     const toB64 = async (f: File | null) => f ? await fileToBase64(f) : null
 
     const baseRecord = {
       role,
-      status: 'pending_review', // Promoter and Business are always pending until Admin approves
+      status: 'pending_review',
       createdAt: new Date().toISOString(),
     }
 
     const record = isPromoter ? {
       ...baseRecord,
-      fullName:    `${firstName} ${lastName}`,
+      fullName:  `${firstName} ${lastName}`,
       firstName,
       lastName,
-      phone:       phone.replace(/\s/g, ''),
+      phone:     phone.replace(/\s/g, ''),
       idNumber,
       address,
       bankName,
       accountNo,
-      email:       email.toLowerCase(),
-      password,    // NOTE: In production use hashed passwords. This is frontend-only local storage.
-      idFront:     await toB64(idFrontFile),
-      idBack:      await toB64(idBackFile),
-      bankProof:   await toB64(bankProof),
+      email:     email.toLowerCase(),
+      password,
+      idFront:   await toB64(idFrontFile),
+      idBack:    await toB64(idBackFile),
+      bankProof: await toB64(bankProof),
     } : {
       ...baseRecord,
       companyName,
       contactName,
-      phone:       bizPhone.replace(/\s/g, ''),
+      phone:     bizPhone.replace(/\s/g, ''),
       regNumber,
-      vatNumber:   vatNumber || null,
-      address:     bizAddress,
-      email:       bizEmail.toLowerCase(),
-      password:    bizPassword,
-      cipcDoc:     await toB64(cipcDoc),
-      taxPin:      await toB64(taxPin),
-      bankProof:   await toB64(bizBankProof),
+      vatNumber: vatNumber || null,
+      address:   bizAddress,
+      email:     bizEmail.toLowerCase(),
+      password:  bizPassword,
+      cipcDoc:   await toB64(cipcDoc),
+      taxPin:    await toB64(taxPin),
+      bankProof: await toB64(bizBankProof),
     }
 
-    // Check for duplicate email
+    /* ── Check for duplicate email ── */
     const existing: Record<string, unknown>[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
     const emailKey = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
     if (existing.some(u => u.email === emailKey)) {
@@ -473,27 +475,25 @@ export default function RegisterPage() {
     existing.push(record)
     localStorage.setItem('hg_users', JSON.stringify(existing))
 
-    // Auto-create session immediately after registration
+    /* ── Save session immediately ── */
     const sessionName  = isPromoter ? `${firstName} ${lastName}` : companyName
     const sessionEmail = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
-    const session = {
+    localStorage.setItem('hg_session', JSON.stringify({
       role,
       email:    sessionEmail,
       name:     sessionName,
       loggedIn: true,
       status:   'pending_review',
-    }
-    localStorage.setItem('hg_session', JSON.stringify(session))
+    }))
 
     await new Promise(r => setTimeout(r, 800))
-    setDone(true)
     setSubmitting(false)
+    setDone(true)
 
-    // Business → redirect to dashboard (pending status is visible there)
-    // Promoter → stay on success screen, button goes to /login
-    if (!isPromoter) {
-      setTimeout(() => navigate('/business/dashboard'), 1400)
-    }
+    /* ── Redirect immediately after success state renders ── */
+    // Business → dashboard right away
+    // Promoter → /promoter/dashboard (they land on pending banner there)
+    setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 1400)
   }
 
   const switchRole = (r: Role) => {
@@ -560,7 +560,6 @@ export default function RegisterPage() {
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
 
             {isPromoter ? (
-              /* ── Promoter: pending review, go to login ── */
               <>
                 <div style={{ fontSize: 40, marginBottom: 20 }}>⏳</div>
                 <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
@@ -568,13 +567,13 @@ export default function RegisterPage() {
                 </h2>
                 <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
                   Your account is <span style={{ color: GOLD, fontWeight: 600 }}>pending review</span> by our admin team.
-                  You will be notified once approved.
+                  Taking you to your dashboard…
                 </p>
                 <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
-                  This typically takes 1–2 business days.
+                  This typically takes 1–2 business days. You'll be notified once approved.
                 </p>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(DASHBOARD_ROUTE.promoter)}
                   style={{
                     fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
                     textTransform: 'uppercase', background: GOLD, color: BLACK,
@@ -583,11 +582,10 @@ export default function RegisterPage() {
                   onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
                 >
-                  Go to Login
+                  Go to Dashboard →
                 </button>
               </>
             ) : (
-              /* ── Business: auto-redirect to dashboard ── */
               <>
                 <div style={{ fontSize: 40, marginBottom: 20 }}>◈</div>
                 <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
@@ -595,14 +593,10 @@ export default function RegisterPage() {
                 </h2>
                 <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
                   Your business account has been created. Your account is{' '}
-                  <span style={{ color: GOLD, fontWeight: 600 }}>pending admin approval</span> — you can still
-                  explore your dashboard in the meantime.
-                </p>
-                <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
-                  Redirecting you to your dashboard…
+                  <span style={{ color: GOLD, fontWeight: 600 }}>pending admin approval</span> — taking you to your dashboard…
                 </p>
                 <button
-                  onClick={() => navigate('/business/dashboard')}
+                  onClick={() => navigate(DASHBOARD_ROUTE.business)}
                   style={{
                     fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
                     textTransform: 'uppercase', background: GOLD, color: BLACK,
@@ -643,7 +637,7 @@ export default function RegisterPage() {
               })}
             </div>
 
-            {/* Step navigation labels */}
+            {/* Step labels */}
             <div style={{ display: 'flex', gap: 0, marginBottom: 6 }}>
               {stepLabels.map((label, i) => (
                 <div key={i} style={{ flex: 1, textAlign: 'center' }}>
@@ -668,9 +662,7 @@ export default function RegisterPage() {
             }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
 
-              {/* ════════════════════════════════════════════════
-                  PROMOTER STEPS
-              ════════════════════════════════════════════════ */}
+              {/* ── PROMOTER STEP 0 ── */}
               {isPromoter && step === 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <SectionDivider label="Personal Details" />
@@ -707,6 +699,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* ── PROMOTER STEP 1 ── */}
               {isPromoter && step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   <SectionDivider label="ID Verification" />
@@ -740,7 +733,8 @@ export default function RegisterPage() {
                         style={{
                           width: '100%', background: 'rgba(255,255,255,0.03)',
                           border: `1px solid ${errors.bankName ? '#ff6b6b66' : focused === 'bankName' ? GOLD : BLACK_BORDER}`,
-                          padding: '13px 16px', fontFamily: FB, fontSize: 14, color: bankName ? WHITE : 'rgba(244,239,230,0.25)',
+                          padding: '13px 16px', fontFamily: FB, fontSize: 14,
+                          color: bankName ? WHITE : 'rgba(244,239,230,0.25)',
                           outline: 'none', transition: 'border-color 0.2s', appearance: 'none', cursor: 'pointer',
                         }}
                       >
@@ -769,6 +763,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* ── PROMOTER STEP 2 ── */}
               {isPromoter && step === 2 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <SectionDivider label="Login Credentials" />
@@ -791,8 +786,7 @@ export default function RegisterPage() {
                     error={errors.confirmPw}
                   />
                   <div style={{
-                    background: 'rgba(196,151,58,0.05)', border: `1px solid ${GOLD}22`,
-                    padding: '14px 16px',
+                    background: 'rgba(196,151,58,0.05)', border: `1px solid ${GOLD}22`, padding: '14px 16px',
                   }}>
                     <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, lineHeight: 1.7 }}>
                       By creating an account you agree to Honey Group's Terms of Service and Privacy Policy.
@@ -802,9 +796,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* ════════════════════════════════════════════════
-                  BUSINESS STEPS
-              ════════════════════════════════════════════════ */}
+              {/* ── BUSINESS STEP 0 ── */}
               {!isPromoter && step === 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <SectionDivider label="Company Information" />
@@ -842,6 +834,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* ── BUSINESS STEP 1 ── */}
               {!isPromoter && step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   <SectionDivider label="Business Documents" />
@@ -874,6 +867,7 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* ── BUSINESS STEP 2 ── */}
               {!isPromoter && step === 2 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <SectionDivider label="Login Credentials" />
@@ -939,7 +933,7 @@ export default function RegisterPage() {
                   {submitting
                     ? 'Submitting…'
                     : step < TOTAL_STEPS - 1
-                      ? `Continue →`
+                      ? 'Continue →'
                       : 'Submit Application'}
                 </button>
               </div>

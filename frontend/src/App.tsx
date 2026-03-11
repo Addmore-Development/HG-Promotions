@@ -16,6 +16,7 @@ import BusinessDashboard     from './Business/Businessdashboard'
 import BusinessJobs          from './Business/Businessjobs'
 import BusinessTracking      from './Business/Businesstracking'
 import BusinessPayroll       from './Business/Businesspayroll'
+import JobsPage              from './shared/jobs/JobsPage'
 
 export default function App() {
   return (
@@ -27,9 +28,12 @@ export default function App() {
           <Route path="/login"    element={<LoginPage />}    />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* ── Jobs (promoter browse + detail) ── */}
-          <Route path="/jobs"        element={<ViewAcceptJobs />} />
-          <Route path="/jobs/:jobId" element={<JobDetailPage />}  />
+          {/* ── Jobs (public browse with T&C + payment demo) ── */}
+          <Route path="/jobs"        element={<JobsPage />}      />
+          <Route path="/jobs/:jobId" element={<JobDetailPage />} />
+
+          {/* ── Promoter ── */}
+          <Route path="/promoter/dashboard" element={<ViewAcceptJobs />} />
 
           {/* ── Admin ── */}
           <Route path="/admin"            element={<AdminDashboard />}    />
