@@ -9,7 +9,13 @@ import CRUDJobsLogic         from './Admin/jobs/CRUDJobsLogic'
 import ViewLiveMap           from './Admin/shifts/ViewLiveMap'
 import ApproveExport         from './Admin/payments/ApproveExport'
 import ReviewApproveDocs     from './Admin/onboarding/ReviewApproveDocs'
+import { PromoterApp }      from './promoter/index'
+import { Dashboard }         from './promoter/dashboard/dashboard'
 import { ViewAcceptJobs }    from './promoter/jobs/ViewAcceptJobs'
+import { RegisterUploadDocs } from './promoter/onboarding/RegisterUploadDocs' 
+import { ViewEarnings }      from './promoter/payments/ViewEarnings'
+import { GeoCheckInOut }     from './promoter/shifts/GeoCheckInOut' 
+import { EditOwnProfile }    from './promoter/users/EditOwnProfile' 
 import JobDetailPage         from './shared/jobs/JobdetailPage'
 import BusinessLayout        from './Business/BusinessLayout'
 import BusinessDashboard     from './Business/Businessdashboard'
@@ -33,7 +39,13 @@ export default function App() {
           <Route path="/jobs/:jobId" element={<JobDetailPage />} />
 
           {/* ── Promoter ── */}
-          <Route path="/promoter/dashboard" element={<ViewAcceptJobs />} />
+          <Route path="/promoter/" element={<PromoterApp />} />
+          <Route path="/promoter/dashboard" element={<Dashboard />} />
+          <Route path="/promoter/jobs" element={<ViewAcceptJobs />} />
+          <Route path="/promoter/onboarding" element={<RegisterUploadDocs />} />
+          <Route path="/promoter/payments" element={<ViewEarnings />} />
+          <Route path="/promoter/shifts" element={<GeoCheckInOut />} />
+          <Route path="/promoter/user" element={<EditOwnProfile />} />
 
           {/* ── Admin ── */}
           <Route path="/admin"            element={<AdminDashboard />}    />
