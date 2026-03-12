@@ -1,137 +1,86 @@
-// promoter/dashboard/Dashboard.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Home screen shown to an approved promoter after login.
-// Sections: greeting + avatar, stat cards, next shift, matched jobs,
-//           recent activity feed.
-// ─────────────────────────────────────────────────────────────────────────────
+// promoter/dashboard/dashboard.tsx
+// Home screen for the promoter portal.
+// Reads: profile (name, photo, score), earnings summary, upcoming shift, matched jobs, activity.
+// Uses: user.id from useAuth (can be userId OR email — usersService handles both)
 
 import React, { useState, useEffect } from 'react';
-import { useAuth }         from '../../shared/hooks/useAuth';
-import { usersService }    from '../../shared/services/usersService';
-import { jobsService }     from '../../shared/services/jobsService';
-import { shiftsService }   from '../../shared/services/shiftsService';
-import { paymentsService } from '../../shared/services/paymentsService';
-import { Badge }           from '../../shared/components/Badge';
-import { Button }          from '../../shared/components/Button';
+import { useAuth }           from '../../shared/hooks/useAuth';
+import { usersService }      from '../../shared/services/usersService';
+import { jobsService }       from '../../shared/services/jobsService';
+import { shiftsService }     from '../../shared/services/shiftsService';
+import { paymentsService }   from '../../shared/services/paymentsService';
+import { Badge }             from '../../shared/components/Badge';
+import { Button }            from '../../shared/components/Button';
 import type { UserProfile }     from '../../shared/types/user.types';
 import type { Job }             from '../../shared/types/job.types';
 import type { Shift }           from '../../shared/types/shift.types';
 import type { EarningsSummary } from '../../shared/types/payment.types';
 
-// ─── Design Tokens (mirroring Admin dashboard) ──────────────────────────────
-const G  = '#C4973A';        // gold
-const GL = '#DDB55A';        // gold light
-const B  = '#080808';        // black background
-const BC = '#161616';        // card background
-const BB = 'rgba(255,255,255,0.07)'; // border
-const W  = '#F4EFE6';        // white text
-const WM = 'rgba(244,239,230,0.55)'; // white muted
-const WD = 'rgba(244,239,230,0.22)'; // white dim
-const FD = "'Playfair Display', Georgia, serif";
-const FB = "'DM Sans', system-ui, sans-serif";
+interface Props { onNavigate: (view: string) => void; }
 
-interface DashboardProps {
-  onNavigate: (view: string) => void;
-}
+// ─── Inline sub-components ────────────────────────────────────────────────────
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const SectionHead: React.FC<{ title: string; linkLabel?: string; onLink?: () => void }> = ({ title, linkLabel, onLink }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-    <h2 style={{ color: W, fontSize: '13px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', margin: 0 }}>{title}</h2>
-    {linkLabel && onLink && (
-      <button onClick={onLink} style={{ background: 'none', border: 'none', color: G, fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: FB }}>
-        {linkLabel} →
+const SectionHead: React.FC<{ title: string; link?: string; onLink?: () => void }> = ({ title, link, onLink }) => (
+  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+    <h2 style={{ color:'#fff', fontSize:'12px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', margin:0 }}>{title}</h2>
+    {link && onLink && (
+      <button onClick={onLink} style={{ background:'none', border:'none', color:'#D4AF37', fontSize:'12px', fontWeight:600, cursor:'pointer', padding:0, fontFamily:'inherit' }}>
+        {link} →
       </button>
     )}
   </div>
 );
 
 const StatCard: React.FC<{ label: string; value: string; sub: string; accent?: string; onClick?: () => void }> = ({
-  label, value, sub, accent = G, onClick,
+  label, value, sub, accent = '#D4AF37', onClick
 }) => (
   <div
     onClick={onClick}
-    style={{
-      flex: 1, minWidth: '140px', padding: '20px',
-      background: BC,
-      border: `1px solid ${BB}`,
-      borderRadius: '14px',
-      cursor: onClick ? 'pointer' : 'default',
-      transition: 'border-color 0.2s, transform 0.15s',
-      position: 'relative',
-      overflow: 'hidden'
-    }}
-    onMouseEnter={e => {
-      if (onClick) {
-        (e.currentTarget as HTMLDivElement).style.borderColor = G + '80';
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-      }
-    }}
-    onMouseLeave={e => {
-      if (onClick) {
-        (e.currentTarget as HTMLDivElement).style.borderColor = BB;
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-      }
-    }}
+    style={{ flex:1, minWidth:'140px', padding:'20px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'14px', cursor: onClick ? 'pointer' : 'default', transition:'border-color 0.2s, transform 0.15s' }}
+    onMouseEnter={e => { if (onClick) { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,175,55,0.3)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; }}}
+    onMouseLeave={e => { if (onClick) { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; }}}
   >
-    {/* top accent bar */}
-    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: accent }} />
-    <p style={{ color: WM, fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>{label}</p>
-    <p style={{ color: accent, fontSize: '26px', fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</p>
-    <p style={{ color: WD, fontSize: '11px', margin: 0 }}>{sub}</p>
+    <p style={{ color:'#555', fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', margin:'0 0 8px' }}>{label}</p>
+    <p style={{ color:accent, fontSize:'26px', fontWeight:800, margin:'0 0 4px', letterSpacing:'-0.02em', lineHeight:1 }}>{value}</p>
+    <p style={{ color:'#3a3a3a', fontSize:'11px', margin:0 }}>{sub}</p>
   </div>
 );
 
 const ReliabilityRing: React.FC<{ score: number }> = ({ score }) => {
-  const SIZE = 76, R = 28, CIRC = 2 * Math.PI * R;
-  const fill = (score / 5) * CIRC;
-  const color = score >= 4 ? '#4ade80' : score >= 3 ? G : '#f87171';
+  const S = 76, R = 28, C = 2 * Math.PI * R;
+  const fill = (Math.min(score, 5) / 5) * C;
+  const color = score >= 4 ? '#4ade80' : score >= 3 ? '#D4AF37' : '#f87171';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={BB} strokeWidth="5" />
-        <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke={color} strokeWidth="5" strokeDasharray={`${fill} ${CIRC}`} strokeLinecap="round" />
-        <text x={SIZE/2} y={SIZE/2 + 1} textAnchor="middle" dominantBaseline="middle"
-          style={{ transform: `rotate(90deg)`, transformOrigin: `${SIZE/2}px ${SIZE/2}px` }}
-          fill={color} fontSize="15" fontWeight="800" fontFamily={FB}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' }}>
+      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} style={{ transform:'rotate(-90deg)' }}>
+        <circle cx={S/2} cy={S/2} r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="5" />
+        <circle cx={S/2} cy={S/2} r={R} fill="none" stroke={color} strokeWidth="5"
+          strokeDasharray={`${fill} ${C}`} strokeLinecap="round" />
+        <text x={S/2} y={S/2+1} textAnchor="middle" dominantBaseline="middle"
+          style={{ transform:`rotate(90deg)`, transformOrigin:`${S/2}px ${S/2}px` }}
+          fill={color} fontSize="15" fontWeight="800" fontFamily="inherit">
           {score > 0 ? score.toFixed(1) : '–'}
         </text>
       </svg>
-      <span style={{ color: WD, fontSize: '10px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Rating</span>
+      <span style={{ color:'#444', fontSize:'10px', fontWeight:600, letterSpacing:'0.05em', textTransform:'uppercase' }}>Rating</span>
     </div>
   );
 };
 
-const ActivityRow: React.FC<{ icon: string; text: string; time: string; color?: string }> = ({ icon, text, time, color = WM }) => (
-  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '11px 0', borderBottom: `1px solid ${BB}` }}>
-    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>{icon}</div>
-    <div style={{ flex: 1 }}>
-      <p style={{ color, fontSize: '13px', margin: '0 0 2px', lineHeight: 1.4 }}>{text}</p>
-      <p style={{ color: WD, fontSize: '11px', margin: 0 }}>{time}</p>
+const ActivityRow: React.FC<{ icon: string; text: string; time: string; color?: string }> = ({ icon, text, time, color = '#a0a0a0' }) => (
+  <div style={{ display:'flex', alignItems:'flex-start', gap:'12px', padding:'11px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+    <div style={{ width:'32px', height:'32px', borderRadius:'8px', background:'rgba(255,255,255,0.05)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', flexShrink:0 }}>{icon}</div>
+    <div style={{ flex:1 }}>
+      <p style={{ color, fontSize:'13px', margin:'0 0 2px', lineHeight:1.4 }}>{text}</p>
+      <p style={{ color:'#3a3a3a', fontSize:'11px', margin:0 }}>{time}</p>
     </div>
   </div>
 );
 
-// ─── Helpers — read from UserProfile without assuming which field is set ──────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-/** Best display name: fullName > name > 'Promoter' */
-const getDisplayName = (p: UserProfile | null) =>
-  p?.fullName || p?.name || 'Promoter';
-
-/** Best avatar: profilePhoto > avatarUrl */
-const getAvatar = (p: UserProfile | null) =>
-  p?.profilePhoto || p?.avatarUrl || null;
-
-/** Reliability score — 0 if not present */
-const getScore = (p: UserProfile | null) =>
-  p?.reliabilityScore ?? 0;
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const { user } = useAuth();
-
   const [profile,  setProfile]  = useState<UserProfile | null>(null);
   const [jobs,     setJobs]     = useState<Job[]>([]);
   const [shifts,   setShifts]   = useState<Shift[]>([]);
@@ -154,11 +103,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     });
   }, [user]);
 
-  const firstName   = getDisplayName(profile).split(' ')[0];
-  const avatarSrc   = getAvatar(profile);
-  const score       = getScore(profile);
-  const hour        = new Date().getHours();
-  const greeting    = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  // Derive display name: profile.fullName → user.name → fallback to 'Promoter'
+  const firstName = (profile?.fullName || (user as { name?: string })?.name || '').split(' ')[0] || 'Promoter';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const matchedJobs = jobs.filter(j => {
     if (!profile || j.status !== 'open') return false;
@@ -172,161 +120,148 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const activityFeed = [
     ...shifts.filter(s => s.attendance.checkInTime).map(s => ({
-      icon:  s.status === 'approved' ? '✅' : '📍',
-      text:  s.status === 'approved' ? 'Shift approved by admin' : 'Shift pending approval',
-      time:  new Date(s.attendance.checkInTime!).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }),
+      icon: s.status === 'approved' ? '✅' : '📍',
+      text: s.status === 'approved' ? 'Shift approved and payment queued' : 'Shift checked out — pending supervisor approval',
+      time: new Date(s.attendance.checkInTime!).toLocaleDateString('en-ZA', { day:'numeric', month:'short' }),
       color: s.status === 'approved' ? '#4ade80' : '#fbbf24',
-      ts:    new Date(s.attendance.checkInTime!).getTime(),
+      ts: new Date(s.attendance.checkInTime!).getTime(),
     })),
     ...shifts.filter(s => s.attendance.issues.length > 0).map(s => ({
-      icon: '⚠️',
-      text: `Supervisor note: ${s.attendance.issues[0]?.note}`,
-      time: s.attendance.issues[0]?.loggedAt
-        ? new Date(s.attendance.issues[0].loggedAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
-        : '',
+      icon: '⚠️', text: `Supervisor note: ${s.attendance.issues[0]?.note}`,
+      time: new Date(s.attendance.issues[0]?.loggedAt ?? 0).toLocaleDateString('en-ZA', { day:'numeric', month:'short' }),
       color: '#f87171',
       ts: new Date(s.attendance.issues[0]?.loggedAt ?? 0).getTime(),
     })),
     ...(summary && summary.totalPaid > 0 ? [{
-      icon: '💰', text: `R${summary.totalPaid.toLocaleString()} paid into your account`,
-      time: 'Recent', color: G, ts: Date.now() - 100_000,
+      icon: '💰', text: `R${summary.totalPaid.toLocaleString()} paid into your account`, time: 'Recent', color: '#D4AF37', ts: Date.now() - 100_000,
     }] : []),
   ].sort((a, b) => b.ts - a.ts).slice(0, 5);
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: WM, padding: '60px 0' }}>
-      <div style={{ width: 20, height: 20, border: `2px solid ${G}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <span style={{ color: WM }}>Loading dashboard…</span>
+    <div style={{ display:'flex', alignItems:'center', gap:'12px', color:'#666', padding:'80px 0', justifyContent:'center' }}>
+      <div style={{ width:20, height:20, border:'2px solid #D4AF37', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+      Loading your dashboard…
     </div>
   );
 
   return (
     <div>
-      {/* ── Hero greeting ──────────────────────────────────────────────── */}
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: '16px',
-        padding: '28px 32px',
-        background: BC,
-        border: `1px solid ${BB}`,
-        borderRadius: '18px', marginBottom: '28px',
-        position: 'relative', overflow: 'hidden',
+        padding:'28px 32px', marginBottom:'28px', borderRadius:'18px',
+        background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.14)',
+        display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'16px',
+        position:'relative', overflow:'hidden',
       }}>
-        <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '220px', height: '220px', background: `radial-gradient(circle, ${G}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position:'absolute', top:'-60px', right:'-60px', width:'220px', height:'220px', background:'radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)', pointerEvents:'none' }} />
+
         <div>
-          <p style={{ color: WM, fontSize: '11px', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', margin: '0 0 6px' }}>{greeting}</p>
-          <h1 style={{ fontSize: '28px', fontWeight: 900, margin: '0 0 8px', lineHeight: 1.1, background: `linear-gradient(135deg, ${W} 55%, ${G})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <p style={{ color:'#555', fontSize:'11px', fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', margin:'0 0 6px' }}>{greeting}</p>
+          <h1 style={{
+            fontSize:'28px', fontWeight:900, margin:'0 0 8px', lineHeight:1.1,
+            background:'linear-gradient(135deg, #fff 55%, #D4AF37)',
+            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+          }}>
             {firstName} 👋
           </h1>
-          <p style={{ color: WM, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color:'#555', fontSize:'13px', margin:0 }}>
             {matchedJobs.length > 0
               ? `${matchedJobs.length} job${matchedJobs.length > 1 ? 's' : ''} matching your profile right now.`
-              : 'No matched jobs at the moment — check back soon.'}
+              : 'Welcome back to your Honey Group promoter portal.'}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexShrink: 0 }}>
-          <ReliabilityRing score={score} />
-          <div style={{ width: '56px', height: '56px', borderRadius: '50%', overflow: 'hidden', background: `linear-gradient(135deg, ${G}, ${GL})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 900, color: B, border: `2px solid ${G}80`, flexShrink: 0 }}>
-            {avatarSrc
-              ? <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : firstName.charAt(0)}
+
+        <div style={{ display:'flex', alignItems:'center', gap:'18px', flexShrink:0 }}>
+          <ReliabilityRing score={profile?.reliabilityScore ?? 0} />
+          <div style={{
+            width:'60px', height:'60px', borderRadius:'50%', overflow:'hidden', flexShrink:0,
+            background:'linear-gradient(135deg, #D4AF37, #B8962E)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:'22px', fontWeight:900, color:'#0A0A0A',
+            border:'2px solid rgba(212,175,55,0.3)',
+          }}>
+            {profile?.profilePhoto
+              ? <img src={profile.profilePhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : firstName.charAt(0).toUpperCase()}
           </div>
         </div>
       </div>
 
-      {/* ── Stat cards ────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
-        <StatCard label="Total Earned"  value={`R${(summary?.totalEarned ?? 0).toLocaleString()}`}  sub="All time"          accent={G} onClick={() => onNavigate('earnings')} />
-        <StatCard label="Pending Pay"   value={`R${(summary?.totalPending ?? 0).toLocaleString()}`} sub="Awaiting approval" accent="#fbbf24" onClick={() => onNavigate('earnings')} />
-        <StatCard label="Shifts Done"   value={String(summary?.shiftsCompleted ?? 0)}               sub="Completed"         accent="#63b3ed" onClick={() => onNavigate('shifts')}  />
+      {/* ── Stat cards ───────────────────────────────────────────────────── */}
+      <div style={{ display:'flex', gap:'12px', marginBottom:'28px', flexWrap:'wrap' }}>
+        <StatCard label="Total Earned"  value={`R${(summary?.totalEarned ?? 0).toLocaleString()}`}  sub="All time"            accent="#D4AF37"  onClick={() => onNavigate('earnings')} />
+        <StatCard label="Pending Pay"   value={`R${(summary?.totalPending ?? 0).toLocaleString()}`} sub="Awaiting approval"   accent="#fbbf24"  onClick={() => onNavigate('earnings')} />
+        <StatCard label="Shifts Done"   value={String(summary?.shiftsCompleted ?? 0)}               sub="Completed"          accent="#63b3ed"  onClick={() => onNavigate('shifts')}   />
         <StatCard label="Jobs Open"     value={String(jobs.filter(j => j.status === 'open').length)} sub={`${matchedJobs.length} match your profile`} accent="#4ade80" onClick={() => onNavigate('jobs')} />
       </div>
 
-      {/* ── Two-column: Next Shift + Matched Jobs ─────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+      {/* ── Two-column grid ──────────────────────────────────────────────── */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px' }}>
 
-        {/* Next Shift */}
-        <div style={{ padding: '24px', background: BC, border: `1px solid ${BB}`, borderRadius: '16px' }}>
-          <SectionHead title="Next Shift" linkLabel="All Shifts" onLink={() => onNavigate('shifts')} />
+        {/* Next shift */}
+        <div style={{ padding:'24px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'16px' }}>
+          <SectionHead title="Next Shift" link="All Shifts" onLink={() => onNavigate('shifts')} />
           {upcomingShift ? (() => {
             const job = jobs.find(j => j.id === upcomingShift.jobId);
             return (
               <div>
-                <div style={{ padding: '16px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '12px', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div style={{ padding:'16px', background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'12px', marginBottom:'14px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px' }}>
                     <div>
-                      <h3 style={{ color: W, fontSize: '14px', fontWeight: 700, margin: '0 0 3px' }}>{job?.title ?? '—'}</h3>
-                      <p style={{ color: WM, fontSize: '12px', margin: 0 }}>{job?.client}</p>
+                      <h3 style={{ color:'#fff', fontSize:'14px', fontWeight:700, margin:'0 0 3px' }}>{job?.title ?? '—'}</h3>
+                      <p style={{ color:'#a0a0a0', fontSize:'12px', margin:0 }}>{job?.client}</p>
                     </div>
                     <Badge variant="info">Scheduled</Badge>
                   </div>
                   {[
-                    { icon: '📍', text: job?.venue ?? '—' },
-                    { icon: '📅', text: job?.date ?? '—' },
-                    { icon: '⏰', text: job ? `${job.startTime} – ${job.endTime}` : '—' },
-                    { icon: '💰', text: job ? `R${job.hourlyRate}/hr` : '—' },
+                    { icon:'📍', text: job?.venue ?? '—' },
+                    { icon:'📅', text: job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short' }) : '—' },
+                    { icon:'⏰', text: job ? `${job.startTime} – ${job.endTime}` : '—' },
+                    { icon:'💰', text: job ? `R${job.hourlyRate}/hr` : '—' },
                   ].map((r, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                      <span style={{ fontSize: '12px', width: '16px', textAlign: 'center', flexShrink: 0, color: WM }}>{r.icon}</span>
-                      <span style={{ color: WM, fontSize: '12px' }}>{r.text}</span>
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'5px' }}>
+                      <span style={{ fontSize:'12px', width:'16px', textAlign:'center', flexShrink:0 }}>{r.icon}</span>
+                      <span style={{ color:'#a0a0a0', fontSize:'12px' }}>{r.text}</span>
                     </div>
                   ))}
                 </div>
-                <Button fullWidth variant="secondary" size="sm" onClick={() => onNavigate('shifts')}>View Check-In Details</Button>
+                <Button fullWidth variant="secondary" size="sm" onClick={() => onNavigate('shifts')}>Check-In Details →</Button>
               </div>
             );
           })() : (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: WM }}>
-              <div style={{ fontSize: '36px', marginBottom: '10px', color: G }}>📅</div>
-              <p style={{ fontSize: '13px', margin: '0 0 16px' }}>No upcoming shifts.</p>
+            <div style={{ textAlign:'center', padding:'32px 0', color:'#555' }}>
+              <div style={{ fontSize:'36px', marginBottom:'10px' }}>📅</div>
+              <p style={{ fontSize:'13px', margin:'0 0 16px' }}>No upcoming shifts yet.</p>
               <Button size="sm" onClick={() => onNavigate('jobs')}>Browse Jobs</Button>
             </div>
           )}
         </div>
 
-        {/* Matched Jobs */}
-        <div style={{ padding: '24px', background: BC, border: `1px solid ${BB}`, borderRadius: '16px' }}>
-          <SectionHead title="⚡ Matched Jobs" linkLabel="See All" onLink={() => onNavigate('jobs')} />
+        {/* Matched jobs */}
+        <div style={{ padding:'24px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'16px' }}>
+          <SectionHead title="⚡ Matched Jobs" link="See All" onLink={() => onNavigate('jobs')} />
           {matchedJobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: WM }}>
-              <div style={{ fontSize: '36px', marginBottom: '10px', color: G }}>🔍</div>
-              <p style={{ fontSize: '13px', margin: 0 }}>No matched jobs right now.</p>
+            <div style={{ textAlign:'center', padding:'32px 0', color:'#555' }}>
+              <div style={{ fontSize:'36px', marginBottom:'10px' }}>🔍</div>
+              <p style={{ fontSize:'13px', margin:0 }}>No matched jobs right now.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
               {matchedJobs.map(job => {
                 const slotsLeft = job.totalSlots - job.filledSlots;
                 return (
                   <div key={job.id} onClick={() => onNavigate('jobs')}
-                    style={{
-                      padding: '13px 15px',
-                      background: `${G}08`,
-                      border: `1px solid ${G}20`,
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '10px',
-                      transition: 'border-color 0.18s, transform 0.15s'
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = G + '80';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateX(3px)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = G + '20';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateX(0)';
-                    }}
+                    style={{ padding:'13px 15px', background:'rgba(212,175,55,0.04)', border:'1px solid rgba(212,175,55,0.15)', borderRadius:'10px', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'10px', transition:'border-color 0.18s, transform 0.15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,175,55,0.4)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateX(3px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,175,55,0.15)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateX(0)'; }}
                   >
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ color: W, fontSize: '13px', fontWeight: 600, margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.title}</p>
-                      <p style={{ color: WM, fontSize: '11px', margin: 0 }}>{job.venue} · {job.distanceKm}km</p>
+                    <div style={{ minWidth:0 }}>
+                      <p style={{ color:'#fff', fontSize:'13px', fontWeight:600, margin:'0 0 3px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{job.title}</p>
+                      <p style={{ color:'#555', fontSize:'11px', margin:0 }}>{job.venue} · {job.distanceKm}km away</p>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ color: G, fontSize: '15px', fontWeight: 800, margin: '0 0 3px' }}>
-                        R{job.hourlyRate}<span style={{ color: WM, fontSize: '10px', fontWeight: 400 }}>/hr</span>
-                      </p>
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      <p style={{ color:'#D4AF37', fontSize:'15px', fontWeight:800, margin:'0 0 3px' }}>R{job.hourlyRate}<span style={{ color:'#555', fontSize:'10px', fontWeight:400 }}>/hr</span></p>
                       <Badge variant={slotsLeft <= 1 ? 'warning' : 'success'}>{slotsLeft} left</Badge>
                     </div>
                   </div>
@@ -337,17 +272,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* ── Activity feed ──────────────────────────────────────────────── */}
-      <div style={{ padding: '24px', background: BC, border: `1px solid ${BB}`, borderRadius: '16px' }}>
+      {/* ── Activity feed ─────────────────────────────────────────────────── */}
+      <div style={{ padding:'24px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'16px' }}>
         <SectionHead title="Recent Activity" />
         {activityFeed.length === 0 ? (
-          <p style={{ color: WM, fontSize: '13px', textAlign: 'center', padding: '20px 0', margin: 0 }}>
-            No activity yet. Apply to your first job to get started.
-          </p>
+          <p style={{ color:'#555', fontSize:'13px', textAlign:'center', padding:'20px 0', margin:0 }}>No activity yet. Apply to your first job to get started.</p>
         ) : activityFeed.map((item, i) => (
           <ActivityRow key={i} icon={item.icon} text={item.text} time={item.time} color={item.color} />
         ))}
       </div>
+
     </div>
   );
 };
