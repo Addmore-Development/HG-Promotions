@@ -1,8 +1,7 @@
 import { createContext, useState, ReactNode, useEffect } from 'react'
 import type { AuthContextType, User, RegisterPayload } from '../types/auth.types'
 import { authService } from '../services/authService'
-// Import mock profiles to map email → id (only needed for mock data)
-import { MOCK_PROFILES } from '../services/mockData'  // adjust path if needed
+import { MOCK_PROFILES } from '../services/mockData'
 
 export const AuthContext = createContext<AuthContextType | null>(null)
 
@@ -11,24 +10,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    const session = localStorage.getItem('hg_session')
-    if (session) {
-      try {
-        const data = JSON.parse(session)
-        if (data.loggedIn && data.email && data.role) {
-          // Find the matching mock profile to get the correct user id
-          const profile = MOCK_PROFILES.find(p => p.email === data.email)
-          const mockUser: User = {
-            id: profile?.userId || data.email, // fallback to email if not found
-            name: data.name,
-            email: data.email,
-            role: data.role,
-          }
-          setUser(mockUser)
-        }
-      } catch (e) {
-        console.warn('Failed to restore session', e)
+    const raw = localStorage.getItem('hg_session')
+    if (!raw) return
+    try {
+      const data = JSON.parse(raw)
+      if (data.loggedIn && data.email && data.role) {
+        // Prefer userId stored in session, fallback to mock profile lookup, then email
+        const mockProfile = MOCK_PROFILES.find(
+          p => (p as typeof p & { email?: string }).email?.toLowerCase() === data.email?.toLowerCase()
+        )
+        setUser({
+          id:    data.userId || mockProfile?.userId || data.email,
+          name:  data.name   || mockProfile?.fullName || data.email,
+          email: data.email,
+          role:  data.role,
+        })
       }
+    } catch (e) {
+      console.warn('Failed to restore session', e)
     }
   }, [])
 
@@ -43,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = (): void => {
-    localStorage.removeItem('hg_session')
+    authService.logout()
     setUser(null)
   }
 

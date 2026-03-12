@@ -1,7 +1,8 @@
 // promoter/index.tsx
-// Promoter section shell — rendered by App.tsx at /promoter/*
-// Uses React Router v6 nested layout pattern.
-// NO onboarding here — that is handled by /register in the auth flow.
+// Promoter portal shell.
+// Status is read directly from localStorage hg_session — no async wait.
+// Only 'blacklisted' accounts are hard-locked. All others can browse freely.
+// pending_review / rejected users see an informational banner only.
 
 import React, { useState, useEffect } from 'react';
 import { AppLayout }      from '../shared/layout/AppLayout';
@@ -11,9 +12,7 @@ import { GeoCheckInOut }  from './shifts/GeoCheckInOut';
 import { ViewEarnings }   from './payments/ViewEarnings';
 import { EditOwnProfile } from './users/EditOwnProfile';
 import { useAuth }        from '../shared/hooks/useAuth';
-import { usersService }   from '../shared/services/usersService';
 import type { NavItem }   from '../shared/layout/Sidebar';
-import type { OnboardingStatus } from '../shared/types/user.types';
 
 type PromoterView = 'dashboard' | 'jobs' | 'shifts' | 'earnings' | 'profile';
 
@@ -25,27 +24,45 @@ const NAV: NavItem[] = [
   { id: 'profile',   label: 'My Profile', icon: '👤' },
 ];
 
+/** Read status directly from localStorage — synchronous, no flicker */
+function getSessionStatus(): string {
+  try {
+    const sess = JSON.parse(localStorage.getItem('hg_session') || '{}');
+    return sess.status || 'pending_review';
+  } catch {
+    return 'pending_review';
+  }
+}
+
 export const PromoterApp: React.FC = () => {
   const { user } = useAuth();
-  const [view, setView] = useState<PromoterView>('dashboard');
-  const [status, setStatus] = useState<OnboardingStatus | null>(null);
+  const [view,   setView]   = useState<PromoterView>('dashboard');
+  // Read status synchronously — no loading state needed
+  const [status, setStatus] = useState<string>(() => getSessionStatus());
 
-  // Resolve the user's onboarding status from their profile
+  // Re-sync if user object changes (login/logout)
   useEffect(() => {
-    if (!user) return;
-    usersService.getProfile(user.id).then(p => {
-      setStatus(p?.onboardingStatus ?? 'incomplete');
-    });
-  }, [user]);
+    setStatus(getSessionStatus());
+  }, [user?.id]);
 
   const handleNavigate = (id: string) => setView(id as PromoterView);
 
-  // Jobs, Shifts, Earnings locked until approved
-  const isLocked = status !== null && status !== 'approved';
+  // Hard lock ONLY for blacklisted accounts
+  const isBlacklisted = status === 'blacklisted';
+
   const navItems: NavItem[] = NAV.map(item => ({
     ...item,
-    locked: isLocked && (item.id === 'jobs' || item.id === 'shifts' || item.id === 'earnings'),
+    locked: isBlacklisted && item.id !== 'profile',
   }));
+
+  // Show informational banner for non-approved, non-blacklisted users
+  const showBanner = status !== 'approved' && !isBlacklisted;
+
+  const BANNER: Record<string, string> = {
+    pending_review: '⏳ Your application is under review. You\'ll be notified within 24–48 hours.',
+    rejected:       '❌ Your application was not approved. Please contact support or update your documents.',
+    incomplete:     '📝 Your registration is incomplete. Please contact support.',
+  };
 
   return (
     <AppLayout
@@ -54,23 +71,32 @@ export const PromoterApp: React.FC = () => {
       activeNav={view}
       onNavigate={handleNavigate}
     >
-      {/* Status banner — only while not yet approved */}
-      {isLocked && (
+      {/* Informational banner — never blocks access */}
+      {showBanner && (
         <div style={{
-          padding: '12px 20px', marginBottom: '28px', borderRadius: '12px', cursor: 'pointer',
+          padding: '12px 20px', marginBottom: '24px', borderRadius: '12px',
           background: status === 'rejected' ? 'rgba(239,68,68,0.08)' : 'rgba(212,175,55,0.06)',
           border: `1px solid ${status === 'rejected' ? 'rgba(239,68,68,0.25)' : 'rgba(212,175,55,0.2)'}`,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}
-          onClick={() => handleNavigate('profile')}
-        >
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+        }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: status === 'rejected' ? '#f87171' : '#D4AF37' }}>
-            {status === 'pending_review' && '⏳ Your profile is under review — you\'ll be notified within 24–48 hrs.'}
-            {status === 'rejected'       && '❌ Your application was rejected. Update your profile and resubmit.'}
-            {status === 'incomplete'     && '📝 Complete your profile to unlock job matching.'}
-            {status === 'blacklisted'    && '🚫 Your account has been suspended. Contact support.'}
+            {BANNER[status] ?? '⏳ Pending review.'}
           </span>
-          <span style={{ color: '#555', fontSize: '12px' }}>View profile →</span>
+          <span
+            onClick={() => handleNavigate('profile')}
+            style={{ color: '#555', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
+          >
+            View profile →
+          </span>
+        </div>
+      )}
+
+      {/* Blacklisted hard block */}
+      {isBlacklisted && (
+        <div style={{ padding: '32px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
+          <p style={{ color: '#f87171', fontSize: '15px', fontWeight: 700, margin: 0 }}>
+            🚫 Your account has been suspended. Please contact support.
+          </p>
         </div>
       )}
 
