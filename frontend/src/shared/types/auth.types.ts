@@ -1,3 +1,4 @@
+// src/shared/types/auth.types.ts
 export type Role = 'promoter' | 'business' | 'admin'
 
 export interface User {
@@ -21,4 +22,5 @@ export interface AuthContextType {
   logout:          () => void
   register:        (data: RegisterPayload) => Promise<void>
   isAuthenticated: boolean
+  isLoading:       boolean // 👈 new
 }

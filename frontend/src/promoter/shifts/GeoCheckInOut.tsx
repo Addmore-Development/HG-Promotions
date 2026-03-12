@@ -1,33 +1,44 @@
 // promoter/shifts/GeoCheckInOut.tsx
+// Updated with real selfie simulation (file upload), issues display, toast.
 
 import React, { useState, useEffect } from 'react';
-import { useAuth }        from '../../shared/hooks/useAuth';
-import { shiftsService }  from '../../shared/services/shiftsService';
-import { jobsService }    from '../../shared/services/jobsService';
-import { Badge }          from '../../shared/components/Badge';
-import { Button }         from '../../shared/components/Button';
-import type { Shift }     from '../../shared/types/shift.types';
-import type { Job }       from '../../shared/types/job.types';
+import { useAuth } from '../../shared/hooks/useAuth';
+import { shiftsService } from '../../shared/services/shiftsService';
+import { jobsService } from '../../shared/services/jobsService';
+import { Badge } from '../../shared/components/Badge';
+import { Button } from '../../shared/components/Button';
+import { showToast } from '../../shared/utils/toast';
+import type { Shift } from '../../shared/types/shift.types';
+import type { Job } from '../../shared/types/job.types';
 
 const GEO_THRESHOLD_M = 200;
+const G = '#D4AF37';
+const BC = '#161616';
+const BB = 'rgba(255,255,255,0.07)';
+const W = '#F4EFE6';
+const WM = 'rgba(244,239,230,0.55)';
+const WD = '#555';
+const FB = "'DM Sans', system-ui, sans-serif";
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export const GeoCheckInOut: React.FC = () => {
   const { user } = useAuth();
-  const [shifts,   setShifts]   = useState<Shift[]>([]);
-  const [jobs,     setJobs]     = useState<Map<string, Job>>(new Map());
-  const [loading,  setLoading]  = useState(true);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [jobs, setJobs] = useState<Map<string, Job>>(new Map());
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Shift | null>(null);
-  const [gps,      setGps]      = useState<'idle'|'checking'|'near'|'far'|'denied'>('idle');
-  const [loc,      setLoc]      = useState<{lat:number;lng:number}|null>(null);
-  const [distM,    setDistM]    = useState<number|null>(null);
-  const [working,  setWorking]  = useState(false);
-  const [selfie,   setSelfie]   = useState<'none'|'checkin'|'checkout'>('none');
+  const [gps, setGps] = useState<'idle' | 'checking' | 'near' | 'far' | 'denied'>('idle');
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [distM, setDistM] = useState<number | null>(null);
+  const [working, setWorking] = useState(false);
+  const [selfieAction, setSelfieAction] = useState<'none' | 'checkin' | 'checkout'>('none');
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -44,84 +55,125 @@ export const GeoCheckInOut: React.FC = () => {
   }, [user]);
 
   const checkGps = (shift: Shift) => {
-    setSelected(shift); setGps('checking'); setDistM(null);
-    if (!navigator.geolocation) { setGps('denied'); return; }
+    setSelected(shift);
+    setGps('checking');
+    setDistM(null);
+    setSelfieAction('none');
+    setSelfieFile(null);
+    setSelfiePreview(null);
+    if (!navigator.geolocation) {
+      setGps('denied');
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       pos => {
         const { latitude: lat, longitude: lng } = pos.coords;
         setLoc({ lat, lng });
         const job = jobs.get(shift.jobId);
-        if (!job) { setGps('denied'); return; }
+        if (!job) {
+          setGps('denied');
+          return;
+        }
         const d = haversine(lat, lng, job.coordinates.lat, job.coordinates.lng);
         setDistM(Math.round(d));
         setGps(d <= GEO_THRESHOLD_M ? 'near' : 'far');
       },
-      () => { setLoc({ lat:-26.1076, lng:28.056 }); setDistM(45); setGps('near'); },
-      { enableHighAccuracy:true, timeout:8000 }
+      () => {
+        // For demo, use mock location if denied
+        setLoc({ lat: -26.1076, lng: 28.056 });
+        setDistM(45);
+        setGps('near');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
     );
   };
 
   const doCheckIn = async () => {
-    if (!selected || !loc) return;
+    if (!selected || !loc || !selfiePreview) return;
     setWorking(true);
     try {
-      const updated = await shiftsService.checkIn(selected.id, 'mock://selfie.jpg', loc);
+      const updated = await shiftsService.checkIn(selected.id, selfiePreview, loc);
       setShifts(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setSelected(updated); setSelfie('none');
-    } finally { setWorking(false); }
+      setSelected(updated);
+      setSelfieAction('none');
+      showToast('Check-in successful!', 'success');
+    } catch (e) {
+      showToast('Check-in failed', 'error');
+    } finally {
+      setWorking(false);
+    }
   };
 
   const doCheckOut = async () => {
-    if (!selected || !loc) return;
+    if (!selected || !loc || !selfiePreview) return;
     setWorking(true);
     try {
-      const updated = await shiftsService.checkOut(selected.id, 'mock://selfie_out.jpg', loc);
+      const updated = await shiftsService.checkOut(selected.id, selfiePreview, loc);
       setShifts(prev => prev.map(s => s.id === updated.id ? updated : s));
-      setSelected(updated); setSelfie('none');
-    } finally { setWorking(false); }
+      setSelected(updated);
+      setSelfieAction('none');
+      showToast('Check-out successful!', 'success');
+    } catch (e) {
+      showToast('Check-out failed', 'error');
+    } finally {
+      setWorking(false);
+    }
   };
 
   const statusBadge = (status: Shift['status']) => {
-    const map: Record<Shift['status'], { variant: 'success'|'warning'|'neutral'|'gold'|'info'|'danger', label: string }> = {
-      scheduled:        { variant:'info',    label:'Scheduled' },
-      checked_in:       { variant:'success', label:'Checked In' },
-      active:           { variant:'success', label:'Active' },
-      checked_out:      { variant:'warning', label:'Checked Out' },
-      pending_approval: { variant:'warning', label:'Pending Approval' },
-      approved:         { variant:'gold',    label:'Approved ✓' },
-      no_show:          { variant:'danger',  label:'No Show' },
+    const map: Record<Shift['status'], { variant: 'success' | 'warning' | 'neutral' | 'gold' | 'info' | 'danger', label: string }> = {
+      scheduled: { variant: 'info', label: 'Scheduled' },
+      checked_in: { variant: 'success', label: 'Checked In' },
+      active: { variant: 'success', label: 'Active' },
+      checked_out: { variant: 'warning', label: 'Checked Out' },
+      pending_approval: { variant: 'warning', label: 'Pending Approval' },
+      approved: { variant: 'gold', label: 'Approved ✓' },
+      no_show: { variant: 'danger', label: 'No Show' },
     };
-    const s = map[status] ?? { variant:'neutral' as const, label:status };
+    const s = map[status] ?? { variant: 'neutral' as const, label: status };
     return <Badge variant={s.variant}>{s.label}</Badge>;
   };
 
-  if (loading) return <div style={{ color:'#666', padding:'60px 0' }}>Loading shifts…</div>;
+  if (loading) return <div style={{ color: WD, padding: '60px 0' }}>Loading shifts…</div>;
 
   const active = selected ? shifts.find(s => s.id === selected.id) : null;
 
   return (
     <div>
-      <h1 style={{ color:'#fff', fontSize:'22px', fontWeight:800, margin:'0 0 6px' }}>My Shifts</h1>
-      <p style={{ color:'#666', fontSize:'14px', marginBottom:'32px' }}>Tap a shift to check in/out with geo-verification (within {GEO_THRESHOLD_M}m).</p>
+      <h1 style={{ color: W, fontSize: '22px', fontWeight: 800, margin: '0 0 6px' }}>My Shifts</h1>
+      <p style={{ color: WD, fontSize: '14px', marginBottom: '32px' }}>
+        Tap a shift to check in/out with geo-verification (within {GEO_THRESHOLD_M}m).
+      </p>
 
       {shifts.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'60px', color:'#555' }}>
-          <div style={{ fontSize:'40px', marginBottom:'16px' }}>📅</div>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>📅</div>
           <p>No shifts yet. Apply for a job to get started.</p>
         </div>
       ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {shifts.map(shift => {
             const job = jobs.get(shift.jobId);
             return (
-              <div key={shift.id} onClick={() => checkGps(shift)} style={{ padding:'20px 24px', background:'rgba(255,255,255,0.03)', border:`1px solid ${active?.id === shift.id ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius:'14px', cursor:'pointer', transition:'border-color 0.2s' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'12px' }}>
+              <div
+                key={shift.id}
+                onClick={() => checkGps(shift)}
+                style={{
+                  padding: '20px 24px',
+                  background: BC,
+                  border: `1px solid ${active?.id === shift.id ? G + '80' : BB}`,
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <h3 style={{ color:'#fff', fontWeight:700, fontSize:'15px', margin:'0 0 4px' }}>{job?.title ?? '—'}</h3>
-                    <p style={{ color:'#666', fontSize:'13px', margin:'0 0 6px' }}>{job?.venue} · {job?.date ? new Date(job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) : ''}</p>
+                    <h3 style={{ color: W, fontWeight: 700, fontSize: '15px', margin: '0 0 4px' }}>{job?.title ?? '—'}</h3>
+                    <p style={{ color: WD, fontSize: '13px', margin: '0 0 6px' }}>{job?.venue} · {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''}</p>
                     {shift.attendance.checkInTime && (
-                      <p style={{ color:'#4ade80', fontSize:'12px', margin:0 }}>
-                        ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}
+                      <p style={{ color: '#4ade80', fontSize: '12px', margin: 0 }}>
+                        ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     )}
                   </div>
@@ -135,48 +187,100 @@ export const GeoCheckInOut: React.FC = () => {
 
       {/* Bottom sheet modal */}
       {selected && active && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:200 }} onClick={() => { setSelected(null); setSelfie('none'); setGps('idle'); }}>
-          <div style={{ background:'#111', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'24px 24px 0 0', maxWidth:'500px', width:'100%', padding:'32px', maxHeight:'85vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={{ width:'40px', height:'4px', background:'rgba(255,255,255,0.15)', borderRadius:'2px', margin:'0 auto 24px' }} />
-            <h2 style={{ color:'#fff', fontWeight:800, fontSize:'18px', margin:'0 0 4px' }}>{jobs.get(active.jobId)?.title}</h2>
-            <p style={{ color:'#666', fontSize:'13px', marginBottom:'24px' }}>{jobs.get(active.jobId)?.venue}</p>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}
+          onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}
+        >
+          <div
+            style={{ background: '#111', border: `1px solid ${G}40`, borderRadius: '24px 24px 0 0', maxWidth: '500px', width: '100%', padding: '32px', maxHeight: '85vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', margin: '0 auto 24px' }} />
+            <h2 style={{ color: W, fontWeight: 800, fontSize: '18px', margin: '0 0 4px' }}>{jobs.get(active.jobId)?.title}</h2>
+            <p style={{ color: WD, fontSize: '13px', marginBottom: '24px' }}>{jobs.get(active.jobId)?.venue}</p>
+
+            {/* Issues display */}
+            {active.attendance.issues && active.attendance.issues.length > 0 && (
+              <div style={{ marginBottom: '20px', padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px' }}>
+                <h4 style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, marginBottom: '8px' }}>⚠️ Issues Reported</h4>
+                {active.attendance.issues.map(issue => (
+                  <div key={issue.id} style={{ fontSize: '12px', color: WM, marginBottom: '6px' }}>
+                    <strong>{issue.type}</strong>: {issue.note}
+                    <div style={{ fontSize: '10px', color: '#666' }}>{new Date(issue.loggedAt).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* GPS status panel */}
-            <div style={{ padding:'20px', borderRadius:'14px', textAlign:'center', marginBottom:'24px',
+            <div style={{
+              padding: '20px', borderRadius: '14px', textAlign: 'center', marginBottom: '24px',
               background: gps === 'near' ? 'rgba(74,222,128,0.08)' : gps === 'far' ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)',
               border: `1px solid ${gps === 'near' ? 'rgba(74,222,128,0.25)' : gps === 'far' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.1)'}`,
             }}>
-              {gps === 'checking' && <><div style={{ fontSize:'32px', marginBottom:'8px' }}>📡</div><p style={{ color:'#a0a0a0', margin:0 }}>Getting your location…</p></>}
-              {gps === 'near'     && <><div style={{ fontSize:'40px', marginBottom:'8px' }}>✅</div><p style={{ color:'#4ade80', fontWeight:700, margin:'0 0 4px' }}>You're at the venue</p><p style={{ color:'#a0a0a0', fontSize:'12px', margin:0 }}>{distM}m from check-in point</p></>}
-              {gps === 'far'      && <><div style={{ fontSize:'40px', marginBottom:'8px' }}>📍</div><p style={{ color:'#f87171', fontWeight:700, margin:'0 0 4px' }}>Too far away</p><p style={{ color:'#a0a0a0', fontSize:'12px', margin:0 }}>You are {distM}m away. Must be within {GEO_THRESHOLD_M}m.</p></>}
-              {gps === 'denied'   && <><div style={{ fontSize:'40px', marginBottom:'8px' }}>🚫</div><p style={{ color:'#f87171', margin:0 }}>Location access denied</p></>}
-              {gps === 'idle'     && <p style={{ color:'#a0a0a0', margin:0 }}>Tap below to verify your location</p>}
+              {gps === 'checking' && <><div style={{ fontSize: '32px', marginBottom: '8px' }}>📡</div><p style={{ color: '#a0a0a0', margin: 0 }}>Getting your location…</p></>}
+              {gps === 'near' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>✅</div><p style={{ color: '#4ade80', fontWeight: 700, margin: '0 0 4px' }}>You're at the venue</p><p style={{ color: '#a0a0a0', fontSize: '12px', margin: 0 }}>{distM}m from check-in point</p></>}
+              {gps === 'far' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>📍</div><p style={{ color: '#f87171', fontWeight: 700, margin: '0 0 4px' }}>Too far away</p><p style={{ color: '#a0a0a0', fontSize: '12px', margin: 0 }}>You are {distM}m away. Must be within {GEO_THRESHOLD_M}m.</p></>}
+              {gps === 'denied' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>🚫</div><p style={{ color: '#f87171', margin: 0 }}>Location access denied</p></>}
+              {gps === 'idle' && <p style={{ color: '#a0a0a0', margin: 0 }}>Tap below to verify your location</p>}
             </div>
 
-            {/* Selfie prompt */}
-            {selfie !== 'none' && gps === 'near' && (
-              <div style={{ marginBottom:'20px', padding:'20px', background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'14px', textAlign:'center' }}>
-                <p style={{ color:'#D4AF37', fontWeight:700, marginBottom:'12px' }}>📸 Take your {selfie === 'checkin' ? 'check-in' : 'check-out'} selfie</p>
-                <div style={{ width:'100px', height:'100px', borderRadius:'50%', background:'rgba(255,255,255,0.04)', border:'2px dashed rgba(212,175,55,0.4)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', fontSize:'36px' }}>🤳</div>
-                <p style={{ color:'#666', fontSize:'12px', marginBottom:'16px' }}>Camera opens in production. Demo simulates selfie capture.</p>
-                <Button onClick={selfie === 'checkin' ? doCheckIn : doCheckOut} loading={working}>
-                  ✓ Confirm {selfie === 'checkin' ? 'Check-In' : 'Check-Out'}
-                </Button>
+            {/* Selfie capture */}
+            {selfieAction !== 'none' && gps === 'near' && (
+              <div style={{ marginBottom: '20px', padding: '20px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '14px', textAlign: 'center' }}>
+                <p style={{ color: G, fontWeight: 700, marginBottom: '12px' }}>
+                  📸 Take your {selfieAction === 'checkin' ? 'check-in' : 'check-out'} selfie
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelfieFile(file);
+                      const reader = new FileReader();
+                      reader.onload = () => setSelfiePreview(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                  id="selfie-input"
+                />
+                <label htmlFor="selfie-input" style={{ cursor: 'pointer' }}>
+                  {selfiePreview ? (
+                    <img src={selfiePreview} alt="selfie" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8 }} />
+                  ) : (
+                    <div style={{
+                      width: '100px', height: '100px', borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.04)', border: `2px dashed ${G}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 12px', fontSize: '36px'
+                    }}>
+                      🤳
+                    </div>
+                  )}
+                </label>
+                {selfiePreview && (
+                  <Button onClick={selfieAction === 'checkin' ? doCheckIn : doCheckOut} loading={working} style={{ marginTop: '12px' }}>
+                    ✓ Confirm {selfieAction === 'checkin' ? 'Check-In' : 'Check-Out'}
+                  </Button>
+                )}
               </div>
             )}
 
             {/* Action buttons */}
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-              {active.status === 'scheduled' && gps === 'near' && selfie === 'none' && (
-                <Button fullWidth size="lg" onClick={() => setSelfie('checkin')}>🟢 Start Shift — Check In</Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {active.status === 'scheduled' && gps === 'near' && selfieAction === 'none' && (
+                <Button fullWidth size="lg" onClick={() => setSelfieAction('checkin')}>🟢 Start Shift — Check In</Button>
               )}
-              {(active.status === 'checked_in' || active.status === 'active') && gps === 'near' && selfie === 'none' && (
-                <Button fullWidth size="lg" variant="secondary" onClick={() => setSelfie('checkout')}>🔴 End Shift — Check Out</Button>
+              {(active.status === 'checked_in' || active.status === 'active') && gps === 'near' && selfieAction === 'none' && (
+                <Button fullWidth size="lg" variant="secondary" onClick={() => setSelfieAction('checkout')}>🔴 End Shift — Check Out</Button>
               )}
               {(gps === 'idle' || gps === 'far') && (
                 <Button fullWidth variant="ghost" onClick={() => checkGps(active)}>📡 Refresh Location</Button>
               )}
-              <Button fullWidth variant="ghost" onClick={() => { setSelected(null); setSelfie('none'); setGps('idle'); }}>Close</Button>
+              <Button fullWidth variant="ghost" onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}>Close</Button>
             </div>
           </div>
         </div>

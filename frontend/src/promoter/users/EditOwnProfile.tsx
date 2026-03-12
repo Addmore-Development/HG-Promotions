@@ -8,14 +8,22 @@ import { useAuth }          from '../../shared/hooks/useAuth';
 import { usersService }     from '../../shared/services/usersService';
 import { Button }           from '../../shared/components/Button';
 import { Badge }            from '../../shared/components/Badge';
+import { showToast }        from '../../shared/utils/toast';
 import type { UserProfile } from '../../shared/types/user.types';
+
+const G = '#D4AF37';
+const BC = '#161616';
+const BB = 'rgba(255,255,255,0.07)';
+const W = '#F4EFE6';
+const WM = 'rgba(244,239,230,0.55)';
+const WD = '#555';
+const FB = "'DM Sans', system-ui, sans-serif";
 
 export const EditOwnProfile: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -73,8 +81,7 @@ export const EditOwnProfile: React.FC = () => {
         },
       });
       setProfile(updated);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      showToast('Profile saved successfully', 'success');
     } catch (e) {
       setError('Failed to save. Please try again.');
       console.error(e);
@@ -86,15 +93,15 @@ export const EditOwnProfile: React.FC = () => {
   // Styles
   const fs: React.CSSProperties = {
     width: '100%', padding: '12px 14px',
-    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.04)', border: `1px solid ${BB}`,
+    borderRadius: '8px', color: W, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
   };
   const ls: React.CSSProperties = {
-    display: 'block', color: '#a0a0a0', fontSize: '11px', fontWeight: 600,
+    display: 'block', color: WM, fontSize: '11px', fontWeight: 600,
     letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px',
   };
   const SH = ({ t }: { t: string }) => (
-    <h3 style={{ color: '#D4AF37', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '28px 0 16px' }}>{t}</h3>
+    <h3 style={{ color: G, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '28px 0 16px' }}>{t}</h3>
   );
 
   const statusBadge = () => {
@@ -116,7 +123,7 @@ export const EditOwnProfile: React.FC = () => {
   })();
 
   if (loading) return (
-    <div style={{ color: '#666', padding: '60px 0', textAlign: 'center' }}>Loading profile…</div>
+    <div style={{ color: WD, padding: '60px 0', textAlign: 'center' }}>Loading profile…</div>
   );
 
   const displayName = profile?.fullName || user?.name || 'Promoter';
@@ -128,8 +135,8 @@ export const EditOwnProfile: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
-          <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
+          <h1 style={{ color: W, fontSize: '22px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
+          <p style={{ color: WD, fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
         </div>
         {statusBadge()}
       </div>
@@ -144,21 +151,21 @@ export const EditOwnProfile: React.FC = () => {
       )}
 
       {/* Read-only identity card */}
-      <div style={{ padding: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', marginBottom: '8px' }}>
+      <div style={{ padding: '24px', background: BC, border: `1px solid ${BB}`, borderRadius: '16px', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
           <div style={{
             width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
             background: 'linear-gradient(135deg,#D4AF37,#B8962E)', display: 'flex',
             alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 900,
-            color: '#0A0A0A', border: '2px solid rgba(212,175,55,0.3)',
+            color: '#0A0A0A', border: `2px solid ${G}80`,
           }}>
             {profile?.profilePhoto
               ? <img src={profile.profilePhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '17px', margin: '0 0 4px' }}>{displayName}</h3>
-            <p style={{ color: '#666', fontSize: '13px', margin: '0 0 2px' }}>{user?.email}</p>
+            <h3 style={{ color: W, fontWeight: 700, fontSize: '17px', margin: '0 0 4px' }}>{displayName}</h3>
+            <p style={{ color: WD, fontSize: '13px', margin: '0 0 2px' }}>{user?.email}</p>
             {(profile?.city || form.city) && (profile?.province || form.province) && (
               <p style={{ color: '#555', fontSize: '12px', margin: 0 }}>
                 📍 {profile?.city || form.city}, {profile?.province || form.province}
@@ -181,7 +188,7 @@ export const EditOwnProfile: React.FC = () => {
         </div>
 
         {(profile?.physicalAttributes?.height ?? 0) > 0 && (
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px solid ${BB}`, display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
             {[
               { label: 'Height',   value: `${profile!.physicalAttributes.height}cm` },
               { label: 'Clothing', value: profile!.physicalAttributes.clothingSize || '—' },
@@ -189,7 +196,7 @@ export const EditOwnProfile: React.FC = () => {
             ].map(a => (
               <div key={a.label}>
                 <p style={{ color: '#555', fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
-                <p style={{ color: '#D4AF37', fontSize: '14px', fontWeight: 700, margin: 0 }}>{a.value}</p>
+                <p style={{ color: G, fontSize: '14px', fontWeight: 700, margin: 0 }}>{a.value}</p>
               </div>
             ))}
           </div>
@@ -197,7 +204,7 @@ export const EditOwnProfile: React.FC = () => {
       </div>
 
       {/* Document change notice */}
-      <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '8px' }}>
+      <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${BB}`, borderRadius: '10px', marginBottom: '8px' }}>
         <p style={{ color: '#555', fontSize: '12px', margin: 0, lineHeight: 1.6 }}>
           📎 <strong style={{ color: '#888' }}>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
         </p>
@@ -252,8 +259,8 @@ export const EditOwnProfile: React.FC = () => {
 
       {/* Editable: Banking */}
       <SH t="Banking Details" />
-      <div style={{ padding: '12px 16px', background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '10px', marginBottom: '16px' }}>
-        <p style={{ color: '#D4AF37', fontSize: '12px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
+      <div style={{ padding: '12px 16px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '10px', marginBottom: '16px' }}>
+        <p style={{ color: G, fontSize: '12px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
         <div style={{ marginBottom: '16px' }}>
@@ -286,8 +293,7 @@ export const EditOwnProfile: React.FC = () => {
       {/* Save */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
         <Button loading={saving} onClick={handleSave}>Save Changes</Button>
-        {saved  && <span style={{ color: '#4ade80',  fontSize: '13px' }}>✓ Saved successfully</span>}
-        {error  && <span style={{ color: '#f87171', fontSize: '13px' }}>{error}</span>}
+        {error && <span style={{ color: '#f87171', fontSize: '13px' }}>{error}</span>}
       </div>
     </div>
   );

@@ -1,10 +1,5 @@
-// promoter/index.tsx
-// Promoter portal shell.
-// Status is read directly from localStorage hg_session — no async wait.
-// Only 'blacklisted' accounts are hard-locked. All others can browse freely.
-// pending_review / rejected users see an informational banner only.
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout }      from '../shared/layout/AppLayout';
 import { Dashboard }      from './dashboard/dashboard';
 import { ViewAcceptJobs } from './jobs/ViewAcceptJobs';
@@ -24,7 +19,6 @@ const NAV: NavItem[] = [
   { id: 'profile',   label: 'My Profile', icon: '👤' },
 ];
 
-/** Read status directly from localStorage — synchronous, no flicker */
 function getSessionStatus(): string {
   try {
     const sess = JSON.parse(localStorage.getItem('hg_session') || '{}');
@@ -35,27 +29,33 @@ function getSessionStatus(): string {
 }
 
 export const PromoterApp: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth(); // 👈 get isLoading
+  const navigate = useNavigate();
   const [view,   setView]   = useState<PromoterView>('dashboard');
-  // Read status synchronously — no loading state needed
   const [status, setStatus] = useState<string>(() => getSessionStatus());
 
-  // Re-sync if user object changes (login/logout)
+  // Wait for auth to finish loading before redirecting
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, isLoading, navigate]);
+
   useEffect(() => {
     setStatus(getSessionStatus());
   }, [user?.id]);
 
+  // Show nothing while auth is loading or redirecting
+  if (isLoading || !user) return null;
+
   const handleNavigate = (id: string) => setView(id as PromoterView);
 
-  // Hard lock ONLY for blacklisted accounts
   const isBlacklisted = status === 'blacklisted';
-
   const navItems: NavItem[] = NAV.map(item => ({
     ...item,
     locked: isBlacklisted && item.id !== 'profile',
   }));
 
-  // Show informational banner for non-approved, non-blacklisted users
   const showBanner = status !== 'approved' && !isBlacklisted;
 
   const BANNER: Record<string, string> = {
@@ -71,7 +71,6 @@ export const PromoterApp: React.FC = () => {
       activeNav={view}
       onNavigate={handleNavigate}
     >
-      {/* Informational banner — never blocks access */}
       {showBanner && (
         <div style={{
           padding: '12px 20px', marginBottom: '24px', borderRadius: '12px',
@@ -91,7 +90,6 @@ export const PromoterApp: React.FC = () => {
         </div>
       )}
 
-      {/* Blacklisted hard block */}
       {isBlacklisted && (
         <div style={{ padding: '32px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
           <p style={{ color: '#f87171', fontSize: '15px', fontWeight: 700, margin: 0 }}>

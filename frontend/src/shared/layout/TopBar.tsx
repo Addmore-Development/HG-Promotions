@@ -2,6 +2,7 @@
 // Sticky top bar — shows the page title and sign-out button.
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface TopBarProps {
@@ -10,6 +11,12 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ title = 'Honey Group Promotions' }) => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <header style={{
@@ -40,11 +47,11 @@ export const TopBar: React.FC<TopBarProps> = ({ title = 'Honey Group Promotions'
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {user && (
           <span style={{ color: '#555', fontSize: '12px' }}>
-            {user.mobile}
+            {user.name}
           </span>
         )}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           style={{
             background: 'none', border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '8px', color: '#666', fontSize: '12px', fontWeight: 600,

@@ -195,7 +195,7 @@ export default function LandingPage() {
   const handleLogout = () => { localStorage.removeItem('hg_session'); setSession(null); };
   const handleDashboard = () => {
     if (!session) return;
-    const map: Record<string, string> = { admin: '/admin', business: '/business/dashboard', promoter: '/promoter/dashboard' };
+    const map: Record<string, string> = { admin: '/admin', business: '/business/dashboard', promoter: '/promoter/' };
     navigate(map[session.role] || '/');
   };
 

@@ -7,15 +7,17 @@ export const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Restore session from localStorage on mount
   useEffect(() => {
     const raw = localStorage.getItem('hg_session')
-    if (!raw) return
+    if (!raw) {
+      setLoading(false)
+      return
+    }
     try {
       const data = JSON.parse(raw)
       if (data.loggedIn && data.email && data.role) {
-        // Prefer userId stored in session, fallback to mock profile lookup, then email
         const mockProfile = MOCK_PROFILES.find(
           p => (p as typeof p & { email?: string }).email?.toLowerCase() === data.email?.toLowerCase()
         )
@@ -28,6 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.warn('Failed to restore session', e)
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -46,6 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  if (loading) {
+    return (
+      <div style={{
+        background: '#080808',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#F4EFE6',
+        fontFamily: "'DM Sans', system-ui, sans-serif"
+      }}>
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -55,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         register,
         isAuthenticated: !!user,
+        isLoading: loading, // 👈 expose loading state
       }}
     >
       {children}

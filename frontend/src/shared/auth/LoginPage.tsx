@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth' // 👈 import useAuth
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────── */
 const BLACK        = '#080808'
@@ -38,7 +39,7 @@ const ROLE_CONFIG: Record<Role, { label: string; icon: string; accentColor: stri
 
 /* ─── ROLE → DASHBOARD MAP ───────────────────────────────────── */
 const DASHBOARD_ROUTE: Record<Role, string> = {
-  promoter: '/promoter/dashboard',
+  promoter: '/promoter/',
   business: '/business/dashboard',
   admin:    '/admin',
 }
@@ -105,6 +106,7 @@ function FloatingInput({
 
 export default function LoginPage() {
   const navigate                   = useNavigate()
+  const { login } = useAuth() // 👈 get login from context
   const [role, setRole]            = useState<Role>('promoter')
   const [email, setEmail]          = useState('')
   const [password, setPassword]    = useState('')
@@ -120,7 +122,6 @@ export default function LoginPage() {
     if (!email || !password) { setError('Please enter your email and password.'); return }
 
     setLoading(true)
-    await new Promise(r => setTimeout(r, 700))
 
     /* ── Admin hard-coded credentials ── */
     if (role === 'admin') {
@@ -139,41 +140,17 @@ export default function LoginPage() {
       }
     }
 
-    /* ── Promoter / Business — check localStorage registrations ── */
-    const allUsers: Record<string, unknown>[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
-    const match = allUsers.find(u => u.email === email.toLowerCase() && u.role === role)
-
-    if (!match) {
-      setError(`No ${cfg.label} account found with this email.`)
+    /* ── Promoter / Business — use context login ── */
+    try {
+      await login(email, password)
+      // login() updates context and sets session via authService
+      setSuccess(true)
+      setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
+    } catch (err: any) {
+      setError(err.message || 'Login failed')
+    } finally {
       setLoading(false)
-      return
     }
-    if (match.password !== password) {
-      setError('Incorrect password. Please try again.')
-      setLoading(false)
-      return
-    }
-
-    /* ── Build display name — handles both promoter and business field shapes ── */
-    const displayName =
-      (match.fullName as string) ||
-      (`${match.firstName ?? ''} ${match.lastName ?? ''}`.trim()) ||
-      (match.contactName as string) ||
-      (match.companyName as string) ||
-      email
-
-    /* ── Save session ── */
-    localStorage.setItem('hg_session', JSON.stringify({
-      role,
-      email: email.toLowerCase(),
-      name:  displayName,
-      loggedIn: true,
-      status: match.status,
-    }))
-
-    setSuccess(true)
-    setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
-    setLoading(false)
   }
 
   /* Allow Enter key to submit */

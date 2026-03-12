@@ -72,6 +72,7 @@ function lsRecordToProfile(rec: Record<string, unknown>): UserProfile {
     } : undefined,
     reliabilityScore: 0,
     onboardingStatus,
+    rejectionReason: rec.rejectionReason as string | undefined,
     createdAt: (rec.createdAt as string) || now,
     updatedAt: now,
   };
@@ -85,12 +86,12 @@ function findMock(key: string): UserProfile | undefined {
   );
 }
 
-function findLsRecord(email: string): Record<string, unknown> | undefined {
-  if (!email) return undefined;
-  const lower = email.toLowerCase();
+function findLsRecord(emailOrId: string): Record<string, unknown> | undefined {
+  if (!emailOrId) return undefined;
+  const lower = emailOrId.toLowerCase();
   return getLsUsers().find(u =>
     (u.email as string)?.toLowerCase() === lower ||
-    (u.userId as string) === email
+    (u.userId as string) === emailOrId
   );
 }
 
@@ -182,6 +183,7 @@ export const usersService = {
           accountType:   data.bankDetails.accountType,
           branchCode:    data.bankDetails.branchCode,
         }),
+        ...(data.rejectionReason != null && { rejectionReason: data.rejectionReason }),
         updatedAt: now,
       };
       saveLsUsers(users);
@@ -233,7 +235,12 @@ export const usersService = {
     // Mock
     const mockIdx = MOCK_PROFILES.findIndex(p => p.userId === userId);
     if (mockIdx !== -1) {
-      MOCK_PROFILES[mockIdx] = { ...MOCK_PROFILES[mockIdx], onboardingStatus: decision, rejectionReason: reason, updatedAt: new Date().toISOString() };
+      MOCK_PROFILES[mockIdx] = {
+        ...MOCK_PROFILES[mockIdx],
+        onboardingStatus: decision,
+        rejectionReason: reason,
+        updatedAt: new Date().toISOString()
+      };
       return { ...MOCK_PROFILES[mockIdx] };
     }
 
@@ -241,7 +248,11 @@ export const usersService = {
     const users  = getLsUsers();
     const lsIdx  = users.findIndex(u => u.email === userId || u.userId === userId);
     if (lsIdx !== -1) {
-      users[lsIdx] = { ...users[lsIdx], status: decision, ...(reason ? { rejectionReason: reason } : {}) };
+      users[lsIdx] = {
+        ...users[lsIdx],
+        status: decision,
+        ...(reason ? { rejectionReason: reason } : {})
+      };
       saveLsUsers(users);
       return lsRecordToProfile(users[lsIdx]);
     }
