@@ -68,7 +68,7 @@ export const ViewAcceptJobs: React.FC = () => {
         setLocationLoading(false);
       },
       (err) => {
-        setLocationError('Unable to get location. Using static distances.');
+        setLocationError('');
         setLocationLoading(false);
         // Fallback to a default location (Sandton)
         setUserLocation({ lat: -26.1076, lng: 28.0560 });
