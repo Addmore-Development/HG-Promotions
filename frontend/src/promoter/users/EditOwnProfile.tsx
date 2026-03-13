@@ -11,13 +11,24 @@ import { Badge }            from '../../shared/components/Badge';
 import { showToast }        from '../../shared/utils/toast';
 import type { UserProfile } from '../../shared/types/user.types';
 
-const G = '#D4AF37';
-const BC = '#161616';
-const BB = 'rgba(255,255,255,0.07)';
-const W = '#F4EFE6';
-const WM = 'rgba(244,239,230,0.55)';
-const WD = '#555';
+// Admin‑style tokens
+const G = '#D4880A';
+const GL = '#E8A820';
+const G2 = '#8B5A1A';
+const B = '#0C0A07';
+const BC = '#1A1508';
+const BB = 'rgba(212,136,10,0.14)';
+const W = '#FAF3E8';
+const WM = 'rgba(250,243,232,0.55)';
+const WD = 'rgba(250,243,232,0.28)';
 const FB = "'DM Sans', system-ui, sans-serif";
+const FD = "'Playfair Display', Georgia, serif";
+
+// Status colors
+const TEAL = '#4AABB8';
+const AMBER = '#E8A820';
+const CORAL = '#C4614A';
+const SKY = '#5A9EC4';
 
 export const EditOwnProfile: React.FC = () => {
   const { user } = useAuth();
@@ -101,7 +112,7 @@ export const EditOwnProfile: React.FC = () => {
     letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px',
   };
   const SH = ({ t }: { t: string }) => (
-    <h3 style={{ color: G, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '28px 0 16px' }}>{t}</h3>
+    <h3 style={{ color: GL, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '28px 0 16px' }}>{t}</h3>
   );
 
   const statusBadge = () => {
@@ -117,7 +128,6 @@ export const EditOwnProfile: React.FC = () => {
     return <Badge variant={s.variant}>{s.label}</Badge>;
   };
 
-  // Read onboarding status from session as fallback while profile loads
   const sessionStatus = (() => {
     try { return JSON.parse(localStorage.getItem('hg_session') || '{}').status || ''; } catch { return ''; }
   })();
@@ -135,15 +145,15 @@ export const EditOwnProfile: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ color: W, fontSize: '28px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
-          <p style={{ color: WD, fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
+          <p style={{ color: WM, fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
         </div>
         {statusBadge()}
       </div>
 
       {/* Rejection notice */}
       {status === 'rejected' && profile?.rejectionReason && (
-        <div style={{ padding: '16px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '28px' }}>
-          <p style={{ color: '#f87171', fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
+        <div style={{ padding: '16px 20px', background: `${CORAL}12`, border: `1px solid ${CORAL}44`, borderRadius: '12px', marginBottom: '28px' }}>
+          <p style={{ color: CORAL, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
             <strong>Reason:</strong> {profile.rejectionReason}. Please contact support or update your documents.
           </p>
         </div>
@@ -154,9 +164,10 @@ export const EditOwnProfile: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '30px', flexWrap: 'wrap' }}>
           <div style={{
             width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-            background: 'linear-gradient(135deg,#D4AF37,#B8962E)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 900,
-            color: '#0A0A0A', border: `2px solid ${G}80`,
+            background: `linear-gradient(135deg, ${G}, ${GL})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '32px', fontWeight: 900, color: B,
+            border: `2px solid ${GL}80`,
           }}>
             {profile?.profilePhoto
               ? <img src={profile.profilePhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -164,9 +175,9 @@ export const EditOwnProfile: React.FC = () => {
           </div>
           <div>
             <h3 style={{ color: W, fontWeight: 700, fontSize: '22px', margin: '0 0 6px' }}>{displayName}</h3>
-            <p style={{ color: WD, fontSize: '15px', margin: '0 0 3px' }}>{user?.email}</p>
+            <p style={{ color: WM, fontSize: '15px', margin: '0 0 3px' }}>{user?.email}</p>
             {(profile?.city || form.city) && (profile?.province || form.province) && (
-              <p style={{ color: '#555', fontSize: '14px', margin: 0 }}>
+              <p style={{ color: WD, fontSize: '14px', margin: 0 }}>
                 📍 {profile?.city || form.city}, {profile?.province || form.province}
               </p>
             )}
@@ -180,8 +191,8 @@ export const EditOwnProfile: React.FC = () => {
             { label: 'ID Number',     value: profile?.idNumber ? `${profile.idNumber.slice(0, 6)}••••` : '—' },
           ].map(row => (
             <div key={row.label}>
-              <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
-              <p style={{ color: '#e0e0e0', fontSize: '15px', fontWeight: 600, margin: 0 }}>{row.value}</p>
+              <p style={{ color: WD, fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
+              <p style={{ color: W, fontSize: '15px', fontWeight: 600, margin: 0 }}>{row.value}</p>
             </div>
           ))}
         </div>
@@ -194,8 +205,8 @@ export const EditOwnProfile: React.FC = () => {
               { label: 'Shoe',     value: profile!.physicalAttributes.shoeSize     || '—' },
             ].map(a => (
               <div key={a.label}>
-                <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
-                <p style={{ color: G, fontSize: '18px', fontWeight: 700, margin: 0 }}>{a.value}</p>
+                <p style={{ color: WD, fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
+                <p style={{ color: GL, fontSize: '18px', fontWeight: 700, margin: 0 }}>{a.value}</p>
               </div>
             ))}
           </div>
@@ -204,15 +215,15 @@ export const EditOwnProfile: React.FC = () => {
 
       {/* Document change notice */}
       <div style={{ padding: '18px 24px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${BB}`, borderRadius: '16px', marginBottom: '12px' }}>
-        <p style={{ color: '#555', fontSize: '14px', margin: 0, lineHeight: 1.6 }}>
-          📎 <strong style={{ color: '#888' }}>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
+        <p style={{ color: WD, fontSize: '14px', margin: 0, lineHeight: 1.6 }}>
+          📎 <strong style={{ color: WM }}>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
         </p>
       </div>
 
       {/* Editable Sections with Cards */}
       <div style={{ marginTop: '40px' }}>
         {/* Location */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+        <div style={{ background: BC, borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
           <SH t="Location" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
@@ -232,7 +243,7 @@ export const EditOwnProfile: React.FC = () => {
         </div>
 
         {/* Physical Attributes */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+        <div style={{ background: BC, borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
           <SH t="Physical Attributes" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {[
@@ -249,7 +260,7 @@ export const EditOwnProfile: React.FC = () => {
         </div>
 
         {/* Social Media */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+        <div style={{ background: BC, borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
           <SH t="Social Media" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {[
@@ -265,10 +276,10 @@ export const EditOwnProfile: React.FC = () => {
         </div>
 
         {/* Banking Details */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '28px', border: `1px solid ${BB}` }}>
+        <div style={{ background: BC, borderRadius: '24px', padding: '32px', marginBottom: '28px', border: `1px solid ${BB}` }}>
           <SH t="Banking Details" />
-          <div style={{ padding: '18px 24px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '14px', marginBottom: '28px' }}>
-            <p style={{ color: G, fontSize: '14px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
+          <div style={{ padding: '18px 24px', background: `${GL}0f`, border: `1px solid ${GL}30`, borderRadius: '14px', marginBottom: '28px' }}>
+            <p style={{ color: GL, fontSize: '14px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
@@ -302,7 +313,7 @@ export const EditOwnProfile: React.FC = () => {
         {/* Save Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '20px', paddingBottom: '60px' }}>
           <Button loading={saving} onClick={handleSave} style={{ padding: '14px 40px', fontSize: '15px' }}>Save Changes</Button>
-          {error && <span style={{ color: '#f87171', fontSize: '14px' }}>{error}</span>}
+          {error && <span style={{ color: CORAL, fontSize: '14px' }}>{error}</span>}
         </div>
       </div>
     </div>

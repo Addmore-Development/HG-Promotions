@@ -8,31 +8,35 @@ interface BadgeProps {
   className?: string;
 }
 
-const variantStyles: Record<BadgeVariant, React.CSSProperties> = {
-  gold:    { background: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' },
-  success: { background: 'rgba(34,197,94,0.12)',  color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' },
-  warning: { background: 'rgba(250,204,21,0.12)', color: '#fbbf24', border: '1px solid rgba(250,204,21,0.3)' },
-  danger:  { background: 'rgba(239,68,68,0.12)',  color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' },
-  neutral: { background: 'rgba(255,255,255,0.08)', color: '#a0a0a0', border: '1px solid rgba(255,255,255,0.15)' },
-  info:    { background: 'rgba(99,179,237,0.12)', color: '#63b3ed', border: '1px solid rgba(99,179,237,0.3)' },
+// New status colors based on admin palette
+const STATUS_COLORS = {
+  gold:    { bg: 'rgba(232,168,32,0.15)', text: '#E8A820', border: 'rgba(232,168,32,0.4)' },      // AMBER/GL
+  success: { bg: 'rgba(74,171,184,0.12)',  text: '#4AABB8', border: 'rgba(74,171,184,0.3)' },    // TEAL
+  warning: { bg: 'rgba(232,168,32,0.12)', text: '#E8A820', border: 'rgba(232,168,32,0.3)' },     // AMBER
+  danger:  { bg: 'rgba(196,97,74,0.12)',  text: '#C4614A', border: 'rgba(196,97,74,0.3)' },      // CORAL
+  neutral: { bg: 'rgba(255,255,255,0.08)', text: '#FAF3E8', border: 'rgba(255,255,255,0.15)' },  // W
+  info:    { bg: 'rgba(90,158,196,0.12)', text: '#5A9EC4', border: 'rgba(90,158,196,0.3)' },     // SKY
 };
 
-export const Badge: React.FC<BadgeProps> = ({ variant = 'neutral', children, className = '' }) => (
-  <span
-    className={className}
-    style={{
-      ...variantStyles[variant],
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '2px 10px',
-      borderRadius: '20px',
-      fontSize: '11px',
-      fontWeight: 600,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase',
-      whiteSpace: 'nowrap',
-    }}
-  >
-    {children}
-  </span>
-);
+export const Badge: React.FC<BadgeProps> = ({ variant = 'neutral', children, className = '' }) => {
+  const colors = STATUS_COLORS[variant];
+  return (
+    <span
+      className={className}
+      style={{
+        ...colors,
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 10px',
+        borderRadius: '20px',
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
+  );
+};
