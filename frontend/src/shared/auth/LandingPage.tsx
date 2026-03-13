@@ -183,9 +183,12 @@ export default function LandingPage() {
   const [showLoginPrompt, setLoginPrompt] = useState(false);
 
   const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null);
+
   useEffect(() => {
     const s = localStorage.getItem('hg_session');
-    if (s) { try { setSession(JSON.parse(s)); } catch { /* ignore */ } }
+    if (s) {
+      try { setSession(JSON.parse(s)); } catch { /* ignore */ }
+    }
   }, []);
 
   // Get the 4 newest approved active jobs — these are what appear on the landing page
@@ -414,7 +417,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* ── TOP 4 NEWEST APPROVED JOBS ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
             {previewJobs.map(job => (
               <JobCard
@@ -427,13 +429,11 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* ── VIEW ALL CTA ── */}
           <div style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, textAlign: 'center' }}>
             <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${GOLD}, transparent)` }} />
             <p style={{ fontSize: 13, color: WHITE_DIM }}>
               Showing 4 of <strong style={{ color: WHITE }}>{totalActiveJobs} active jobs</strong> this week
             </p>
-            {/* ✅ FIX: Always navigate to /jobs regardless of login state */}
             <button
               onClick={() => navigate('/jobs')}
               style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${GOLD}44`, color: GOLD, padding: '12px 36px', cursor: 'pointer', transition: 'all 0.3s' }}
