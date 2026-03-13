@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getBusinessJobs, upsertJob, calcHours, calcPayout, type Job, type Applicant, type Shift } from './jobsStore'
+import { getBusinessJobs, calcHours, calcPayout, type Job, type Applicant } from './jobsStore'
 
 const BLACK        = '#080808'
 const BLACK_CARD   = '#161616'
@@ -37,26 +37,27 @@ function LiveTimer({ checkIn }: { checkIn: string }) {
   )
 }
 
-/* ─── PROMOTER TRACKING CARD ───────────────────────────────── */
-function PromoterTrackCard({ applicant, job, onCheckIn, onCheckOut }: {
+/* ─── PROMOTER LIVE CARD (view-only) ───────────────────────── */
+// ── CHANGE: removed all check-in / check-out buttons; view-only display of live promoters ──
+function PromoterLiveCard({ applicant, job }: {
   applicant: Applicant; job: Job
-  onCheckIn: (apEmail: string, jobId: string) => void
-  onCheckOut: (apEmail: string, jobId: string, shiftId: string) => void
 }) {
   const activeShift = applicant.shifts.find(s => !s.checkOut)
   const completedShifts = applicant.shifts.filter(s => s.checkOut)
   const totalHours = calcHours(applicant.shifts)
   const totalPayout = calcPayout(applicant.shifts, job.ratePerHour)
-  const isActive = !!activeShift
+
+  // Only render if there's an active shift
+  if (!activeShift) return null
 
   return (
     <div style={{
       background: BLACK_CARD,
-      border: `1px solid ${isActive ? `${GREEN}30` : BLACK_BORDER}`,
-      position: 'relative', overflow: 'hidden', transition: 'border-color 0.3s',
-      boxShadow: isActive ? `0 0 24px rgba(74,222,128,0.06)` : 'none',
+      border: `1px solid ${GREEN}30`,
+      position: 'relative', overflow: 'hidden',
+      boxShadow: `0 0 24px rgba(74,222,128,0.06)`,
     }}>
-      <div style={{ height: 3, background: isActive ? GREEN : BLACK_BORDER, transition: 'background 0.3s' }} />
+      <div style={{ height: 3, background: GREEN }} />
 
       <div style={{ padding: '20px 22px' }}>
         {/* Promoter info */}
@@ -64,10 +65,10 @@ function PromoterTrackCard({ applicant, job, onCheckIn, onCheckOut }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-              background: isActive ? `${GREEN}15` : `${GOLD}15`,
-              border: `1px solid ${isActive ? `${GREEN}40` : `${GOLD}40`}`,
+              background: `${GREEN}15`,
+              border: `1px solid ${GREEN}40`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: FD, fontSize: 15, color: isActive ? GREEN : GOLD,
+              fontFamily: FD, fontSize: 15, color: GREEN,
             }}>
               {applicant.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
             </div>
@@ -76,24 +77,20 @@ function PromoterTrackCard({ applicant, job, onCheckIn, onCheckOut }: {
               <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_MUTED }}>{applicant.phone || applicant.email}</p>
             </div>
           </div>
-          {isActive ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', padding: '4px 10px' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}`, animation: 'pulse 2s infinite' }} />
-                <span style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.22em', color: GREEN }}>ON SHIFT</span>
-              </div>
-              <LiveTimer checkIn={activeShift!.checkIn} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', padding: '4px 10px' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}`, animation: 'pulse 2s infinite' }} />
+              <span style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.22em', color: GREEN }}>ON SHIFT</span>
             </div>
-          ) : (
-            <span style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: WHITE_MUTED, background: 'rgba(255,255,255,0.05)', padding: '4px 10px' }}>Off Shift</span>
-          )}
+            <LiveTimer checkIn={activeShift.checkIn} />
+          </div>
         </div>
 
         {/* Stats row */}
         <div style={{ display: 'flex', gap: 0, marginBottom: 18, border: `1px solid ${BLACK_BORDER}` }}>
           {[
-            { label: 'Shifts', value: String(completedShifts.length + (isActive ? 1 : 0)) },
-            { label: 'Hours', value: totalHours.toFixed(2) },
+            { label: 'Shifts Done', value: String(completedShifts.length) },
+            { label: 'Hours Total', value: totalHours.toFixed(2) },
             { label: 'Payout', value: `R ${totalPayout.toFixed(2)}` },
           ].map((s, i) => (
             <div key={s.label} style={{ flex: 1, padding: '12px 14px', borderRight: i < 2 ? `1px solid ${BLACK_BORDER}` : 'none', textAlign: 'center' }}>
@@ -104,45 +101,24 @@ function PromoterTrackCard({ applicant, job, onCheckIn, onCheckOut }: {
         </div>
 
         {/* Active shift info */}
-        {isActive && (
-          <div style={{ padding: '12px 14px', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)', marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Checked in</p>
-                <p style={{ fontFamily: FB, fontSize: 12, color: WHITE }}>{new Date(activeShift!.checkIn).toLocaleTimeString('en-ZA')}</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Est. earning</p>
-                <p style={{ fontFamily: FB, fontSize: 13, color: GREEN }}>
-                  R {((Date.now() - new Date(activeShift!.checkIn).getTime()) / 3600000 * job.ratePerHour).toFixed(2)}
-                </p>
-              </div>
+        <div style={{ padding: '12px 14px', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Checked in</p>
+              <p style={{ fontFamily: FB, fontSize: 12, color: WHITE }}>{new Date(activeShift.checkIn).toLocaleTimeString('en-ZA')}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Est. earning</p>
+              <p style={{ fontFamily: FB, fontSize: 13, color: GREEN }}>
+                R {((Date.now() - new Date(activeShift.checkIn).getTime()) / 3600000 * job.ratePerHour).toFixed(2)}
+              </p>
             </div>
           </div>
-        )}
-
-        {/* Action button */}
-        {job.status === 'active' && (
-          isActive ? (
-            <button
-              onClick={() => onCheckOut(applicant.email, job.id, activeShift!.id)}
-              style={{ width: '100%', padding: '12px 0', background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.4)', fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#ff6b6b', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.18)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.1)' }}
-            >
-              ■ Check Out
-            </button>
-          ) : (
-            <button
-              onClick={() => onCheckIn(applicant.email, job.id)}
-              style={{ width: '100%', padding: '12px 0', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.35)', fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GREEN, cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(74,222,128,0.18)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(74,222,128,0.1)' }}
-            >
-              ▶ Check In
-            </button>
-          )
-        )}
+        </div>
+        {/* ── CHANGE: no check-in / check-out buttons — view only ── */}
+        <p style={{ fontFamily: FB, fontSize: 10, color: WHITE_DIM, textAlign: 'center', marginTop: 14, letterSpacing: '0.1em' }}>
+          View only · Shift management is handled by promoters
+        </p>
       </div>
 
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
@@ -162,10 +138,10 @@ export default function BusinessTracking() {
     if (s) {
       const parsed = JSON.parse(s)
       setSession(parsed)
-      const bizJobs = getBusinessJobs(parsed.email)
+      // ── CHANGE: only load active jobs ──
+      const bizJobs = getBusinessJobs(parsed.email).filter(j => j.status === 'active')
       setJobs(bizJobs)
-      const activeOnes = bizJobs.filter(j => j.status === 'active')
-      if (activeOnes.length > 0) setSelectedJob(activeOnes[0].id)
+      if (bizJobs.length > 0) setSelectedJob(bizJobs[0].id)
     }
   }, [])
 
@@ -177,42 +153,21 @@ export default function BusinessTracking() {
 
   const reload = () => {
     if (session) {
-      const fresh = getBusinessJobs(session.email)
+      const fresh = getBusinessJobs(session.email).filter(j => j.status === 'active')
       setJobs(fresh)
     }
   }
 
-  const handleCheckIn = (apEmail: string, jobId: string) => {
-    const allJobs = getBusinessJobs(session?.email || '')
-    const job = allJobs.find(j => j.id === jobId)
-    if (!job) return
-    const apIdx = job.applicants.findIndex(a => a.email === apEmail)
-    if (apIdx < 0) return
-    const newShift: Shift = {
-      id: `shift-${Date.now()}`,
-      checkIn: new Date().toISOString(),
-    }
-    job.applicants[apIdx].shifts.push(newShift)
-    upsertJob(job)
-    reload()
-  }
-
-  const handleCheckOut = (apEmail: string, jobId: string, shiftId: string) => {
-    const allJobs = getBusinessJobs(session?.email || '')
-    const job = allJobs.find(j => j.id === jobId)
-    if (!job) return
-    const apIdx = job.applicants.findIndex(a => a.email === apEmail)
-    if (apIdx < 0) return
-    const shiftIdx = job.applicants[apIdx].shifts.findIndex(s => s.id === shiftId)
-    if (shiftIdx < 0) return
-    job.applicants[apIdx].shifts[shiftIdx].checkOut = new Date().toISOString()
-    upsertJob(job)
-    reload()
-  }
-
-  const activeJobs = jobs.filter(j => j.status === 'active')
+  // ── CHANGE: only active jobs, only promoters with a live shift ──
+  const activeJobs = jobs  // already filtered to active only
   const currentJob = jobs.find(j => j.id === selectedJob)
-  const liveCount  = currentJob?.applicants.filter(a => a.shifts.some(s => !s.checkOut)).length || 0
+
+  // Only promoters currently on an active shift
+  const livePromoters = currentJob
+    ? currentJob.applicants.filter(a => a.shifts.some(s => !s.checkOut))
+    : []
+
+  const liveCount = livePromoters.length
 
   return (
     <div>
@@ -223,12 +178,12 @@ export default function BusinessTracking() {
         </p>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <h1 style={{ fontFamily: FD, fontSize: 'clamp(24px,3vw,36px)', fontWeight: 700, color: WHITE, lineHeight: 1.1 }}>
-            Shift Operations
+            Live Promoters
           </h1>
           {liveCount > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', padding: '8px 16px' }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
-              <span style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: GREEN }}>{liveCount} promoter{liveCount !== 1 ? 's' : ''} on shift</span>
+              <span style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: GREEN }}>{liveCount} promoter{liveCount !== 1 ? 's' : ''} currently on shift</span>
             </div>
           )}
         </div>
@@ -237,7 +192,7 @@ export default function BusinessTracking() {
       {activeJobs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '80px 20px', border: `1px dashed ${BLACK_BORDER}` }}>
           <p style={{ fontFamily: FD, fontSize: 22, color: WHITE_MUTED, marginBottom: 8 }}>No active jobs</p>
-          <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>Create and activate a job to start tracking shifts.</p>
+          <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>Create and activate a job to start tracking live shifts.</p>
         </div>
       ) : (
         <>
@@ -269,35 +224,42 @@ export default function BusinessTracking() {
                 </div>
                 <div style={{ display: 'flex', gap: 20 }}>
                   <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Team</p>
+                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Team Total</p>
                     <p style={{ fontFamily: FD, fontSize: 20, color: WHITE }}>{currentJob.applicants.length}</p>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>On Shift</p>
+                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>On Shift Now</p>
                     <p style={{ fontFamily: FD, fontSize: 20, color: GREEN }}>{liveCount}</p>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Total Payout</p>
+                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Live Earning</p>
                     <p style={{ fontFamily: FD, fontSize: 20, color: GOLD }}>
-                      R {currentJob.applicants.reduce((acc, a) => acc + calcPayout(a.shifts, currentJob.ratePerHour), 0).toFixed(2)}
+                      R {livePromoters.reduce((acc, a) => {
+                        const activeShift = a.shifts.find(s => !s.checkOut)
+                        if (!activeShift) return acc
+                        return acc + (Date.now() - new Date(activeShift.checkIn).getTime()) / 3600000 * currentJob.ratePerHour
+                      }, 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {currentJob.applicants.length === 0 ? (
+              {/* ── CHANGE: only show live promoters, or empty state if none ── */}
+              {liveCount === 0 ? (
                 <div style={{ textAlign: 'center', padding: '52px 20px', border: `1px dashed ${BLACK_BORDER}` }}>
-                  <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>No promoters have joined this job yet.</p>
+                  <div style={{ fontSize: 32, marginBottom: 16 }}>◎</div>
+                  <p style={{ fontFamily: FD, fontSize: 20, color: WHITE_MUTED, marginBottom: 8 }}>No one on shift right now</p>
+                  <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>
+                    Promoters will appear here automatically once they check in to their shifts.
+                  </p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-                  {currentJob.applicants.map(ap => (
-                    <PromoterTrackCard
+                  {livePromoters.map(ap => (
+                    <PromoterLiveCard
                       key={ap.email}
                       applicant={ap}
                       job={currentJob}
-                      onCheckIn={handleCheckIn}
-                      onCheckOut={handleCheckOut}
                     />
                   ))}
                 </div>
