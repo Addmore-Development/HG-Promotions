@@ -2,44 +2,70 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AdminLayout } from '../AdminLayout'
 
-// ─── Updated palette from reference image ─────────────────────────────────────
-const G   = '#D4880A'   // Warm amber primary
-const GL  = '#E8A820'   // Bright golden yellow
-const G2  = '#8B5A1A'   // Dark brown
-const GP  = '#F5D898'   // Soft peach highlight
+// ─── Warm palette ─────────────────────────────────────────────────────────────
+const G   = '#D4880A'
+const GL  = '#E8A820'
+const G2  = '#8B5A1A'
+const G3  = '#C07818'
+const G4  = '#F0C050'
+const G5  = '#6B3F10'
 
 const B  = '#0C0A07'
-const D1 = '#121008'
-const D2 = '#1A1508'
-const D3 = '#221C0C'
-const GM = '#2A2210'
-const GL2= '#352C14'
+const D1 = '#0E0C06'
+const D2 = '#151209'
+const D3 = '#1C1709'
+const GM = '#221C0A'
 
-const BB = 'rgba(212,136,10,0.14)'
-const BB2= 'rgba(212,136,10,0.07)'
+const BB  = 'rgba(212,136,10,0.16)'
+const BB2 = 'rgba(212,136,10,0.06)'
 
 const W   = '#FAF3E8'
 const W85 = 'rgba(250,243,232,0.85)'
 const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
-const W12 = 'rgba(250,243,232,0.10)'
 
-// Status palette — brighter, more vivid against dark warm background
-const TEAL       = '#4AABB8'   // approved / active
-const AMBER      = '#E8A820'   // pending
-const CORAL      = '#C4614A'   // rejected / warning
-const SKY        = '#5A9EC4'   // neutral info
+// Status colors — all visible on dark backgrounds
+const C_ACTIVE   = '#C07818'   // mid amber
+const C_PENDING  = '#E8A820'   // bright gold
+const C_REJECTED = '#E8D5A8'   // warm cream — VISIBLE on dark bg
+const C_NEW      = '#F0C050'   // pale gold
+const C_INACTIVE = '#E8D5A8'   // warm cream — same as rejected, always legible
 
-const FD = "'Playfair Display', Georgia, serif"
-const FB = "'DM Sans', system-ui, sans-serif"
+const FD   = "'Playfair Display', Georgia, serif"
+const MONO = "'DM Mono', 'Courier New', monospace"
 
-// ─── Status color helper ──────────────────────────────────────────────────────
-function statusColor(status: string): string {
-  if (status === 'approved' || status === 'active') return TEAL
-  if (status === 'rejected' || status === 'inactive') return CORAL
-  if (status === 'pending' || status === 'pending_review') return AMBER
-  if (status === 'new') return SKY
+// ── Safe rgba helper — never produces broken CSS ──────────────────────────────
+function hex2rgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+function statusColor(s: string): string {
+  if (s === 'approved' || s === 'active')          return C_ACTIVE
+  if (s === 'rejected')                             return C_REJECTED
+  if (s === 'inactive')                             return C_INACTIVE
+  if (s === 'pending' || s === 'pending_review')    return C_PENDING
+  if (s === 'new')                                  return C_NEW
   return W28
+}
+
+function statusBg(s: string): string {
+  if (s === 'approved' || s === 'active')  return hex2rgba('#C07818', 0.12)
+  if (s === 'rejected' || s === 'inactive') return hex2rgba('#6B4020', 0.35)
+  if (s === 'pending' || s === 'pending_review') return hex2rgba('#E8A820', 0.12)
+  if (s === 'new')                         return hex2rgba('#F0C050', 0.10)
+  return 'transparent'
+}
+
+function statusBorder(s: string): string {
+  if (s === 'approved' || s === 'active')  return hex2rgba('#C07818', 0.45)
+  if (s === 'rejected' || s === 'inactive') return hex2rgba('#8B6040', 0.60)
+  if (s === 'pending' || s === 'pending_review') return hex2rgba('#E8A820', 0.45)
+  if (s === 'new')                         return hex2rgba('#F0C050', 0.42)
+  return BB
 }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -61,16 +87,15 @@ const MOCK_REGISTRATIONS = [
   { id:'R006', name:'Bongani Khumalo', email:'bong@email.com',    role:'promoter', date:'2026-03-08', status:'approved', city:'Durban',       phone:'+27 61 222 3333', source:'mock', details:{ gender:'Male',   height:'1.78m', idNumber:'9811110004086', experience:'4 years field marketing' } },
 ]
 
-// ── CLIENTS — businesses that have registered on the platform ──────────────────
 const MOCK_CLIENTS = [
-  { id:'C001', name:'RedBull South Africa',   contact:'James Mokoena',   email:'rb@redbull.co.za',      phone:'+27 11 555 0001', industry:'FMCG / Energy',     city:'Johannesburg', registeredDate:'2024-01-12', activeSince:'2024-01', jobsRun:14, totalHours:312, status:'active',   budget:'R 48,000',  website:'redbull.com/za',     regNumber:'2005/098765/07', description:'Energy drink brand activation & sampling campaigns across Gauteng.' },
-  { id:'C002', name:'Acme Corp',              contact:'Priya Nair',      email:'acme@corp.co.za',       phone:'+27 21 555 0002', industry:'Retail',            city:'Cape Town',    registeredDate:'2023-06-03', activeSince:'2023-06', jobsRun:9,  totalHours:204, status:'active',   budget:'R 32,000',  website:'acmecorp.co.za',     regNumber:'2010/112233/07', description:'Multi-category retail promotions and in-store activations.' },
-  { id:'C003', name:'FreshBrands Ltd',        contact:'Jane Dlamini',    email:'fresh@brands.co.za',    phone:'+27 31 555 6666', industry:'FMCG',              city:'Durban',       registeredDate:'2025-11-20', activeSince:'2025-11', jobsRun:3,  totalHours:48,  status:'new',      budget:'R 8,400',   website:'freshbrands.co.za',  regNumber:'2022/123456/07', description:'New FMCG client specialising in health and wellness product launches.' },
-  { id:'C004', name:'Castle Lager SA',        contact:'Sipho Mahlangu',  email:'castle@sab.co.za',      phone:'+27 11 555 0004', industry:'Beverages',         city:'Johannesburg', registeredDate:'2022-03-08', activeSince:'2022-03', jobsRun:28, totalHours:680, status:'active',   budget:'R 112,000', website:'castlelager.co.za',  regNumber:'1998/003344/07', description:'Beer brand activations, stadium events, and trade promotions nationwide.' },
-  { id:'C005', name:'PromoNation',            contact:'Bob Smith',       email:'promo@nation.co.za',    phone:'+27 11 999 0000', industry:'Events',            city:'Johannesburg', registeredDate:'2024-08-15', activeSince:'2024-08', jobsRun:2,  totalHours:16,  status:'inactive', budget:'R 2,800',   website:'promonation.co.za',  regNumber:'2019/654321/07', description:'Event production company with limited recent activity.' },
-  { id:'C006', name:'Standard Bank Promos',  contact:'Lerato Sithole',  email:'promos@stdbank.co.za',  phone:'+27 11 555 0006', industry:'Financial Services',city:'Pretoria',     registeredDate:'2023-09-01', activeSince:'2023-09', jobsRun:7,  totalHours:168, status:'active',   budget:'R 29,400',  website:'standardbank.co.za', regNumber:'1969/017128/06', description:'Consumer banking product promotions and financial literacy activations.' },
-  { id:'C007', name:'Nando\'s Marketing',    contact:'Thandi Khumalo',  email:'mktg@nandos.co.za',     phone:'+27 11 555 0007', industry:'Quick Service Restaurant', city:'Johannesburg', registeredDate:'2025-02-10', activeSince:'2025-02', jobsRun:5,  totalHours:88,  status:'active',   budget:'R 15,600',  website:'nandos.co.za',       regNumber:'1990/004499/07', description:'Brand activation and loyalty campaign promoters for restaurant launches.' },
-  { id:'C008', name:'Vodacom Business',      contact:'Amahle Ndaba',    email:'biz@vodacom.co.za',     phone:'+27 11 555 0008', industry:'Telecoms',          city:'Midrand',      registeredDate:'2023-03-15', activeSince:'2023-03', jobsRun:11, totalHours:256, status:'active',   budget:'R 44,800',  website:'vodacom.co.za',      regNumber:'1993/003367/07', description:'Telco product launches, bundle promotions, and retail point-of-sale activations.' },
+  { id:'C001', name:'RedBull South Africa',  contact:'James Mokoena',  email:'rb@redbull.co.za',     phone:'+27 11 555 0001', industry:'FMCG / Energy',           city:'Johannesburg', registeredDate:'2024-01-12', activeSince:'2024-01', jobsRun:14, totalHours:312, status:'active',   budget:'R 48,000',  website:'redbull.com/za',     regNumber:'2005/098765/07', description:'Energy drink brand activation & sampling campaigns across Gauteng.' },
+  { id:'C002', name:'Acme Corp',             contact:'Priya Nair',     email:'acme@corp.co.za',      phone:'+27 21 555 0002', industry:'Retail',                  city:'Cape Town',    registeredDate:'2023-06-03', activeSince:'2023-06', jobsRun:9,  totalHours:204, status:'active',   budget:'R 32,000',  website:'acmecorp.co.za',     regNumber:'2010/112233/07', description:'Multi-category retail promotions and in-store activations.' },
+  { id:'C003', name:'FreshBrands Ltd',       contact:'Jane Dlamini',   email:'fresh@brands.co.za',   phone:'+27 31 555 6666', industry:'FMCG',                    city:'Durban',       registeredDate:'2025-11-20', activeSince:'2025-11', jobsRun:3,  totalHours:48,  status:'new',      budget:'R 8,400',   website:'freshbrands.co.za',  regNumber:'2022/123456/07', description:'New FMCG client specialising in health and wellness product launches.' },
+  { id:'C004', name:'Castle Lager SA',       contact:'Sipho Mahlangu', email:'castle@sab.co.za',     phone:'+27 11 555 0004', industry:'Beverages',               city:'Johannesburg', registeredDate:'2022-03-08', activeSince:'2022-03', jobsRun:28, totalHours:680, status:'active',   budget:'R 112,000', website:'castlelager.co.za',  regNumber:'1998/003344/07', description:'Beer brand activations, stadium events, and trade promotions nationwide.' },
+  { id:'C005', name:'PromoNation',           contact:'Bob Smith',      email:'promo@nation.co.za',   phone:'+27 11 999 0000', industry:'Events',                  city:'Johannesburg', registeredDate:'2024-08-15', activeSince:'2024-08', jobsRun:2,  totalHours:16,  status:'inactive', budget:'R 2,800',   website:'promonation.co.za',  regNumber:'2019/654321/07', description:'Event production company with limited recent activity.' },
+  { id:'C006', name:'Standard Bank Promos', contact:'Lerato Sithole', email:'promos@stdbank.co.za', phone:'+27 11 555 0006', industry:'Financial Services',      city:'Pretoria',     registeredDate:'2023-09-01', activeSince:'2023-09', jobsRun:7,  totalHours:168, status:'active',   budget:'R 29,400',  website:'standardbank.co.za', regNumber:'1969/017128/06', description:'Consumer banking product promotions and financial literacy activations.' },
+  { id:'C007', name:"Nando's Marketing",    contact:'Thandi Khumalo', email:'mktg@nandos.co.za',    phone:'+27 11 555 0007', industry:'Quick Service Restaurant',city:'Johannesburg', registeredDate:'2025-02-10', activeSince:'2025-02', jobsRun:5,  totalHours:88,  status:'active',   budget:'R 15,600',  website:'nandos.co.za',       regNumber:'1990/004499/07', description:'Brand activation and loyalty campaign promoters for restaurant launches.' },
+  { id:'C008', name:'Vodacom Business',     contact:'Amahle Ndaba',   email:'biz@vodacom.co.za',    phone:'+27 11 555 0008', industry:'Telecoms',                city:'Midrand',      registeredDate:'2023-03-15', activeSince:'2023-03', jobsRun:11, totalHours:256, status:'active',   budget:'R 44,800',  website:'vodacom.co.za',       regNumber:'1993/003367/07', description:'Telco product launches, bundle promotions, and retail point-of-sale activations.' },
 ]
 
 const INIT_MESSAGES = [
@@ -91,99 +116,87 @@ const ACTIVITY = [
 ]
 
 const TYPE_CLR: Record<string,string> = {
-  checkin: TEAL,
-  apply:   GL,
-  job:     SKY,
-  doc:     '#A090C8',
-  payment: GL,
-  flag:    CORAL,
+  checkin: GL, apply: G3, job: G4, doc: G2, payment: GL, flag: '#8B5A1A',
 }
 
-function normalizeStatus(status: string): string {
-  if (status === 'pending_review') return 'pending'
-  return status || 'pending'
-}
-
-function isPending(status: string): boolean {
-  return status === 'pending' || status === 'pending_review'
-}
+function normalizeStatus(s: string) { return s === 'pending_review' ? 'pending' : s || 'pending' }
+function isPending(s: string)        { return s === 'pending' || s === 'pending_review' }
 
 function loadRealRegistrations() {
   try {
     const stored: any[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
     return stored.map((u: any, idx: number) => ({
-      id: `LIVE-${idx + 1}`,
-      name: u.fullName || u.contactName || u.companyName || u.email,
-      email: u.email,
-      role: u.role as string,
-      date: u.createdAt ? String(u.createdAt).slice(0,10) : u.registeredAt ? String(u.registeredAt).slice(0,10) : new Date().toISOString().slice(0,10),
+      id: `LIVE-${idx + 1}`, name: u.fullName || u.contactName || u.companyName || u.email,
+      email: u.email, role: u.role as string,
+      date: u.createdAt ? String(u.createdAt).slice(0, 10) : u.registeredAt ? String(u.registeredAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
       status: normalizeStatus(String(u.status || 'pending')),
       city: u.city || u.location || (u.address ? u.address.split(',').pop()?.trim() : '') || 'Not specified',
-      phone: u.phone || u.contactPhone || 'Not provided',
-      source: 'real',
-      _rawStatus: u.status || 'pending',
+      phone: u.phone || u.contactPhone || 'Not provided', source: 'real', _rawStatus: u.status || 'pending',
       details: u.role === 'promoter'
-        ? { gender: u.gender||'N/A', height: u.height||'N/A', idNumber: u.idNumber||'N/A', experience: u.experience||'N/A' }
-        : { regNumber: u.regNumber||'N/A', industry: u.industry||'N/A', website: u.website||'N/A', contactPerson: u.contactName||u.fullName||'N/A', companyName: u.companyName||'N/A' },
+        ? { gender: u.gender || 'N/A', height: u.height || 'N/A', idNumber: u.idNumber || 'N/A', experience: u.experience || 'N/A' }
+        : { regNumber: u.regNumber || 'N/A', industry: u.industry || 'N/A', website: u.website || 'N/A', contactPerson: u.contactName || u.fullName || 'N/A', companyName: u.companyName || 'N/A' },
     }))
   } catch { return [] }
 }
 
-// ─── Shared components ────────────────────────────────────────────────────────
-function Badge({ label, color }: { label: string; color: string }) {
+// ─── Shared UI ────────────────────────────────────────────────────────────────
+function Badge({ label, color, bg, border }: { label: string; color: string; bg?: string; border?: string }) {
   return (
     <span style={{
       fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase',
-      color, background: `${color}1A`, border: `1px solid ${color}44`,
+      fontFamily: FD, color,
+      background: bg ?? statusBg(label),
+      border: `1px solid ${border ?? statusBorder(label)}`,
       padding: '3px 10px', borderRadius: 3,
-    }}>
-      {label}
-    </span>
+    }}>{label}</span>
   )
 }
 
-function BronzeBtn({ children, onClick, outline=false, small=false, color=G }: any) {
+function Btn({ children, onClick, outline = false, small = false, color = G }: any) {
   return (
-    <button onClick={onClick}
-      style={{
-        padding: small ? '6px 14px' : '10px 22px',
-        background: outline ? 'transparent' : `linear-gradient(135deg, ${color}, ${color}CC)`,
-        border: `1px solid ${color}`,
-        color: outline ? color : '#0C0A07',
-        fontFamily: FB, fontSize: small ? 10 : 11, fontWeight: 700,
-        letterSpacing: '0.1em', cursor: 'pointer', textTransform: 'uppercase' as const,
-        transition: 'all 0.2s', borderRadius: 3,
-        boxShadow: outline ? 'none' : `0 2px 12px ${color}40`,
-      }}
+    <button onClick={onClick} style={{
+      padding: small ? '6px 14px' : '10px 22px',
+      background: outline ? 'transparent' : `linear-gradient(135deg,${color},${hex2rgba(color, 0.8)})`,
+      border: `1px solid ${color}`, color: outline ? color : B,
+      fontFamily: FD, fontSize: small ? 10 : 11, fontWeight: 700,
+      letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase' as const,
+      transition: 'all 0.2s', borderRadius: 3,
+      boxShadow: outline ? 'none' : `0 2px 12px ${hex2rgba(color, 0.35)}`,
+    }}
       onMouseEnter={e => { e.currentTarget.style.opacity = '0.82'; e.currentTarget.style.transform = 'translateY(-1px)' }}
       onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
     >{children}</button>
   )
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow: string; title: string; subtitle?: string; action?: React.ReactNode }) {
+// ── Filter button — uses hex2rgba(), never appends hex suffix ─────────────────
+function FilterBtn({ label, active, color, onClick }: { label: string; active: boolean; color: string; onClick: () => void }) {
+  // Ensure color is always a valid hex before passing to hex2rgba
+  const safeColor = color.startsWith('#') ? color : GL
   return (
-    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom: 28 }}>
-      <div>
-        <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700 }}>{eyebrow}</div>
-        <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W, lineHeight: 1.15 }}>{title}</h1>
-        {subtitle && <p style={{ fontSize: 13, color: W55, marginTop: 5, lineHeight: 1.5 }}>{subtitle}</p>}
-      </div>
-      {action && <div>{action}</div>}
-    </div>
+    <button onClick={onClick} style={{
+      padding: '6px 16px',
+      border: `1px solid ${active ? safeColor : 'rgba(212,136,10,0.22)'}`,
+      cursor: 'pointer', fontFamily: FD, fontSize: 10, fontWeight: active ? 700 : 400,
+      textTransform: 'capitalize' as const, borderRadius: 3,
+      background: active ? hex2rgba(safeColor, 0.18) : 'transparent',
+      color: active ? safeColor : W55,
+      transition: 'all 0.18s',
+    }}>{label}</button>
   )
 }
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, color }: { label:string; value:any; sub?:string; color:string }) {
+function StatCard({ label, value, sub, color }: { label: string; value: any; sub?: string; color: string }) {
   return (
-    <div style={{ background: D2, padding: '24px 22px', position: 'relative', overflow: 'hidden', borderRadius: 2 }}>
-      <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background: `linear-gradient(90deg, ${color}, ${color}88)` }} />
-      <div style={{ position:'absolute', top:0, right:0, width:60, height:60, background:`${color}06`, borderRadius:'0 0 0 60px' }} />
-      <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: W55, marginBottom: 10 }}>{label}</div>
+    <div style={{
+      background: 'rgba(20,16,5,0.6)',
+      padding: '24px 22px', position: 'relative', overflow: 'hidden', borderRadius: 2,
+      backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,${color},${hex2rgba(color, 0.4)})` }} />
+      <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: W55, marginBottom: 10, fontFamily: FD }}>{label}</div>
       <div style={{ fontFamily: FD, fontSize: 38, fontWeight: 700, color: W, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color, marginTop: 8, fontWeight: 600 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color, marginTop: 8, fontWeight: 700, fontFamily: FD }}>{sub}</div>}
     </div>
   )
 }
@@ -191,49 +204,41 @@ function StatCard({ label, value, sub, color }: { label:string; value:any; sub?:
 // ─── Modals ───────────────────────────────────────────────────────────────────
 function DetailModal({ item, onClose, onApprove, onReject }: { item: any; onClose: () => void; onApprove: () => void; onReject: () => void }) {
   const isPromoter = item.role === 'promoter'
-  const pending = isPending(item.status)
-  const accentColor = isPromoter ? SKY : GL
+  const pending    = isPending(item.status)
+  const accent     = isPromoter ? G3 : GL
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:24 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:520, position:'relative', maxHeight:'90vh', overflowY:'auto', borderRadius:4 }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background: `linear-gradient(90deg, ${accentColor}, ${G2})` }} />
-        <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-        <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>{isPromoter ? 'Promoter Application' : 'Business Application'}</div>
-        <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:8 }}>{item.name}</div>
-        <div style={{ marginBottom:16, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-          <Badge label={item.status} color={statusColor(item.status)} />
-          {item.source==='real' && <span style={{ fontSize:10, color:TEAL, fontWeight:700 }}>● Live Registration</span>}
+      <div style={{ background: D2, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 520, position: 'relative', maxHeight: '90vh', overflowY: 'auto', borderRadius: 4 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${accent},${G5})` }} />
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: W28, fontSize: 18, fontFamily: FD }}>✕</button>
+        <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>{isPromoter ? 'Promoter Application' : 'Business Application'}</div>
+        <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: W, marginBottom: 8 }}>{item.name}</div>
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Badge label={item.status} color={statusColor(item.status)} bg={statusBg(item.status)} border={statusBorder(item.status)} />
+          {item.source === 'real' && <span style={{ fontSize: 10, color: GL, fontWeight: 700, fontFamily: FD }}>● Live</span>}
         </div>
-        {[{label:'Email',value:item.email},{label:'Phone',value:item.phone},{label:'City',value:item.city},{label:'Applied',value:item.date}].map((r:any) => (
-          <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
-            <span style={{ fontSize:12, color:W55 }}>{r.label}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:600 }}>{r.value}</span>
+        {[{ label: 'Email', value: item.email }, { label: 'Phone', value: item.phone }, { label: 'City', value: item.city }, { label: 'Applied', value: item.date }].map((r: any) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${BB}` }}>
+            <span style={{ fontSize: 12, color: W55, fontFamily: FD }}>{r.label}</span>
+            <span style={{ fontSize: 12, color: W, fontWeight: 700, fontFamily: FD }}>{r.value}</span>
           </div>
         ))}
-        <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:20, marginBottom:12, fontWeight:700 }}>{isPromoter ? 'Promoter Profile' : 'Business Profile'}</div>
-        {Object.entries(item.details).map(([k,v]) => (
-          <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
-            <span style={{ fontSize:12, color:W55, textTransform:'capitalize' }}>{k.replace(/([A-Z])/g,' $1')}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:600 }}>{String(v)}</span>
+        <div style={{ fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: GL, marginTop: 20, marginBottom: 12, fontWeight: 700, fontFamily: FD }}>{isPromoter ? 'Promoter Profile' : 'Business Profile'}</div>
+        {Object.entries(item.details).map(([k, v]) => (
+          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${BB}` }}>
+            <span style={{ fontSize: 12, color: W55, textTransform: 'capitalize', fontFamily: FD }}>{k.replace(/([A-Z])/g, ' $1')}</span>
+            <span style={{ fontSize: 12, color: W, fontWeight: 700, fontFamily: FD }}>{String(v)}</span>
           </div>
         ))}
         {pending && (
-          <div style={{ display:'flex', gap:12, marginTop:28 }}>
-            <BronzeBtn onClick={onApprove} color={TEAL}>✓ Approve</BronzeBtn>
-            <BronzeBtn onClick={onReject} color={CORAL} outline>✗ Reject</BronzeBtn>
+          <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
+            <Btn onClick={onApprove} color={C_ACTIVE}>✓ Approve</Btn>
+            <Btn onClick={onReject} color={G2} outline>✗ Reject</Btn>
           </div>
         )}
-        {!pending && item.status === 'approved' && (
-          <div style={{ marginTop:28, padding:'12px 16px', background:`${TEAL}12`, border:`1px solid ${TEAL}44`, fontSize:12, color:TEAL, borderRadius:3 }}>
-            ✓ This account has been approved and is visible on the platform.
-          </div>
-        )}
-        {!pending && item.status === 'rejected' && (
-          <div style={{ marginTop:28, padding:'12px 16px', background:`${CORAL}12`, border:`1px solid ${CORAL}44`, fontSize:12, color:CORAL, borderRadius:3 }}>
-            ✗ This account has been rejected.
-          </div>
-        )}
+        {!pending && item.status === 'approved' && <div style={{ marginTop: 28, padding: '12px 16px', background: hex2rgba(C_ACTIVE, 0.08), border: `1px solid ${hex2rgba(C_ACTIVE, 0.35)}`, fontSize: 12, color: GL, fontFamily: FD, borderRadius: 3 }}>✓ This account has been approved.</div>}
+        {!pending && item.status === 'rejected' && <div style={{ marginTop: 28, padding: '12px 16px', background: hex2rgba(G5, 0.4), border: `1px solid ${hex2rgba(G2, 0.35)}`, fontSize: 12, color: C_REJECTED, fontFamily: FD, borderRadius: 3 }}>✗ This account has been rejected.</div>}
       </div>
     </div>
   )
@@ -241,79 +246,62 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item: any; onClos
 
 function MessageModal({ msg, onClose }: { msg: any; onClose: () => void }) {
   const [reply, setReply] = useState('')
-  const typeColor = msg.type === 'complaint' ? CORAL : msg.type === 'review' ? TEAL : GL
+  const tcBright = (t: string) => t === 'complaint' ? G4 : t === 'review' ? GL : G4
+  const tc       = (t: string) => t === 'complaint' ? G5 : t === 'review' ? G : G3
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:24 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background:D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:540, position:'relative', borderRadius:4 }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background: `linear-gradient(90deg, ${typeColor}, ${G2})` }} />
-        <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-        <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:typeColor, marginBottom:8 }}>{msg.type} · from {msg.fromRole}</div>
-        <div style={{ fontFamily:FD, fontSize:22, fontWeight:700, color:W, marginBottom:4 }}>{msg.subject}</div>
-        <div style={{ fontSize:12, color:W55, marginBottom:24 }}>From: {msg.from} · {msg.date}</div>
-        {msg.regardingName && <div style={{ padding:'8px 14px', background:`${GL}0D`, border:`1px solid ${GL}30`, marginBottom:20, fontSize:12, color:GL }}>Regarding: <strong>{msg.regardingName}</strong></div>}
-        <div style={{ fontSize:14, color:W, lineHeight:1.8, marginBottom:28, padding:16, background:BB2, border:`1px solid ${BB}` }}>{msg.body}</div>
+      <div style={{ background: D2, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 540, position: 'relative', borderRadius: 4 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${tc(msg.type)},${G5})` }} />
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: W28, fontSize: 18 }}>✕</button>
+        <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: tcBright(msg.type), marginBottom: 8, fontFamily: FD, fontWeight: 700 }}>{msg.type} · from {msg.fromRole}</div>
+        <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, marginBottom: 4 }}>{msg.subject}</div>
+        <div style={{ fontSize: 12, color: W55, marginBottom: 24, fontFamily: FD }}>From: {msg.from} · {msg.date}</div>
+        {msg.regardingName && <div style={{ padding: '8px 14px', background: hex2rgba(GL, 0.06), border: `1px solid ${hex2rgba(GL, 0.22)}`, marginBottom: 20, fontSize: 12, color: GL, fontFamily: FD }}>Regarding: <strong>{msg.regardingName}</strong></div>}
+        <div style={{ fontSize: 14, color: W, lineHeight: 1.8, marginBottom: 28, padding: 16, background: BB2, border: `1px solid ${BB}`, fontFamily: FD }}>{msg.body}</div>
         <textarea value={reply} onChange={e => setReply(e.target.value)} rows={3} placeholder="Type your response..."
-          style={{ width:'100%', background:'rgba(255,255,255,0.03)', border:`1px solid ${BB}`, padding:'12px 14px', color:W, fontFamily:FB, fontSize:13, resize:'none', outline:'none', marginBottom:14 }}
-          onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB}
-        />
-        <div style={{ display:'flex', gap:10 }}>
-          <BronzeBtn onClick={onClose}>Send Reply</BronzeBtn>
-          <BronzeBtn onClick={onClose} outline color={W55}>Close</BronzeBtn>
+          style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: `1px solid ${BB}`, padding: '12px 14px', color: W, fontFamily: FD, fontSize: 13, resize: 'none', outline: 'none', marginBottom: 14 }}
+          onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn onClick={onClose}>Send Reply</Btn>
+          <Btn onClick={onClose} outline color={W55}>Close</Btn>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Client Detail Modal ──────────────────────────────────────────────────────
 function ClientModal({ client, onClose }: { client: any; onClose: () => void }) {
-  const accentColor = statusColor(client.status)
+  const accent = statusColor(client.status)
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:24 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background:D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:560, position:'relative', maxHeight:'90vh', overflowY:'auto', borderRadius:4 }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background: `linear-gradient(90deg, ${accentColor}, ${G2})` }} />
-        <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-
-        {/* Header */}
-        <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>Client Profile</div>
-        <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:6 }}>{client.name}</div>
-        <div style={{ marginBottom:20, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-          <Badge label={client.status} color={accentColor} />
-          <Badge label={client.industry} color={SKY} />
+      <div style={{ background: D2, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 560, position: 'relative', maxHeight: '90vh', overflowY: 'auto', borderRadius: 4 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${accent},${G5})` }} />
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: W28, fontSize: 18 }}>✕</button>
+        <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Client Profile</div>
+        <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: W, marginBottom: 6 }}>{client.name}</div>
+        <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Badge label={client.status} color={accent} bg={statusBg(client.status)} border={statusBorder(client.status)} />
+          <Badge label={client.industry} color={G3} bg={hex2rgba(G3, 0.12)} border={hex2rgba(G3, 0.38)} />
         </div>
-
-        {/* Description */}
-        {client.description && (
-          <div style={{ padding:'12px 16px', background:BB2, border:`1px solid ${BB}`, marginBottom:20, fontSize:13, color:W85, lineHeight:1.6, borderRadius:3 }}>
-            {client.description}
-          </div>
-        )}
-
-        {/* Details */}
+        {client.description && <div style={{ padding: '12px 16px', background: BB2, border: `1px solid ${BB}`, marginBottom: 20, fontSize: 13, color: W85, lineHeight: 1.6, borderRadius: 3, fontFamily: FD }}>{client.description}</div>}
         {[
-          {label:'Contact Person',   value: client.contact},
-          {label:'Email',            value: client.email},
-          {label:'Phone',            value: client.phone},
-          {label:'City',             value: client.city},
-          {label:'Website',          value: client.website},
-          {label:'Reg. Number',      value: client.regNumber},
-          {label:'Registered Date',  value: client.registeredDate},
-          {label:'Active Since',     value: client.activeSince},
-          {label:'Campaigns Run',    value: `${client.jobsRun} campaigns`},
-          {label:'Total Hours',      value: `${client.totalHours} hrs`},
-          {label:'Est. Budget Spent',value: client.budget},
-        ].map((r:any) => (
-          <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
-            <span style={{ fontSize:12, color:W55 }}>{r.label}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:600 }}>{r.value}</span>
+          { label: 'Contact', value: client.contact }, { label: 'Email', value: client.email },
+          { label: 'Phone', value: client.phone }, { label: 'City', value: client.city },
+          { label: 'Website', value: client.website }, { label: 'Reg. Number', value: client.regNumber },
+          { label: 'Registered', value: client.registeredDate }, { label: 'Active Since', value: client.activeSince },
+          { label: 'Campaigns', value: `${client.jobsRun} campaigns` }, { label: 'Total Hours', value: `${client.totalHours} hrs` },
+          { label: 'Campaign Spend', value: client.budget },
+        ].map((r: any) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${BB}` }}>
+            <span style={{ fontSize: 12, color: W55, fontFamily: FD }}>{r.label}</span>
+            <span style={{ fontSize: 12, color: W, fontWeight: 700, fontFamily: FD }}>{r.value}</span>
           </div>
         ))}
-
-        <div style={{ marginTop:28, display:'flex', gap:12 }}>
-          <BronzeBtn onClick={onClose}>Message Client</BronzeBtn>
-          <BronzeBtn onClick={onClose} outline>View Jobs</BronzeBtn>
+        <div style={{ marginTop: 28, display: 'flex', gap: 12 }}>
+          <Btn onClick={onClose}>Message Client</Btn>
+          <Btn onClick={onClose} outline>View Jobs</Btn>
         </div>
       </div>
     </div>
@@ -322,72 +310,68 @@ function ClientModal({ client, onClose }: { client: any; onClose: () => void }) 
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
 function DashboardTab({ regs, msgs, time, onRoute }: { regs: any[]; msgs: any[]; time: Date; onRoute: (id: string) => void }) {
-  const getGreeting = () => { const h = time.getHours(); if (h < 12) return 'Good morning'; if (h < 17) return 'Good afternoon'; if (h < 21) return 'Good evening'; return 'Good night' }
+  const h = time.getHours()
+  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
   const unread = msgs.filter(m => !m.read).length
   const stats = [
-    { label:'Active Promoters',  value: regs.filter(r => r.role==='promoter' && r.status==='approved').length, color: TEAL,  sub:'registered' },
-    { label:'Pending Approvals', value: regs.filter(r => isPending(r.status)).length,                          color: AMBER, sub:'need review' },
-    { label:'Unread Messages',   value: unread,                                                                 color: CORAL, sub:'complaints & reviews' },
-    { label:'Active Clients',    value: MOCK_CLIENTS.filter(c => c.status === 'active').length,                color: GL,    sub:'business clients' },
+    { label: 'Active Promoters',  value: regs.filter(r => r.role === 'promoter' && r.status === 'approved').length, color: G3, sub: 'registered' },
+    { label: 'Pending Approvals', value: regs.filter(r => isPending(r.status)).length,                              color: GL, sub: 'need review' },
+    { label: 'Unread Messages',   value: unread,                                                                     color: G2, sub: 'complaints & reviews' },
+    { label: 'Active Clients',    value: MOCK_CLIENTS.filter(c => c.status === 'active').length,                    color: G4, sub: 'business clients' },
   ]
   const quickActions = [
-    { label:'Registrations', icon:'▣', id:'registrations', color: AMBER },
-    { label:'Messages',      icon:'◆', id:'messages',      color: CORAL },
-    { label:'Live Map',      icon:'⊙', id:'map',           color: SKY   },
-    { label:'Clients',       icon:'◉', id:'clients',       color: GL    },
-    { label:'Jobs',          icon:'◎', id:'jobs',          color: GL    },
-    { label:'Reports',       icon:'▤', id:'reports',       color:'#A090C8' },
+    { label: 'Registrations', icon: '▣', id: 'registrations', color: GL },
+    { label: 'Messages',      icon: '◆', id: 'messages',      color: G3 },
+    { label: 'Live Map',      icon: '⊙', id: 'map',           color: G2 },
+    { label: 'Clients',       icon: '◉', id: 'clients',       color: GL },
+    { label: 'Jobs',          icon: '◎', id: 'jobs',          color: G4 },
+    { label: 'Reports',       icon: '▤', id: 'reports',       color: G3 },
   ]
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:36 }}>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 36 }}>
         <div>
-          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>Admin Dashboard</div>
-          <h1 style={{ fontFamily:FD, fontSize:32, fontWeight:700, color:W }}>{getGreeting()}, Admin.</h1>
-          <p style={{ fontSize:13, color:W55, marginTop:6 }}>Here's what's happening across the platform today.</p>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Admin Dashboard</div>
+          <h1 style={{ fontFamily: FD, fontSize: 32, fontWeight: 700, color: W }}>{greeting}, Admin.</h1>
+          <p style={{ fontSize: 13, color: W55, marginTop: 6, fontFamily: FD }}>Here's what's happening across the platform today.</p>
         </div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontFamily:FD, fontSize:26, color:GL }}>{time.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div>
-          <div style={{ fontSize:11, color:W55, marginTop:4 }}>{time.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'})}</div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: FD, fontSize: 26, color: GL }}>{time.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div style={{ fontSize: 11, color: W55, marginTop: 4, fontFamily: FD }}>{time.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
         </div>
       </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
-        {stats.map((s,i) => (
-          <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 32 }}>
+        {stats.map((s, i) => <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
       </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:18, fontWeight:700 }}>Quick Actions</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
+        <div style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: GL, marginBottom: 18, fontWeight: 700, fontFamily: FD }}>Quick Actions</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
             {quickActions.map(a => (
               <button key={a.id} onClick={() => onRoute(a.id)}
-                style={{ padding:'16px 14px', background:D3, border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:10, transition:'all 0.2s', fontFamily:FB }}
-                onMouseEnter={e => { e.currentTarget.style.background = GM; e.currentTarget.style.transform='translateY(-1px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = D3; e.currentTarget.style.transform='translateY(0)' }}>
-                <span style={{ fontSize:15, color:a.color }}>{a.icon}</span>
-                <span style={{ fontSize:12, color:W, fontWeight:600 }}>{a.label}</span>
+                style={{ padding: '16px 14px', background: D3, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.2s', fontFamily: FD }}
+                onMouseEnter={e => { e.currentTarget.style.background = GM; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = D3; e.currentTarget.style.transform = 'translateY(0)' }}>
+                <span style={{ fontSize: 15, color: a.color }}>{a.icon}</span>
+                <span style={{ fontSize: 12, color: W, fontWeight: 700, fontFamily: FD }}>{a.label}</span>
               </button>
             ))}
           </div>
         </div>
-
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-            <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontWeight:700 }}>Live Activity</div>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <div style={{ width:6, height:6, borderRadius:'50%', background:TEAL, animation:'pulse 2s infinite' }} />
-              <span style={{ fontSize:10, color:W55 }}>Live</span>
+        <div style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>Live Activity</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GL }} />
+              <span style={{ fontSize: 10, color: W55, fontFamily: FD }}>Live</span>
             </div>
           </div>
-          {ACTIVITY.map((a,i) => (
-            <div key={i} style={{ display:'flex', gap:10, padding:'10px 0', borderBottom: i < ACTIVITY.length - 1 ? `1px solid ${BB}` : 'none' }}>
-              <div style={{ width:6, height:6, borderRadius:'50%', background:TYPE_CLR[a.type], marginTop:4, flexShrink:0 }} />
+          {ACTIVITY.map((a, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: i < ACTIVITY.length - 1 ? `1px solid ${BB}` : 'none' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: TYPE_CLR[a.type], marginTop: 4, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize:12, color:W, lineHeight:1.4 }}>{a.msg}</div>
-                <div style={{ fontSize:10, color:W28, marginTop:2 }}>{a.time}</div>
+                <div style={{ fontSize: 12, color: W, lineHeight: 1.4, fontFamily: FD }}>{a.msg}</div>
+                <div style={{ fontSize: 10, color: W28, marginTop: 2, fontFamily: FD }}>{a.time}</div>
               </div>
             </div>
           ))}
@@ -400,96 +384,89 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs: any[]; msgs: any[];
 // ─── Registrations Tab ────────────────────────────────────────────────────────
 function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs: any[]; onDetail: (r: any) => void; onApprove: (id: string) => void; onReject: (id: string) => void }) {
   const [statusF, setStatusF] = useState('all')
-  const [roleF,   setRoleF]   = useState('all')
-  const [dateF,   setDateF]   = useState('all')
-  const liveCount    = regs.filter(r => r.source === 'real').length
+  const [roleF,   setRoleF  ] = useState('all')
+  const [dateF,   setDateF  ] = useState('all')
   const pendingCount = regs.filter(r => isPending(r.status)).length
+  const liveCount    = regs.filter(r => r.source === 'real').length
   const dates = ['all', ...Array.from(new Set(regs.map(r => r.date).filter(Boolean)))]
-  const filtered = regs.filter(r =>
-    (statusF === 'all' || r.status === statusF) &&
-    (roleF   === 'all' || r.role   === roleF)   &&
-    (dateF   === 'all' || r.date   === dateF)
-  )
 
-  const filterBtn = (active: boolean, color: string) => ({
-    padding:'6px 14px', border:`1px solid ${active ? color : BB}`, cursor:'pointer', fontFamily:FB,
-    fontSize:10, fontWeight:600, textTransform:'capitalize' as const, borderRadius:3,
-    background: active ? `${color}1E` : 'transparent', color: active ? color : W55, transition:'all 0.2s',
+  const filtered = regs.filter(r => {
+    const statusMatch = statusF === 'all' || r.status === statusF
+    const roleMatch   = roleF   === 'all' || r.role   === roleF
+    const dateMatch   = dateF   === 'all' || r.date   === dateF
+    return statusMatch && roleMatch && dateMatch
   })
 
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:28 }}>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>People · Registrations</div>
-          <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Registrations</h1>
-          <p style={{ fontSize:13, color:W55, marginTop:4 }}>Review and approve promoter and business applications.</p>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>People · Registrations</div>
+          <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Registrations</h1>
+          <p style={{ fontSize: 13, color: W55, marginTop: 4, fontFamily: FD }}>Review and approve promoter and business applications.</p>
         </div>
-        <div style={{ textAlign:'right', fontSize:12, color:W55 }}>
-          <div><span style={{ color:AMBER, fontWeight:700 }}>{pendingCount}</span> pending approval</div>
-          {liveCount > 0 && <div style={{ marginTop:4 }}><span style={{ color:TEAL, fontWeight:700 }}>● {liveCount}</span> live</div>}
+        <div style={{ textAlign: 'right', fontSize: 12, color: W55, fontFamily: FD }}>
+          <div><span style={{ color: GL, fontWeight: 700 }}>{pendingCount}</span> pending</div>
+          {liveCount > 0 && <div style={{ marginTop: 4 }}><span style={{ color: G3, fontWeight: 700 }}>● {liveCount}</span> live</div>}
         </div>
       </div>
 
       {regs.filter(r => r.source === 'real' && isPending(r.status)).length > 0 && (
-        <div style={{ padding:'12px 18px', background:`${AMBER}0E`, border:`1px solid ${AMBER}50`, marginBottom:16, fontSize:12, color:AMBER, display:'flex', alignItems:'center', gap:8, borderRadius:3 }}>
-          <span>⚠</span>
-          <span><strong>{regs.filter(r => r.source === 'real' && isPending(r.status)).length}</strong> live registration{regs.filter(r => r.source === 'real' && isPending(r.status)).length > 1 ? 's' : ''} awaiting approval</span>
+        <div style={{ padding: '12px 18px', background: hex2rgba(GL, 0.06), border: `1px solid ${hex2rgba(GL, 0.32)}`, marginBottom: 16, fontSize: 12, color: GL, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 3, fontFamily: FD }}>
+          <span>⚠</span><span><strong>{regs.filter(r => r.source === 'real' && isPending(r.status)).length}</strong> live registration{regs.filter(r => r.source === 'real' && isPending(r.status)).length > 1 ? 's' : ''} awaiting approval</span>
         </div>
       )}
 
-      <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', gap:4 }}>
-          {['all','pending','approved','rejected'].map(f => (
-            <button key={f} onClick={() => setStatusF(f)} style={filterBtn(statusF===f, statusColor(f) || GL)}>{f}</button>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
+            <FilterBtn key={f} label={f} active={statusF === f} color={f === 'all' ? GL : statusColor(f)} onClick={() => setStatusF(f)} />
           ))}
         </div>
-        <div style={{ display:'flex', gap:4 }}>
-          {['all','promoter','business'].map(f => (
-            <button key={f} onClick={() => setRoleF(f)} style={filterBtn(roleF===f, SKY)}>{f}</button>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['all', 'promoter', 'business'] as const).map(f => (
+            <FilterBtn key={f} label={f} active={roleF === f} color={G3} onClick={() => setRoleF(f)} />
           ))}
         </div>
-        <select value={dateF} onChange={e => setDateF(e.target.value)} style={{ background:D2, border:`1px solid ${BB}`, padding:'6px 12px', color:W, fontFamily:FB, fontSize:10, outline:'none', cursor:'pointer', borderRadius:3 }}>
+        <select value={dateF} onChange={e => setDateF(e.target.value)}
+          style={{ background: D2, border: `1px solid ${BB}`, padding: '6px 12px', color: W, fontFamily: FD, fontSize: 10, outline: 'none', cursor: 'pointer', borderRadius: 3 }}>
           {dates.map(d => <option key={d} value={d}>{d === 'all' ? 'All Dates' : d}</option>)}
         </select>
       </div>
 
-      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4 }}>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
-          <thead><tr style={{ borderBottom:`1px solid ${BB}` }}>
-            {['Name','Role','City','Date','Status','Source','Actions'].map(h => (
-              <th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FB }}>{h}</th>
+      <div style={{ background: D2, border: `1px solid ${BB}`, borderRadius: 4 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: `1px solid ${BB}`, background: D1 }}>
+            {['Name', 'Role', 'City', 'Date', 'Status', 'Source', 'Actions'].map(h => (
+              <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: W28, fontFamily: FD }}>{h}</th>
             ))}
           </tr></thead>
           <tbody>
-            {filtered.map((r,i) => (
-              <tr key={r.id}
-                style={{ borderBottom: i < filtered.length-1 ? `1px solid ${BB}` : 'none', background:'transparent', transition:'background 0.2s' }}
+            {filtered.map((r, i) => (
+              <tr key={r.id} style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${BB}` : 'none', transition: 'background 0.18s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = BB2)}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <td style={{ padding:'14px 18px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {r.source === 'real' && isPending(r.status) && <div style={{ width:5, height:5, borderRadius:'50%', background:AMBER, flexShrink:0 }} />}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <td style={{ padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {r.source === 'real' && isPending(r.status) && <div style={{ width: 5, height: 5, borderRadius: '50%', background: GL, flexShrink: 0 }} />}
                     <div>
-                      <div style={{ fontSize:13, fontWeight:600, color:W }}>{r.name}</div>
-                      <div style={{ fontSize:11, color:W55 }}>{r.email}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: W55, fontFamily: FD }}>{r.email}</div>
                     </div>
                   </div>
                 </td>
-                <td style={{ padding:'14px 18px' }}><Badge label={r.role} color={r.role==='promoter' ? SKY : GL} /></td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W55 }}>{r.city}</td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W55 }}>{r.date}</td>
-                <td style={{ padding:'14px 18px' }}><Badge label={r.status} color={statusColor(r.status)} /></td>
-                <td style={{ padding:'14px 18px' }}><span style={{ fontSize:10, fontWeight:700, color: r.source==='real' ? TEAL : W28 }}>{r.source==='real' ? '● Live' : '○ Demo'}</span></td>
-                <td style={{ padding:'14px 18px' }}>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <button onClick={() => onDetail(r)} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FB, fontWeight:600 }}>View →</button>
+                <td style={{ padding: '14px 18px' }}><Badge label={r.role} color={r.role === 'promoter' ? G3 : GL} bg={hex2rgba(r.role === 'promoter' ? G3 : GL, 0.12)} border={hex2rgba(r.role === 'promoter' ? G3 : GL, 0.38)} /></td>
+                <td style={{ padding: '14px 18px', fontSize: 12, color: W55, fontFamily: FD }}>{r.city}</td>
+                <td style={{ padding: '14px 18px', fontSize: 12, color: W55, fontFamily: FD }}>{r.date}</td>
+                <td style={{ padding: '14px 18px' }}><Badge label={r.status} color={statusColor(r.status)} bg={statusBg(r.status)} border={statusBorder(r.status)} /></td>
+                <td style={{ padding: '14px 18px' }}><span style={{ fontSize: 10, fontWeight: 700, color: r.source === 'real' ? GL : W28, fontFamily: FD }}>{r.source === 'real' ? '● Live' : '○ Demo'}</span></td>
+                <td style={{ padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button onClick={() => onDetail(r)} style={{ fontSize: 11, color: GL, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontWeight: 700 }}>View →</button>
                     {isPending(r.status) && <>
-                      <span style={{ color:W28 }}>·</span>
-                      <button onClick={() => onApprove(r.id)} style={{ fontSize:11, color:TEAL, background:'none', border:'none', cursor:'pointer', fontFamily:FB, fontWeight:700 }}>✓ Approve</button>
-                      <span style={{ color:W28 }}>·</span>
-                      <button onClick={() => onReject(r.id)} style={{ fontSize:11, color:CORAL, background:'none', border:'none', cursor:'pointer', fontFamily:FB, fontWeight:700 }}>✗ Reject</button>
+                      <span style={{ color: W28 }}>·</span>
+                      <button onClick={() => onApprove(r.id)} style={{ fontSize: 10, color: '#0A0A07', background: G3, border: 'none', cursor: 'pointer', fontFamily: FD, fontWeight: 700, padding: '3px 9px', borderRadius: 3, letterSpacing: '0.06em' }}>Approve</button>
+                      <button onClick={() => onReject(r.id)} style={{ fontSize: 10, color: C_REJECTED, background: hex2rgba(G5, 0.35), border: `1px solid ${hex2rgba(G2, 0.45)}`, cursor: 'pointer', fontFamily: FD, fontWeight: 700, padding: '3px 9px', borderRadius: 3, letterSpacing: '0.06em' }}>Reject</button>
                     </>}
                   </div>
                 </td>
@@ -497,224 +474,145 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs: any[]
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <div style={{ padding:40, textAlign:'center', color:W28, fontSize:13 }}>No registrations match your filters.</div>}
+        {filtered.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: W28, fontSize: 13, fontFamily: FD }}>No registrations match your filters.</div>}
       </div>
     </div>
   )
 }
 
-// ─── CLIENTS TAB — independent page listing all registered businesses ─────────
+// ─── Clients Tab ──────────────────────────────────────────────────────────────
 function ClientsTab() {
   const [statusF, setStatusF] = useState('all')
-  const [cityF,   setCityF]   = useState('all')
-  const [search,  setSearch]  = useState('')
+  const [cityF,   setCityF  ] = useState('all')
+  const [search,  setSearch ] = useState('')
   const [viewing, setViewing] = useState<any>(null)
-  const [sortBy,  setSortBy]  = useState<'name'|'jobsRun'|'totalHours'|'registeredDate'>('registeredDate')
+  const [sortBy,  setSortBy ] = useState<'name' | 'jobsRun' | 'totalHours' | 'registeredDate'>('registeredDate')
 
-  const clientStatusColor = (s: string) => statusColor(s)
   const cities = ['all', ...Array.from(new Set(MOCK_CLIENTS.map(c => c.city))).sort()]
 
-  const filtered = MOCK_CLIENTS.filter(c =>
-    (statusF === 'all' || c.status === statusF) &&
-    (cityF   === 'all' || c.city   === cityF)   &&
-    (search  === ''    ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.contact.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()))
-  ).sort((a: any, b: any) => {
+  const filtered = MOCK_CLIENTS.filter(c => {
+    const statusMatch = statusF === 'all' || c.status === statusF
+    const cityMatch   = cityF   === 'all' || c.city   === cityF
+    const searchMatch = search === '' || c.name.toLowerCase().includes(search.toLowerCase()) || c.contact.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase())
+    return statusMatch && cityMatch && searchMatch
+  }).sort((a: any, b: any) => {
     if (sortBy === 'jobsRun')        return b.jobsRun - a.jobsRun
     if (sortBy === 'totalHours')     return b.totalHours - a.totalHours
     if (sortBy === 'registeredDate') return b.registeredDate.localeCompare(a.registeredDate)
     return a.name.localeCompare(b.name)
   })
 
-  const totalJobs   = MOCK_CLIENTS.reduce((a,c) => a + c.jobsRun, 0)
-  const totalHours  = MOCK_CLIENTS.reduce((a,c) => a + c.totalHours, 0)
+  const totalJobs   = MOCK_CLIENTS.reduce((a, c) => a + c.jobsRun, 0)
+  const totalHours  = MOCK_CLIENTS.reduce((a, c) => a + c.totalHours, 0)
   const activeCount = MOCK_CLIENTS.filter(c => c.status === 'active').length
   const newCount    = MOCK_CLIENTS.filter(c => c.status === 'new').length
 
-  const filterBtn = (active: boolean, color: string) => ({
-    padding:'6px 16px', border:`1px solid ${active ? color : BB}`, cursor:'pointer', fontFamily:FB,
-    fontSize:10, fontWeight:600, textTransform:'capitalize' as const, borderRadius:3,
-    background: active ? `${color}1E` : 'transparent', color: active ? color : W55, transition:'all 0.2s',
-  })
-
-  const industryColor = (ind: string) => {
-    if (ind.includes('FMCG') || ind.includes('Bev')) return GL
-    if (ind.includes('Retail'))                       return SKY
-    if (ind.includes('Telco'))                        return '#7AADCC'
-    if (ind.includes('Finance'))                      return TEAL
-    if (ind.includes('Event'))                        return CORAL
-    if (ind.includes('Restaurant'))                   return '#C4A46A'
-    return W28
-  }
-
-  const avatarAccents = [GL, TEAL, SKY, CORAL, AMBER, '#A090C8', '#7AADCC', '#C4A46A']
-
-  // Column layout: Business 28% | Contact 20% | Industry+City 18% | Registered 10% | Campaigns 8% | Budget 10% | Status 9% | Action 7%
-  const COLS = '28fr 20fr 18fr 10fr 8fr 10fr 9fr 7fr'
+  const avatarAccents = [GL, G3, G4, G2, C_NEW, G3, GL, G2]
+  const COLS = '28fr 20fr 18fr 12fr 8fr 12fr 8fr'
 
   return (
-    <div style={{ padding:'40px 48px' }}>
-
-      {/* ── Header ── */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
         <div>
-          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>People · Clients</div>
-          <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Client Accounts</h1>
-          <p style={{ fontSize:13, color:W55, marginTop:4 }}>Businesses registered on the platform who book promoters.</p>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>People · Clients</div>
+          <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Client Accounts</h1>
+          <p style={{ fontSize: 13, color: W55, marginTop: 4, fontFamily: FD }}>Businesses registered on the platform who book promoters.</p>
         </div>
-        <BronzeBtn onClick={() => {}}>+ Add Client</BronzeBtn>
+        <Btn onClick={() => {}}>+ Add Client</Btn>
       </div>
 
-      {/* ── Stats ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 32 }}>
         {[
-          { label:'Active Clients',   value: activeCount,      color: GL,   sub:`of ${MOCK_CLIENTS.length} total` },
-          { label:'New This Quarter', value: newCount,          color: SKY,  sub:'recently joined' },
-          { label:'Total Campaigns',  value: totalJobs,         color: TEAL, sub:'across all clients' },
-          { label:'Total Hours',      value: `${totalHours}h`, color: AMBER,sub:'promoter hours booked' },
-        ].map((s,i) => <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
+          { label: 'Active Clients',   value: activeCount,      color: GL,   sub: `of ${MOCK_CLIENTS.length} total` },
+          { label: 'New This Quarter', value: newCount,          color: C_NEW, sub: 'recently joined' },
+          { label: 'Total Campaigns',  value: totalJobs,         color: G3,   sub: 'across all clients' },
+          { label: 'Total Hours',      value: `${totalHours}h`, color: G2,   sub: 'promoter hours booked' },
+        ].map((s, i) => <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
       </div>
 
-      {/* ── Filters ── */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, gap:12, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', gap:4 }}>
-          {['all','active','new','inactive'].map(f => (
-            <button key={f} onClick={() => setStatusF(f)} style={filterBtn(statusF===f, clientStatusColor(f))}>{f}</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['all', 'active', 'new', 'inactive'] as const).map(f => (
+            <FilterBtn key={f} label={f} active={statusF === f} color={f === 'all' ? GL : statusColor(f)} onClick={() => setStatusF(f)} />
           ))}
         </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select value={cityF} onChange={e => setCityF(e.target.value)}
-            style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 12px', color:W, fontFamily:FB, fontSize:10, outline:'none', cursor:'pointer', borderRadius:3 }}>
+            style={{ background: D2, border: `1px solid ${BB}`, padding: '7px 12px', color: W, fontFamily: FD, fontSize: 10, outline: 'none', cursor: 'pointer', borderRadius: 3 }}>
             {cities.map(c => <option key={c} value={c}>{c === 'all' ? 'All Cities' : c}</option>)}
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-            style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 12px', color:W, fontFamily:FB, fontSize:10, outline:'none', cursor:'pointer', borderRadius:3 }}>
+            style={{ background: D2, border: `1px solid ${BB}`, padding: '7px 12px', color: W, fontFamily: FD, fontSize: 10, outline: 'none', cursor: 'pointer', borderRadius: 3 }}>
             <option value="registeredDate">Newest First</option>
             <option value="name">Name A–Z</option>
             <option value="jobsRun">Most Campaigns</option>
             <option value="totalHours">Most Hours</option>
           </select>
-          <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W28, fontSize:12, pointerEvents:'none' }}>⌕</span>
-            <input
-              placeholder="Search clients…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 14px 7px 30px', color:W, fontFamily:FB, fontSize:11, outline:'none', borderRadius:3, width:200 }}
-              onFocus={e => e.currentTarget.style.borderColor = GL}
-              onBlur={e => e.currentTarget.style.borderColor = BB}
-            />
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: W28, fontSize: 12, pointerEvents: 'none' }}>⌕</span>
+            <input placeholder="Search clients…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ background: D2, border: `1px solid ${BB}`, padding: '7px 14px 7px 30px', color: W, fontFamily: FD, fontSize: 11, outline: 'none', borderRadius: 3, width: 200 }}
+              onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
           </div>
         </div>
       </div>
 
-      {/* ── List ── */}
-      <div style={{ borderRadius:4, overflow:'hidden', border:`1px solid ${BB}` }}>
-
-        {/* Column headers */}
-        <div style={{ display:'grid', gridTemplateColumns: COLS, background:D1, padding:'11px 24px', gap:0 }}>
-          {['Business','Contact','Industry / City','Registered','Jobs','Est. Budget','Status',''].map(h => (
-            <div key={h} style={{ fontSize:8.5, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:W28, fontFamily:FB, paddingRight:12 }}>{h}</div>
+      <div style={{ borderRadius: 4, overflow: 'hidden', border: `1px solid ${BB}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: COLS, background: D1, padding: '11px 24px', gap: 0 }}>
+          {['Business', 'Contact', 'Industry / City', 'Registered', 'Jobs', 'Status', ''].map(h => (
+            <div key={h} style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: W28, fontFamily: FD, paddingRight: 12 }}>{h}</div>
           ))}
         </div>
 
-        {/* Rows */}
-        {filtered.length === 0 && (
-          <div style={{ padding:'48px 24px', textAlign:'center', color:W28, fontSize:13, background:D2 }}>
-            No clients match your filters.
-          </div>
-        )}
+        {filtered.length === 0 && <div style={{ padding: '48px 24px', textAlign: 'center', color: W28, fontSize: 13, background: D2, fontFamily: FD }}>No clients match your filters.</div>}
+
         {filtered.map((c, i) => {
           const accent = avatarAccents[i % avatarAccents.length]
           return (
-            <div
-              key={c.id}
-              onClick={() => setViewing(c)}
-              style={{
-                display:'grid', gridTemplateColumns: COLS,
-                background: D2,
-                padding:'20px 24px',
-                gap:0,
-                alignItems:'center',
-                cursor:'pointer',
-                transition:'background 0.16s',
-                borderTop:`1px solid ${BB}`,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = D3)}
-              onMouseLeave={e => (e.currentTarget.style.background = D2)}
-            >
-              {/* Business */}
-              <div style={{ display:'flex', alignItems:'center', gap:12, paddingRight:16, minWidth:0 }}>
-                <div style={{
-                  width:40, height:40, borderRadius:8, flexShrink:0,
-                  background:`linear-gradient(145deg, ${G2}CC, ${accent}33)`,
-                  border:`1px solid ${accent}44`,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:15, fontWeight:700, color:accent,
-                }}>
-                  {c.name.charAt(0)}
-                </div>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:W, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</div>
-                  <div style={{ fontSize:10.5, color:W28, marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.email}</div>
+            <div key={c.id} onClick={() => setViewing(c)}
+              style={{ display: 'grid', gridTemplateColumns: COLS, background: i % 2 === 0 ? D2 : D3, padding: '20px 24px', gap: 0, alignItems: 'center', cursor: 'pointer', transition: 'background 0.16s', borderTop: `1px solid ${BB}` }}
+              onMouseEnter={e => (e.currentTarget.style.background = GM)}
+              onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? D2 : D3)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: 16, minWidth: 0 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, flexShrink: 0, background: `linear-gradient(145deg,${G5}CC,${hex2rgba(accent, 0.28)})`, border: `1px solid ${hex2rgba(accent, 0.32)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: accent, fontFamily: FD }}>{c.name.charAt(0)}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: FD }}>{c.name}</div>
+                  <div style={{ fontSize: 10.5, color: W28, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: FD }}>{c.email}</div>
                 </div>
               </div>
-
-              {/* Contact */}
-              <div style={{ paddingRight:16 }}>
-                <div style={{ fontSize:12, color:W85, fontWeight:500 }}>{c.contact}</div>
-                <div style={{ fontSize:10.5, color:W28, marginTop:2 }}>{c.phone}</div>
+              <div style={{ paddingRight: 16 }}>
+                <div style={{ fontSize: 12, color: W85, fontWeight: 600, fontFamily: FD }}>{c.contact}</div>
+                <div style={{ fontSize: 10.5, color: W28, marginTop: 2, fontFamily: FD }}>{c.phone}</div>
               </div>
-
-              {/* Industry / City */}
-              <div style={{ paddingRight:16 }}>
-                <div style={{ fontSize:10.5, color: industryColor(c.industry), fontWeight:700, marginBottom:3 }}>{c.industry}</div>
-                <div style={{ fontSize:11, color:W55 }}>{c.city}</div>
+              <div style={{ paddingRight: 16 }}>
+                <div style={{ fontSize: 10.5, color: GL, fontWeight: 700, marginBottom: 3, fontFamily: FD }}>{c.industry}</div>
+                <div style={{ fontSize: 11, color: W55, fontFamily: FD }}>{c.city}</div>
               </div>
-
-              {/* Registered */}
-              <div style={{ paddingRight:16 }}>
-                <div style={{ fontSize:11, color:W55 }}>{c.registeredDate}</div>
-                <div style={{ fontSize:10, color:W28, marginTop:2 }}>since {c.activeSince}</div>
+              <div style={{ paddingRight: 16 }}>
+                <div style={{ fontSize: 11, color: W55, fontFamily: FD }}>{c.registeredDate}</div>
+                <div style={{ fontSize: 10, color: W28, marginTop: 2, fontFamily: FD }}>since {c.activeSince}</div>
               </div>
-
-              {/* Campaigns */}
-              <div style={{ paddingRight:16 }}>
-                <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, lineHeight:1 }}>{c.jobsRun}</div>
-                <div style={{ fontSize:10, color:W28, marginTop:3 }}>{c.totalHours}h total</div>
+              <div style={{ paddingRight: 16 }}>
+                <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: W, lineHeight: 1 }}>{c.jobsRun}</div>
+                <div style={{ fontSize: 10, color: W28, marginTop: 3, fontFamily: FD }}>{c.totalHours}h</div>
               </div>
-
-              {/* Budget */}
-              <div style={{ paddingRight:16 }}>
-                <div style={{ fontFamily:FD, fontSize:15, fontWeight:700, color:GL }}>{c.budget}</div>
+              <div style={{ paddingRight: 12 }}>
+                <Badge label={c.status} color={statusColor(c.status)} bg={statusBg(c.status)} border={statusBorder(c.status)} />
               </div>
-
-              {/* Status */}
-              <div style={{ paddingRight:12 }}>
-                <Badge label={c.status} color={clientStatusColor(c.status)} />
-              </div>
-
-              {/* Action */}
               <div>
-                <button
-                  onClick={e => { e.stopPropagation(); setViewing(c) }}
-                  style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FB, fontWeight:700, whiteSpace:'nowrap', padding:0 }}
+                <button onClick={e => { e.stopPropagation(); setViewing(c) }}
+                  style={{ fontSize: 11, color: GL, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontWeight: 700, padding: 0 }}
                   onMouseEnter={e => e.currentTarget.style.color = W}
-                  onMouseLeave={e => e.currentTarget.style.color = GL}
-                >View →</button>
+                  onMouseLeave={e => e.currentTarget.style.color = GL}>View →</button>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Results count */}
-      <div style={{ marginTop:12, fontSize:11, color:W28 }}>
-        Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{MOCK_CLIENTS.length}</strong> clients
+      <div style={{ marginTop: 12, fontSize: 11, color: W28, fontFamily: FD }}>
+        Showing <strong style={{ color: W55 }}>{filtered.length}</strong> of <strong style={{ color: W55 }}>{MOCK_CLIENTS.length}</strong> clients
       </div>
-
       {viewing && <ClientModal client={viewing} onClose={() => setViewing(null)} />}
     </div>
   )
@@ -724,48 +622,50 @@ function ClientsTab() {
 function LoginsTab() {
   const [roleF, setRoleF] = useState('all')
   const [dateF, setDateF] = useState('all')
-  const dates = ['all', ...Array.from(new Set(MOCK_LOGINS.map(l => l.time.slice(0,10))))]
-  const filtered = MOCK_LOGINS.filter(l =>
-    (roleF === 'all' || l.role === roleF) &&
-    (dateF === 'all' || l.time.startsWith(dateF))
-  )
-  const filterBtn = (active: boolean, color: string) => ({
-    padding:'6px 14px', border:`1px solid ${active ? color : BB}`, cursor:'pointer', fontFamily:FB, fontSize:10, fontWeight:600, textTransform:'capitalize' as const, borderRadius:3,
-    background: active ? `${color}1E` : 'transparent', color: active ? color : W55, transition:'all 0.2s',
+  const dates = ['all', ...Array.from(new Set(MOCK_LOGINS.map(l => l.time.slice(0, 10))))]
+
+  const filtered = MOCK_LOGINS.filter(l => {
+    const roleMatch = roleF === 'all' || l.role === roleF
+    const dateMatch = dateF === 'all' || l.time.startsWith(dateF)
+    return roleMatch && dateMatch
   })
+
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ marginBottom:28 }}>
-        <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>Comms · Activity</div>
-        <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Login Activity</h1>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Comms · Activity</div>
+        <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Login Activity</h1>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:1, background:BB, marginBottom:24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: BB, marginBottom: 24 }}>
         {[
-          { label:'Logins Today', value: MOCK_LOGINS.filter(l => l.time.startsWith('2026-03-11')).length, color:GL   },
-          { label:'Promoters',    value: MOCK_LOGINS.filter(l => l.role==='promoter').length,             color:SKY  },
-          { label:'Businesses',   value: MOCK_LOGINS.filter(l => l.role==='business').length,             color:AMBER},
-        ].map((s,i) => <StatCard key={i} label={s.label} value={s.value} color={s.color} />)}
+          { label: 'Logins Today', value: MOCK_LOGINS.filter(l => l.time.startsWith('2026-03-11')).length, color: GL },
+          { label: 'Promoters',   value: MOCK_LOGINS.filter(l => l.role === 'promoter').length,            color: G3 },
+          { label: 'Businesses',  value: MOCK_LOGINS.filter(l => l.role === 'business').length,            color: G2 },
+        ].map((s, i) => <StatCard key={i} label={s.label} value={s.value} color={s.color} />)}
       </div>
-      <div style={{ display:'flex', gap:4, marginBottom:16 }}>
-        {['all','promoter','business'].map(f => <button key={f} onClick={() => setRoleF(f)} style={filterBtn(roleF===f, SKY)}>{f}</button>)}
-        <select value={dateF} onChange={e => setDateF(e.target.value)} style={{ background:D2, border:`1px solid ${BB}`, padding:'6px 12px', color:W, fontFamily:FB, fontSize:10, outline:'none', cursor:'pointer', borderRadius:3, marginLeft:6 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, alignItems: 'center' }}>
+        {(['all', 'promoter', 'business'] as const).map(f => (
+          <FilterBtn key={f} label={f} active={roleF === f} color={G3} onClick={() => setRoleF(f)} />
+        ))}
+        <select value={dateF} onChange={e => setDateF(e.target.value)}
+          style={{ background: D2, border: `1px solid ${BB}`, padding: '6px 12px', color: W, fontFamily: FD, fontSize: 10, outline: 'none', cursor: 'pointer', borderRadius: 3, marginLeft: 6 }}>
           {dates.map(d => <option key={d} value={d}>{d === 'all' ? 'All Dates' : d}</option>)}
         </select>
       </div>
-      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4 }}>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
-          <thead><tr style={{ borderBottom:`1px solid ${BB}` }}>
-            {['User','Role','Time','IP'].map(h => <th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FB }}>{h}</th>)}
+      <div style={{ background: D2, border: `1px solid ${BB}`, borderRadius: 4 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: `1px solid ${BB}`, background: D1 }}>
+            {['User', 'Role', 'Time', 'IP Address'].map(h => <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: W28, fontFamily: FD }}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {filtered.map((l,i) => (
-              <tr key={l.id} style={{ borderBottom: i < filtered.length-1 ? `1px solid ${BB}` : 'none', transition:'background 0.2s' }}
+            {filtered.map((l, i) => (
+              <tr key={l.id} style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${BB}` : 'none', transition: 'background 0.18s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = BB2)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ padding:'14px 18px' }}><div style={{ fontSize:13, fontWeight:600, color:W }}>{l.name}</div><div style={{ fontSize:11, color:W55 }}>{l.email}</div></td>
-                <td style={{ padding:'14px 18px' }}><Badge label={l.role} color={l.role==='promoter' ? SKY : GL} /></td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W55 }}>{new Date(l.time).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W28, fontFamily:'monospace' }}>{l.ip}</td>
+                <td style={{ padding: '14px 18px' }}><div style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{l.name}</div><div style={{ fontSize: 11, color: W55, fontFamily: FD }}>{l.email}</div></td>
+                <td style={{ padding: '14px 18px' }}><Badge label={l.role} color={l.role === 'promoter' ? G3 : GL} bg={hex2rgba(l.role === 'promoter' ? G3 : GL, 0.12)} border={hex2rgba(l.role === 'promoter' ? G3 : GL, 0.38)} /></td>
+                <td style={{ padding: '14px 18px', fontSize: 12, color: W55, fontFamily: FD }}>{new Date(l.time).toLocaleString('en-ZA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ padding: '14px 18px', fontSize: 12, color: W28, fontFamily: MONO }}>{l.ip}</td>
               </tr>
             ))}
           </tbody>
@@ -777,83 +677,71 @@ function LoginsTab() {
 
 // ─── Messages Tab ─────────────────────────────────────────────────────────────
 function MessagesTab({ msgs, setMsgs }: { msgs: any[]; setMsgs: (fn: (p: any[]) => any[]) => void }) {
-  const [filter,  setFilter]  = useState('all')
+  const [filter,  setFilter ] = useState('all')
   const [compose, setCompose] = useState(false)
   const [viewing, setViewing] = useState<any>(null)
-  const [to,      setTo]      = useState('')
+  const [to,      setTo     ] = useState('')
   const [subject, setSubject] = useState('')
-  const [body,    setBody]    = useState('')
+  const [body,    setBody   ] = useState('')
   const filtered = msgs.filter(m => filter === 'all' || m.type === filter)
-  const typeColor = (t: string) => t === 'complaint' ? CORAL : t === 'review' ? TEAL : GL
-
-  const filterBtn = (active: boolean, color: string) => ({
-    padding:'6px 14px', border:`1px solid ${active ? color : BB}`, cursor:'pointer', fontFamily:FB, fontSize:10, fontWeight:600, textTransform:'capitalize' as const, borderRadius:3,
-    background: active ? `${color}1E` : 'transparent', color: active ? color : W55, transition:'all 0.2s',
-  })
+  const tcBright = (t: string) => t === 'complaint' ? G4 : t === 'review' ? GL : G4
 
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:28 }}>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>Comms · Messages</div>
-          <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Messages & Complaints</h1>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Comms · Messages</div>
+          <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Messages & Complaints</h1>
         </div>
-        <BronzeBtn onClick={() => setCompose(true)}>+ Compose</BronzeBtn>
+        <Btn onClick={() => setCompose(true)}>+ Compose</Btn>
       </div>
-      <div style={{ display:'flex', gap:4, marginBottom:20 }}>
-        {['all','complaint','review','message'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={filterBtn(filter===f, f==='all' ? GL : typeColor(f))}>
-            {f === 'all' ? `All (${msgs.length})` : `${f.charAt(0).toUpperCase()+f.slice(1)} (${msgs.filter(m=>m.type===f).length})`}
-          </button>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {(['all', 'complaint', 'review', 'message'] as const).map(f => (
+          <FilterBtn key={f} label={f === 'all' ? `All (${msgs.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${msgs.filter(m => m.type === f).length})`} active={filter === f} color={f === 'all' ? GL : tcBright(f)} onClick={() => setFilter(f)} />
         ))}
       </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {filtered.map(m => (
-          <div key={m.id} onClick={() => { setViewing(m); setMsgs(p => p.map(x => x.id===m.id ? {...x,read:true} : x)) }}
-            style={{ background: m.read ? D2 : D3, border:`1px solid ${m.read ? BB : `${GL}28`}`, padding:'18px 22px', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, transition:'all 0.2s', borderRadius:3 }}
+          <div key={m.id} onClick={() => { setViewing(m); setMsgs(p => p.map(x => x.id === m.id ? { ...x, read: true } : x)) }}
+            style={{ background: m.read ? D2 : D3, border: `1px solid ${m.read ? BB : hex2rgba(GL, 0.22)}`, padding: '18px 22px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, transition: 'all 0.18s', borderRadius: 3 }}
             onMouseEnter={e => (e.currentTarget.style.background = GM)}
             onMouseLeave={e => (e.currentTarget.style.background = m.read ? D2 : D3)}>
-            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flex:1 }}>
-              <div style={{ width:7, height:7, borderRadius:'50%', background:typeColor(m.type), marginTop:5, flexShrink:0 }} />
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: tcBright(m.type), marginTop: 5, flexShrink: 0 }} />
               <div>
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-                  <span style={{ fontSize:13, fontWeight:600, color:W }}>{m.subject}</span>
-                  {!m.read && <span style={{ fontSize:8, fontWeight:700, background:`linear-gradient(135deg, ${GL}, ${G})`, color:B, padding:'2px 7px', borderRadius:2 }}>NEW</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{m.subject}</span>
+                  {!m.read && <span style={{ fontSize: 8, fontWeight: 700, background: `linear-gradient(135deg,${GL},${G})`, color: B, padding: '2px 7px', borderRadius: 2, fontFamily: FD }}>NEW</span>}
                 </div>
-                <div style={{ fontSize:12, color:W55 }}>From: <strong style={{ color:W85 }}>{m.from}</strong> · {m.date}</div>
+                <div style={{ fontSize: 12, color: W55, fontFamily: FD }}>From: <strong style={{ color: W85 }}>{m.from}</strong> · {m.date}</div>
               </div>
             </div>
-            <Badge label={m.type} color={typeColor(m.type)} />
+            <Badge label={m.type} color={tcBright(m.type)} bg={hex2rgba(tcBright(m.type), 0.12)} border={hex2rgba(tcBright(m.type), 0.38)} />
           </div>
         ))}
       </div>
       {viewing && <MessageModal msg={viewing} onClose={() => setViewing(null)} />}
       {compose && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:24 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24 }}
           onClick={e => e.target === e.currentTarget && setCompose(false)}>
-          <div style={{ background:D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:500, position:'relative', borderRadius:4 }}>
-            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background: `linear-gradient(90deg, ${GL}, ${G2})` }} />
-            <button onClick={() => setCompose(false)} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-            <div style={{ fontFamily:FD, fontSize:22, fontWeight:700, color:W, marginBottom:24 }}>New Message</div>
-            {[{label:'To',val:to,set:setTo,ph:'Recipient'},{label:'Subject',val:subject,set:setSubject,ph:'Subject'}].map(f => (
-              <div key={f.label} style={{ marginBottom:16 }}>
-                <label style={{ fontSize:9, fontWeight:600, letterSpacing:'0.18em', textTransform:'uppercase', color:W55, display:'block', marginBottom:7 }}>{f.label}</label>
+          <div style={{ background: D2, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 500, position: 'relative', borderRadius: 4 }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${GL},${G5})` }} />
+            <button onClick={() => setCompose(false)} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: W28, fontSize: 18 }}>✕</button>
+            <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, marginBottom: 24 }}>New Message</div>
+            {[{ label: 'To', val: to, set: setTo, ph: 'Recipient' }, { label: 'Subject', val: subject, set: setSubject, ph: 'Subject' }].map(f => (
+              <div key={f.label} style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: W55, display: 'block', marginBottom: 7, fontFamily: FD }}>{f.label}</label>
                 <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-                  style={{ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 14px', color:W, fontFamily:FB, fontSize:13, outline:'none', borderRadius:3 }}
-                  onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB}
-                />
+                  style={{ width: '100%', background: BB2, border: `1px solid ${BB}`, padding: '12px 14px', color: W, fontFamily: FD, fontSize: 13, outline: 'none', borderRadius: 3 }}
+                  onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
               </div>
             ))}
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Message..."
-              style={{ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 14px', color:W, fontFamily:FB, fontSize:13, resize:'none', outline:'none', marginBottom:16, borderRadius:3 }}
-              onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB}
-            />
-            <div style={{ display:'flex', gap:10 }}>
-              <BronzeBtn onClick={() => {
-                setMsgs(p => [{ id:`M${p.length+1}`, from:'Admin', fromRole:'admin', to, subject, body, date:new Date().toISOString().slice(0,10), read:true, type:'message', regardingName:'' }, ...p])
-                setCompose(false); setTo(''); setSubject(''); setBody('')
-              }}>Send</BronzeBtn>
-              <BronzeBtn onClick={() => setCompose(false)} outline color={W55}>Cancel</BronzeBtn>
+              style={{ width: '100%', background: BB2, border: `1px solid ${BB}`, padding: '12px 14px', color: W, fontFamily: FD, fontSize: 13, resize: 'none', outline: 'none', marginBottom: 16, borderRadius: 3 }}
+              onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Btn onClick={() => { setMsgs(p => [{ id: `M${p.length + 1}`, from: 'Admin', fromRole: 'admin', to, subject, body, date: new Date().toISOString().slice(0, 10), read: true, type: 'message', regardingName: '' }, ...p]); setCompose(false); setTo(''); setSubject(''); setBody('') }}>Send</Btn>
+              <Btn onClick={() => setCompose(false)} outline color={W55}>Cancel</Btn>
             </div>
           </div>
         </div>
@@ -864,84 +752,82 @@ function MessagesTab({ msgs, setMsgs }: { msgs: any[]; setMsgs: (fn: (p: any[]) 
 
 // ─── Reports Tab ──────────────────────────────────────────────────────────────
 function ReportsTab({ regs }: { regs: any[] }) {
-  const [exportMsg, setExportMsg] = useState('')
+  const [exportMsg,   setExportMsg  ] = useState('')
+  const [hourlyRate,  setHourlyRate ] = useState('120')
+  const [hours,       setHours      ] = useState('8')
+  const [numPromos,   setNumPromos  ] = useState('6')
   const doExport = (t: string) => { setExportMsg(`${t} export initiated.`); setTimeout(() => setExportMsg(''), 3000) }
-  const [hourlyRate, setHourlyRate] = useState('120')
-  const [hours,      setHours]      = useState('8')
-  const [promoters,  setPromoters]  = useState('6')
-  const calcTotal = parseFloat(hourlyRate||'0') * parseFloat(hours||'0') * parseFloat(promoters||'0')
-
+  const calcTotal = parseFloat(hourlyRate || '0') * parseFloat(hours || '0') * parseFloat(numPromos || '0')
   const cards = [
-    { icon:'✦', color:SKY,          title:'Campaign Reports', desc:'Automated PDF reports on campaign attendance for client delivery.', btns:[['PDF','Campaign PDF'],['CSV','Campaign CSV']] },
-    { icon:'▤', color:'#A090C8',    title:'Promoter Roster',  desc:'Export of all active promoters with contact details and scores.',   btns:[['CSV','Roster CSV'],['Excel','Roster Excel']] },
-    { icon:'⬡', color:AMBER,        title:'Attendance Log',   desc:'Geo-verified check-in/out records with timestamps for all shifts.', btns:[['CSV','Attendance CSV'],['PDF','Attendance PDF']] },
-    { icon:'◉', color:GL,           title:'Earnings Summary', desc:'Calculated earnings per promoter and per campaign.',                btns:[['CSV','Earnings CSV'],['Excel','Earnings Excel']] },
+    { icon: '✦', color: G3, title: 'Campaign Reports',   desc: 'Automated PDF reports on campaign attendance for client delivery.',           btns: [['PDF', 'Campaign PDF'], ['CSV', 'Campaign CSV']] },
+    { icon: '▤', color: G2, title: 'Promoter Roster',    desc: 'Export of all active promoters with contact details and performance scores.', btns: [['CSV', 'Roster CSV'], ['Excel', 'Roster Excel']] },
+    { icon: '⬡', color: GL, title: 'Attendance Log',     desc: 'Geo-verified check-in/out records with timestamps for all shifts.',           btns: [['CSV', 'Attendance CSV'], ['PDF', 'Attendance PDF']] },
+    { icon: '◉', color: G4, title: 'Promoter Payout',    desc: 'Calculated payout amounts per promoter per campaign — for promoters only.',   btns: [['CSV', 'Payout CSV'], ['Excel', 'Payout Excel']] },
   ]
   const summary = [
-    { label:'Registered Promoters', value: regs.filter(r=>r.role==='promoter').length },
-    { label:'Active Promoters',     value: regs.filter(r=>r.role==='promoter'&&r.status==='approved').length },
-    { label:'Active Clients',       value: MOCK_CLIENTS.filter(c=>c.status==='active').length },
-    { label:'Pending Approvals',    value: regs.filter(r=>isPending(r.status)).length },
-    { label:'Shifts This Month',    value: 42 },
-    { label:'Est. Payroll (Month)', value: 'R 84,200' },
+    { label: 'Registered Promoters', value: regs.filter(r => r.role === 'promoter').length },
+    { label: 'Active Promoters',     value: regs.filter(r => r.role === 'promoter' && r.status === 'approved').length },
+    { label: 'Active Clients',       value: MOCK_CLIENTS.filter(c => c.status === 'active').length },
+    { label: 'Pending Approvals',    value: regs.filter(r => isPending(r.status)).length },
+    { label: 'Shifts This Month',    value: 42 },
+    { label: 'Est. Promoter Payout (Month)', value: 'R 84,200' },
   ]
-  const inputStyle: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'10px 14px', color:W, fontFamily:FB, fontSize:13, outline:'none', borderRadius:3 }
+  const inputStyle: React.CSSProperties = { width: '100%', background: BB2, border: `1px solid ${BB}`, padding: '10px 14px', color: W, fontFamily: FD, fontSize: 13, outline: 'none', borderRadius: 3 }
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ marginBottom:28 }}>
-        <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>System · Reporting</div>
-        <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Reports & Exports</h1>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>System · Reporting</div>
+        <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Reports & Exports</h1>
       </div>
-      {exportMsg && <div style={{ padding:'12px 18px', background:`${GL}12`, border:`1px solid ${GL}44`, marginBottom:20, fontSize:13, color:GL, fontWeight:600, borderRadius:3 }}>✓ {exportMsg}</div>}
-      <div style={{ background:D2, border:`1px solid ${BB}`, padding:28, marginBottom:20, borderRadius:4 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
-          <span style={{ fontSize:18, color:GL }}>◈</span>
-          <div style={{ fontSize:10, letterSpacing:'0.25em', textTransform:'uppercase', color:GL, fontWeight:700 }}>Payroll Calculator</div>
-          <span style={{ fontSize:9, color:W28, marginLeft:8, padding:'2px 8px', border:`1px solid ${BB}`, letterSpacing:'0.1em', borderRadius:3 }}>Estimate only</span>
+      {exportMsg && <div style={{ padding: '12px 18px', background: hex2rgba(GL, 0.08), border: `1px solid ${hex2rgba(GL, 0.35)}`, marginBottom: 20, fontSize: 13, color: GL, fontWeight: 700, borderRadius: 3, fontFamily: FD }}>✓ {exportMsg}</div>}
+
+      <div style={{ background: 'rgba(20,16,5,0.6)', border: `1px solid ${BB}`, padding: 28, marginBottom: 20, borderRadius: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 18, color: GL }}>◈</span>
+          <div style={{ fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>Promoter Payout Calculator</div>
+          <span style={{ fontSize: 9, color: W28, marginLeft: 8, padding: '2px 8px', border: `1px solid ${BB}`, letterSpacing: '0.1em', borderRadius: 3, fontFamily: FD }}>Estimate only · Promoters</span>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, alignItems:'flex-end' }}>
-          {[
-            {label:'Hourly Rate (R)', val:hourlyRate, set:setHourlyRate},
-            {label:'Hours per Shift', val:hours,      set:setHours},
-            {label:'No. of Promoters',val:promoters,  set:setPromoters},
-          ].map(f => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, alignItems: 'flex-end' }}>
+          {[{ label: 'Hourly Rate (R)', val: hourlyRate, set: setHourlyRate }, { label: 'Hours per Shift', val: hours, set: setHours }, { label: 'No. of Promoters', val: numPromos, set: setNumPromos }].map(f => (
             <div key={f.label}>
-              <label style={{ fontSize:9, fontWeight:700, letterSpacing:'0.15em', textTransform:'uppercase', color:W55, display:'block', marginBottom:8 }}>{f.label}</label>
+              <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: W55, display: 'block', marginBottom: 8, fontFamily: FD }}>{f.label}</label>
               <input type="number" value={f.val} onChange={e => f.set(e.target.value)} style={inputStyle}
                 onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
             </div>
           ))}
-          <div style={{ background: `linear-gradient(135deg, ${D3}, ${G2}30)`, border:`1px solid ${GL}44`, padding:'10px 16px', borderRadius:3 }}>
-            <div style={{ fontSize:9, letterSpacing:'0.15em', textTransform:'uppercase', color:W55, marginBottom:6 }}>Total Estimate</div>
-            <div style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:GL }}>R {calcTotal.toLocaleString('en-ZA', {minimumFractionDigits:0})}</div>
+          <div style={{ background: hex2rgba(G5, 0.5), border: `1px solid ${hex2rgba(GL, 0.32)}`, padding: '10px 16px', borderRadius: 3 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: W55, marginBottom: 6, fontFamily: FD }}>Total Payout</div>
+            <div style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: GL }}>R {calcTotal.toLocaleString('en-ZA', { minimumFractionDigits: 0 })}</div>
           </div>
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB, marginBottom:20 }}>
-        {cards.map((c,i) => (
-          <div key={i} style={{ background:D2, padding:28 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-              <span style={{ fontSize:18, color:c.color }}>{c.icon}</span>
-              <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, fontWeight:700 }}>{c.title}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB, marginBottom: 20 }}>
+        {cards.map((c, i) => (
+          <div key={i} style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <span style={{ fontSize: 18, color: c.color }}>{c.icon}</span>
+              <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>{c.title}</div>
             </div>
-            <p style={{ fontSize:13, color:W55, marginBottom:18, lineHeight:1.6 }}>{c.desc}</p>
-            <div style={{ display:'flex', gap:8 }}>
-              <BronzeBtn onClick={() => doExport(c.btns[0][1])} small>{c.btns[0][0]}</BronzeBtn>
-              <BronzeBtn onClick={() => doExport(c.btns[1][1])} small outline>{c.btns[1][0]}</BronzeBtn>
+            <p style={{ fontSize: 13, color: W55, marginBottom: 18, lineHeight: 1.6, fontFamily: FD }}>{c.desc}</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn onClick={() => doExport(c.btns[0][1])} small>{c.btns[0][0]}</Btn>
+              <Btn onClick={() => doExport(c.btns[1][1])} small outline>{c.btns[1][0]}</Btn>
             </div>
           </div>
         ))}
       </div>
-      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4 }}>
-        <div style={{ padding:'14px 22px', borderBottom:`1px solid ${BB}`, fontSize:9, letterSpacing:'0.25em', textTransform:'uppercase', color:GL, fontWeight:700 }}>Platform Summary</div>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+
+      <div style={{ background: 'rgba(20,16,5,0.6)', border: `1px solid ${BB}`, borderRadius: 4 }}>
+        <div style={{ padding: '14px 22px', borderBottom: `1px solid ${BB}`, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>Platform Summary</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>
-            {summary.map((row,i) => (
-              <tr key={i} style={{ borderBottom: i < summary.length-1 ? `1px solid ${BB}` : 'none', transition:'background 0.2s' }}
+            {summary.map((row, i) => (
+              <tr key={i} style={{ borderBottom: i < summary.length - 1 ? `1px solid ${BB}` : 'none', transition: 'background 0.18s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = BB2)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ padding:'14px 22px', fontSize:13, color:W55 }}>{row.label}</td>
-                <td style={{ padding:'14px 22px', fontSize:14, fontWeight:700, color:GL, textAlign:'right', fontFamily:FD }}>{row.value}</td>
+                <td style={{ padding: '14px 22px', fontSize: 13, color: W55, fontFamily: FD }}>{row.label}</td>
+                <td style={{ padding: '14px 22px', fontSize: 14, fontWeight: 700, color: GL, textAlign: 'right', fontFamily: FD }}>{row.value}</td>
               </tr>
             ))}
           </tbody>
@@ -953,72 +839,77 @@ function ReportsTab({ regs }: { regs: any[] }) {
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 function SettingsTab() {
-  const [saved,    setSaved]    = useState(false)
+  const [saved,    setSaved   ] = useState(false)
   const [platName, setPlatName] = useState('Honey Group Promotions')
-  const [email,    setEmail]    = useState('admin@honeygroup.co.za')
-  const [otp,      setOtp]      = useState("Africa's Talking")
-  const [payment,  setPayment]  = useState('Paystack')
-  const [geoR,     setGeoR]     = useState('200')
-  const [jobR,     setJobR]     = useState('20')
-  const [notifs,   setNotifs]   = useState(true)
-  const [popia,    setPopia]    = useState(true)
-  const [maint,    setMaint]    = useState(false)
+  const [email,    setEmail   ] = useState('admin@honeygroup.co.za')
+  const [otp,      setOtp     ] = useState("Africa's Talking")
+  const [payment,  setPayment ] = useState('Paystack')
+  const [geoR,     setGeoR    ] = useState('200')
+  const [jobR,     setJobR    ] = useState('20')
+  const [notifs,   setNotifs  ] = useState(true)
+  const [popia,    setPopia   ] = useState(true)
+  const [maint,    setMaint   ] = useState(false)
   const save = () => { setSaved(true); setTimeout(() => setSaved(false), 3000) }
-
-  const inputStyle: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'10px 14px', color:W, fontFamily:FB, fontSize:13, outline:'none', borderRadius:3 }
-  const labelStyle: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.15em', textTransform:'uppercase', color:W55, display:'block', marginBottom:7 }
-
+  const inputStyle: React.CSSProperties = { width: '100%', background: BB2, border: `1px solid ${BB}`, padding: '10px 14px', color: W, fontFamily: FD, fontSize: 13, outline: 'none', borderRadius: 3 }
+  const labelStyle: React.CSSProperties = { fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: W55, display: 'block', marginBottom: 7, fontFamily: FD }
   const Toggle = ({ val, set }: { val: boolean; set: (v: boolean) => void }) => (
-    <div onClick={() => set(!val)} style={{ width:40, height:22, borderRadius:11, background: val ? `linear-gradient(135deg, ${GL}, ${G})` : '#2A2210', cursor:'pointer', position:'relative', transition:'background 0.25s', flexShrink:0, border:`1px solid ${val ? G : BB}` }}>
-      <div style={{ position:'absolute', top:3, left: val ? 19 : 3, width:14, height:14, borderRadius:'50%', background: val ? '#0C0A07' : W55, transition:'left 0.25s' }} />
+    <div onClick={() => set(!val)} style={{ width: 40, height: 22, borderRadius: 11, background: val ? `linear-gradient(135deg,${GL},${G})` : 'rgba(42,34,16,0.8)', cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0, border: `1px solid ${val ? G : BB}` }}>
+      <div style={{ position: 'absolute', top: 3, left: val ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: val ? B : W55, transition: 'left 0.25s' }} />
     </div>
   )
-
   return (
-    <div style={{ padding:'40px 48px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:28 }}>
+    <div style={{ padding: '40px 48px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>System · Config</div>
-          <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Platform Settings</h1>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>System · Config</div>
+          <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>Platform Settings</h1>
         </div>
-        <BronzeBtn onClick={save}>{saved ? '✓ Saved' : 'Save Changes'}</BronzeBtn>
+        <Btn onClick={save}>{saved ? '✓ Saved' : 'Save Changes'}</Btn>
       </div>
-      {saved && <div style={{ padding:'12px 18px', background:`${TEAL}12`, border:`1px solid ${TEAL}44`, marginBottom:20, fontSize:13, color:TEAL, fontWeight:600, borderRadius:3 }}>✓ Settings saved successfully.</div>}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, marginBottom:20, fontWeight:700 }}>General</div>
-          <div style={{ marginBottom:18 }}><label style={labelStyle}>Platform Name</label><input value={platName} onChange={e => setPlatName(e.target.value)} style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-          <div><label style={labelStyle}>Support Email</label><input value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-        </div>
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, marginBottom:20, fontWeight:700 }}>Geo & Radius</div>
-          <div style={{ marginBottom:18 }}><label style={labelStyle}>Check-in Radius (m)</label><input value={geoR} onChange={e => setGeoR(e.target.value)} style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-          <div><label style={labelStyle}>Job Notification Radius (km)</label><input value={jobR} onChange={e => setJobR(e.target.value)} style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-        </div>
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, marginBottom:20, fontWeight:700 }}>Integrations</div>
-          <div style={{ marginBottom:18 }}>
+      {saved && <div style={{ padding: '12px 18px', background: hex2rgba(G3, 0.1), border: `1px solid ${hex2rgba(G3, 0.35)}`, marginBottom: 20, fontSize: 13, color: GL, fontWeight: 700, borderRadius: 3, fontFamily: FD }}>✓ Settings saved successfully.</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
+        {[
+          { title: 'General', fields: [{ label: 'Platform Name', value: platName, set: setPlatName, type: 'text' }, { label: 'Support Email', value: email, set: setEmail, type: 'email' }] },
+          { title: 'Geo & Radius', fields: [{ label: 'Check-in Radius (m)', value: geoR, set: setGeoR, type: 'number' }, { label: 'Job Notification Radius (km)', value: jobR, set: setJobR, type: 'number' }] },
+        ].map(section => (
+          <div key={section.title} style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700, fontFamily: FD }}>{section.title}</div>
+            {section.fields.map((f, i) => (
+              <div key={f.label} style={{ marginBottom: i < section.fields.length - 1 ? 18 : 0 }}>
+                <label style={labelStyle}>{f.label}</label>
+                <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700, fontFamily: FD }}>Integrations</div>
+          <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>OTP Provider</label>
-            <select value={otp} onChange={e => setOtp(e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
-              {["Africa's Talking",'Clickatell','Twilio'].map(o => <option key={o}>{o}</option>)}
+            <select value={otp} onChange={e => setOtp(e.target.value)} style={{ ...inputStyle, background: D3, cursor: 'pointer' }}>
+              {["Africa's Talking", 'Clickatell', 'Twilio'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
           <div>
             <label style={labelStyle}>Payment Reference Gateway</label>
-            <select value={payment} onChange={e => setPayment(e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
-              {['Paystack Reference','PayFast Reference','Manual EFT'].map(o => <option key={o}>{o}</option>)}
+            <select value={payment} onChange={e => setPayment(e.target.value)} style={{ ...inputStyle, background: D3, cursor: 'pointer' }}>
+              {['Paystack Reference', 'PayFast Reference', 'Manual EFT'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
         </div>
-        <div style={{ background:D2, padding:28 }}>
-          <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, marginBottom:20, fontWeight:700 }}>Feature Flags</div>
+        <div style={{ background: 'rgba(20,16,5,0.6)', padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700, fontFamily: FD }}>Feature Flags</div>
           {[
-            { label:'Push Notifications', desc:'Send job alerts to promoters',   val:notifs, set:setNotifs },
-            { label:'POPIA Compliance',   desc:'Enforce data protection',         val:popia,  set:setPopia  },
-            { label:'Maintenance Mode',   desc:'Block non-admin access',          val:maint,  set:setMaint  },
+            { label: 'Push Notifications', desc: 'Send job alerts to promoters', val: notifs, set: setNotifs },
+            { label: 'POPIA Compliance',   desc: 'Enforce data protection',      val: popia,  set: setPopia  },
+            { label: 'Maintenance Mode',   desc: 'Block non-admin access',       val: maint,  set: setMaint  },
           ].map(row => (
-            <div key={row.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 0', borderBottom:`1px solid ${BB}` }}>
-              <div><div style={{ fontSize:13, fontWeight:600, color:W }}>{row.label}</div><div style={{ fontSize:11, color:W28, marginTop:2 }}>{row.desc}</div></div>
+            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: `1px solid ${BB}` }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{row.label}</div>
+                <div style={{ fontSize: 11, color: W28, marginTop: 2, fontFamily: FD }}>{row.desc}</div>
+              </div>
               <Toggle val={row.val} set={row.set} />
             </div>
           ))}
@@ -1028,15 +919,14 @@ function SettingsTab() {
   )
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'dashboard'
-  const setTab = (t: string) => setSearchParams({ tab: t })
-  const [time,       setTime]   = useState(new Date())
-  const [regs,       setRegs]   = useState<any[]>([])
-  const [msgs,       setMsgs]   = useState<any[]>(INIT_MESSAGES)
+  const [time,       setTime  ] = useState(new Date())
+  const [regs,       setRegs  ] = useState<any[]>([])
+  const [msgs,       setMsgs  ] = useState<any[]>(INIT_MESSAGES)
   const [detailItem, setDetail] = useState<any>(null)
 
   useEffect(() => {
@@ -1051,7 +941,7 @@ export default function AdminDashboard() {
   }, [])
 
   const handleRoute = (id: string) => {
-    const external: Record<string,string> = { users:'/admin/users', jobs:'/admin/jobs', map:'/admin/map', payments:'/admin/payments', onboarding:'/admin/onboarding' }
+    const external: Record<string, string> = { users: '/admin/users', jobs: '/admin/jobs', map: '/admin/map', payments: '/admin/payments', onboarding: '/admin/onboarding' }
     if (external[id]) { navigate(external[id]); return }
     navigate('/admin?tab=' + id)
   }
@@ -1060,12 +950,7 @@ export default function AdminDashboard() {
     setRegs(p => p.map(r => {
       if (r.id !== id) return r
       if (r.source === 'real') {
-        try {
-          const u: any[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
-          localStorage.setItem('hg_users', JSON.stringify(
-            u.map((x: any) => x.email === r.email ? { ...x, status } : x)
-          ))
-        } catch {}
+        try { const u: any[] = JSON.parse(localStorage.getItem('hg_users') || '[]'); localStorage.setItem('hg_users', JSON.stringify(u.map((x: any) => x.email === r.email ? { ...x, status } : x))) } catch { }
       }
       return { ...r, status }
     }))
@@ -1075,21 +960,13 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       {tab === 'dashboard'     && <DashboardTab     regs={regs} msgs={msgs} time={time} onRoute={handleRoute} />}
-      {tab === 'registrations' && <RegistrationsTab regs={regs} onDetail={setDetail} onApprove={id => updateStatus(id,'approved')} onReject={id => updateStatus(id,'rejected')} />}
+      {tab === 'registrations' && <RegistrationsTab regs={regs} onDetail={setDetail} onApprove={id => updateStatus(id, 'approved')} onReject={id => updateStatus(id, 'rejected')} />}
       {tab === 'clients'       && <ClientsTab />}
       {tab === 'logins'        && <LoginsTab />}
       {tab === 'messages'      && <MessagesTab msgs={msgs} setMsgs={setMsgs} />}
       {tab === 'reports'       && <ReportsTab regs={regs} />}
       {tab === 'settings'      && <SettingsTab />}
-
-      {detailItem && (
-        <DetailModal
-          item={detailItem}
-          onClose={() => setDetail(null)}
-          onApprove={() => updateStatus(detailItem.id, 'approved')}
-          onReject={() => updateStatus(detailItem.id, 'rejected')}
-        />
-      )}
+      {detailItem && <DetailModal item={detailItem} onClose={() => setDetail(null)} onApprove={() => updateStatus(detailItem.id, 'approved')} onReject={() => updateStatus(detailItem.id, 'rejected')} />}
     </AdminLayout>
   )
 }
