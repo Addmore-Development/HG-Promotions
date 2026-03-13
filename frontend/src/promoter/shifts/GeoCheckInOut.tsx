@@ -1,7 +1,7 @@
 // promoter/shifts/GeoCheckInOut.tsx
-// Updated with real selfie simulation (file upload), issues display, toast.
+// Updated with real selfie simulation, issues display, toast, view toggle, and filtering.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { shiftsService } from '../../shared/services/shiftsService';
 import { jobsService } from '../../shared/services/jobsService';
@@ -40,6 +40,11 @@ export const GeoCheckInOut: React.FC = () => {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
 
+  // New: filter and search
+  const [statusFilter, setStatusFilter] = useState<Shift['status'] | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
   useEffect(() => {
     if (!user) return;
     shiftsService.getShiftsByPromoter(user.id).then(async ss => {
@@ -53,6 +58,24 @@ export const GeoCheckInOut: React.FC = () => {
       setLoading(false);
     });
   }, [user]);
+
+  // Compute filtered shifts based on status and search
+  const filteredShifts = useMemo(() => {
+    return shifts.filter(shift => {
+      // Status filter
+      if (statusFilter !== 'all' && shift.status !== statusFilter) return false;
+      
+      // Search filter (by job title or venue)
+      if (searchQuery) {
+        const job = jobs.get(shift.jobId);
+        const title = job?.title || '';
+        const venue = job?.venue || '';
+        const q = searchQuery.toLowerCase();
+        if (!title.toLowerCase().includes(q) && !venue.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [shifts, statusFilter, searchQuery, jobs]);
 
   const checkGps = (shift: Shift) => {
     setSelected(shift);
@@ -140,52 +163,191 @@ export const GeoCheckInOut: React.FC = () => {
 
   return (
     <div>
-      <h1 style={{ color: W, fontSize: '22px', fontWeight: 800, margin: '0 0 6px' }}>My Shifts</h1>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ color: W, fontSize: '26px', fontWeight: 800, margin: '0 0 4px' }}>My Shifts</h1>
+          <p style={{ color: WD, fontSize: '14px', margin: 0 }}>
+            {shifts.length} total · {filteredShifts.length} shown
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', background: BC, padding: '4px', borderRadius: '40px', border: `1px solid ${BB}` }}>
+          <button
+            onClick={() => setViewMode('list')}
+            style={{
+              padding: '8px 20px', borderRadius: '30px', border: 'none',
+              background: viewMode === 'list' ? G : 'transparent',
+              color: viewMode === 'list' ? '#000' : WM,
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            📋 List
+          </button>
+          <button
+            onClick={() => setViewMode('grid')}
+            style={{
+              padding: '8px 20px', borderRadius: '30px', border: 'none',
+              background: viewMode === 'grid' ? G : 'transparent',
+              color: viewMode === 'grid' ? '#000' : WM,
+              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            🔲 Grid
+          </button>
+        </div>
+      </div>
+
+      {/* Filter and search bar */}
+      <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Search input */}
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: WD, fontSize: '16px' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by job title or venue..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%', padding: '12px 12px 12px 44px',
+              background: 'rgba(255,255,255,0.05)', border: `1px solid ${BB}`,
+              borderRadius: '40px', color: W, fontSize: '14px',
+              outline: 'none', transition: 'border-color 0.2s',
+            }}
+            onFocus={e => e.currentTarget.style.borderColor = G}
+            onBlur={e => e.currentTarget.style.borderColor = BB}
+          />
+        </div>
+
+        {/* Status filter chips */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { value: 'all', label: 'All' },
+            { value: 'scheduled', label: 'Scheduled' },
+            { value: 'checked_in', label: 'Checked In' },
+            { value: 'checked_out', label: 'Checked Out' },
+            { value: 'pending_approval', label: 'Pending Approval' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'no_show', label: 'No Show' },
+          ].map(option => (
+            <button
+              key={option.value}
+              onClick={() => setStatusFilter(option.value as any)}
+              style={{
+                padding: '6px 16px', borderRadius: '30px', border: 'none',
+                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                background: statusFilter === option.value ? G : 'rgba(255,255,255,0.05)',
+                color: statusFilter === option.value ? '#000' : WM,
+                transition: 'all 0.2s',
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p style={{ color: WD, fontSize: '14px', marginBottom: '32px' }}>
         Tap a shift to check in/out with geo-verification (within {GEO_THRESHOLD_M}m).
       </p>
 
-      {shifts.length === 0 ? (
+      {filteredShifts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>📅</div>
-          <p>No shifts yet. Apply for a job to get started.</p>
+          <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔍</div>
+          <p>No shifts match your filters.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {shifts.map(shift => {
-            const job = jobs.get(shift.jobId);
-            return (
-              <div
-                key={shift.id}
-                onClick={() => checkGps(shift)}
-                style={{
-                  padding: '20px 24px',
-                  background: BC,
-                  border: `1px solid ${active?.id === shift.id ? G + '80' : BB}`,
-                  borderRadius: '14px',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <h3 style={{ color: W, fontWeight: 700, fontSize: '15px', margin: '0 0 4px' }}>{job?.title ?? '—'}</h3>
-                    <p style={{ color: WD, fontSize: '13px', margin: '0 0 6px' }}>{job?.venue} · {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''}</p>
+        <>
+          {/* List View */}
+          {viewMode === 'list' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {filteredShifts.map(shift => {
+                const job = jobs.get(shift.jobId);
+                return (
+                  <div
+                    key={shift.id}
+                    onClick={() => checkGps(shift)}
+                    style={{
+                      padding: '20px 24px',
+                      background: BC,
+                      border: `1px solid ${active?.id === shift.id ? G + '80' : BB}`,
+                      borderRadius: '14px',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.2s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <h3 style={{ color: W, fontWeight: 700, fontSize: '15px', margin: '0 0 4px' }}>{job?.title ?? '—'}</h3>
+                        <p style={{ color: WD, fontSize: '13px', margin: '0 0 6px' }}>{job?.venue} · {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''}</p>
+                        {shift.attendance.checkInTime && (
+                          <p style={{ color: '#4ade80', fontSize: '12px', margin: 0 }}>
+                            ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      {statusBadge(shift.status)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Grid View */}
+          {viewMode === 'grid' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+              {filteredShifts.map(shift => {
+                const job = jobs.get(shift.jobId);
+                return (
+                  <div
+                    key={shift.id}
+                    onClick={() => checkGps(shift)}
+                    style={{
+                      background: BC,
+                      border: `1px solid ${active?.id === shift.id ? G + '80' : BB}`,
+                      borderRadius: '16px',
+                      padding: '18px',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s, border-color 0.2s',
+                      display: 'flex', flexDirection: 'column', gap: '12px',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = G + '80'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = active?.id === shift.id ? G + '80' : BB; }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <h3 style={{ color: W, fontWeight: 700, fontSize: '16px', margin: 0 }}>{job?.title || '—'}</h3>
+                      {statusBadge(shift.status)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ color: WM, fontSize: '13px' }}>📍</span>
+                        <span style={{ color: WD, fontSize: '13px' }}>{job?.venue || '—'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ color: WM, fontSize: '13px' }}>📅</span>
+                        <span style={{ color: WD, fontSize: '13px' }}>
+                          {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : '—'}
+                        </span>
+                      </div>
+                    </div>
                     {shift.attendance.checkInTime && (
-                      <p style={{ color: '#4ade80', fontSize: '12px', margin: 0 }}>
-                        ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: `1px solid ${BB}` }}>
+                        <p style={{ color: '#4ade80', fontSize: '12px', margin: 0 }}>
+                          ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  {statusBadge(shift.status)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Bottom sheet modal */}
+      {/* Bottom sheet modal (unchanged) */}
       {selected && active && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}
@@ -199,7 +361,6 @@ export const GeoCheckInOut: React.FC = () => {
             <h2 style={{ color: W, fontWeight: 800, fontSize: '18px', margin: '0 0 4px' }}>{jobs.get(active.jobId)?.title}</h2>
             <p style={{ color: WD, fontSize: '13px', marginBottom: '24px' }}>{jobs.get(active.jobId)?.venue}</p>
 
-            {/* Issues display */}
             {active.attendance.issues && active.attendance.issues.length > 0 && (
               <div style={{ marginBottom: '20px', padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px' }}>
                 <h4 style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, marginBottom: '8px' }}>⚠️ Issues Reported</h4>
@@ -212,7 +373,6 @@ export const GeoCheckInOut: React.FC = () => {
               </div>
             )}
 
-            {/* GPS status panel */}
             <div style={{
               padding: '20px', borderRadius: '14px', textAlign: 'center', marginBottom: '24px',
               background: gps === 'near' ? 'rgba(74,222,128,0.08)' : gps === 'far' ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)',
@@ -225,7 +385,6 @@ export const GeoCheckInOut: React.FC = () => {
               {gps === 'idle' && <p style={{ color: '#a0a0a0', margin: 0 }}>Tap below to verify your location</p>}
             </div>
 
-            {/* Selfie capture */}
             {selfieAction !== 'none' && gps === 'near' && (
               <div style={{ marginBottom: '20px', padding: '20px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '14px', textAlign: 'center' }}>
                 <p style={{ color: G, fontWeight: 700, marginBottom: '12px' }}>
@@ -269,7 +428,6 @@ export const GeoCheckInOut: React.FC = () => {
               </div>
             )}
 
-            {/* Action buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {active.status === 'scheduled' && gps === 'near' && selfieAction === 'none' && (
                 <Button fullWidth size="lg" onClick={() => setSelfieAction('checkin')}>🟢 Start Shift — Check In</Button>

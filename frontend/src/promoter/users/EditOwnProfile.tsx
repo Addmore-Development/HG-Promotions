@@ -130,12 +130,11 @@ export const EditOwnProfile: React.FC = () => {
   const status      = profile?.onboardingStatus || sessionStatus;
 
   return (
-    <div style={{ maxWidth: '640px' }}>
-
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 30px' }}>
+      {/* Header with badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ color: W, fontSize: '22px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
+          <h1 style={{ color: W, fontSize: '28px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
           <p style={{ color: WD, fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
         </div>
         {statusBadge()}
@@ -143,20 +142,20 @@ export const EditOwnProfile: React.FC = () => {
 
       {/* Rejection notice */}
       {status === 'rejected' && profile?.rejectionReason && (
-        <div style={{ padding: '16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '24px' }}>
-          <p style={{ color: '#f87171', fontSize: '13px', margin: 0 }}>
+        <div style={{ padding: '16px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '28px' }}>
+          <p style={{ color: '#f87171', fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
             <strong>Reason:</strong> {profile.rejectionReason}. Please contact support or update your documents.
           </p>
         </div>
       )}
 
-      {/* Read-only identity card */}
-      <div style={{ padding: '24px', background: BC, border: `1px solid ${BB}`, borderRadius: '16px', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+      {/* Identity Card */}
+      <div style={{ padding: '36px', background: BC, border: `1px solid ${BB}`, borderRadius: '24px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '30px', flexWrap: 'wrap' }}>
           <div style={{
-            width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+            width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
             background: 'linear-gradient(135deg,#D4AF37,#B8962E)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 900,
+            alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 900,
             color: '#0A0A0A', border: `2px solid ${G}80`,
           }}>
             {profile?.profilePhoto
@@ -164,39 +163,39 @@ export const EditOwnProfile: React.FC = () => {
               : displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h3 style={{ color: W, fontWeight: 700, fontSize: '17px', margin: '0 0 4px' }}>{displayName}</h3>
-            <p style={{ color: WD, fontSize: '13px', margin: '0 0 2px' }}>{user?.email}</p>
+            <h3 style={{ color: W, fontWeight: 700, fontSize: '22px', margin: '0 0 6px' }}>{displayName}</h3>
+            <p style={{ color: WD, fontSize: '15px', margin: '0 0 3px' }}>{user?.email}</p>
             {(profile?.city || form.city) && (profile?.province || form.province) && (
-              <p style={{ color: '#555', fontSize: '12px', margin: 0 }}>
+              <p style={{ color: '#555', fontSize: '14px', margin: 0 }}>
                 📍 {profile?.city || form.city}, {profile?.province || form.province}
               </p>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '28px' }}>
           {[
             { label: 'Reliability',   value: profile?.reliabilityScore ? `⭐ ${profile.reliabilityScore}/5` : 'No rating yet' },
             { label: 'Member Since',  value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }) : '—' },
             { label: 'ID Number',     value: profile?.idNumber ? `${profile.idNumber.slice(0, 6)}••••` : '—' },
           ].map(row => (
             <div key={row.label}>
-              <p style={{ color: '#555', fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
-              <p style={{ color: '#e0e0e0', fontSize: '13px', fontWeight: 600, margin: 0 }}>{row.value}</p>
+              <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
+              <p style={{ color: '#e0e0e0', fontSize: '15px', fontWeight: 600, margin: 0 }}>{row.value}</p>
             </div>
           ))}
         </div>
 
         {(profile?.physicalAttributes?.height ?? 0) > 0 && (
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `1px solid ${BB}`, display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+          <div style={{ paddingTop: '24px', borderTop: `1px solid ${BB}`, display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
             {[
               { label: 'Height',   value: `${profile!.physicalAttributes.height}cm` },
               { label: 'Clothing', value: profile!.physicalAttributes.clothingSize || '—' },
               { label: 'Shoe',     value: profile!.physicalAttributes.shoeSize     || '—' },
             ].map(a => (
               <div key={a.label}>
-                <p style={{ color: '#555', fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
-                <p style={{ color: G, fontSize: '14px', fontWeight: 700, margin: 0 }}>{a.value}</p>
+                <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
+                <p style={{ color: G, fontSize: '18px', fontWeight: 700, margin: 0 }}>{a.value}</p>
               </div>
             ))}
           </div>
@@ -204,96 +203,107 @@ export const EditOwnProfile: React.FC = () => {
       </div>
 
       {/* Document change notice */}
-      <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${BB}`, borderRadius: '10px', marginBottom: '8px' }}>
-        <p style={{ color: '#555', fontSize: '12px', margin: 0, lineHeight: 1.6 }}>
+      <div style={{ padding: '18px 24px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${BB}`, borderRadius: '16px', marginBottom: '12px' }}>
+        <p style={{ color: '#555', fontSize: '14px', margin: 0, lineHeight: 1.6 }}>
           📎 <strong style={{ color: '#888' }}>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
         </p>
       </div>
 
-      {/* Editable: Location */}
-      <SH t="Location" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>City</label>
-          <input style={fs} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="e.g. Johannesburg" />
-        </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>Province</label>
-          <select style={fs} value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))}>
-            <option value="">Select</option>
-            {['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Editable: Physical */}
-      <SH t="Physical Attributes" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px' }}>
-        {[
-          { key: 'height'      as const, label: 'Height (cm)',   ph: '168' },
-          { key: 'clothingSize'as const, label: 'Clothing Size', ph: 'S/M/L' },
-          { key: 'shoeSize'    as const, label: 'Shoe Size',     ph: '7' },
-        ].map(f => (
-          <div key={f.key} style={{ marginBottom: '16px' }}>
-            <label style={ls}>{f.label}</label>
-            <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
+      {/* Editable Sections with Cards */}
+      <div style={{ marginTop: '40px' }}>
+        {/* Location */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+          <SH t="Location" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={ls}>City</label>
+              <input style={fs} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="e.g. Johannesburg" />
+            </div>
+            <div>
+              <label style={ls}>Province</label>
+              <select style={fs} value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))}>
+                <option value="">Select</option>
+                {['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Editable: Social */}
-      <SH t="Social Media" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        {[
-          { key: 'instagram' as const, label: 'Instagram', ph: '@handle' },
-          { key: 'tiktok'    as const, label: 'TikTok',    ph: '@handle' },
-        ].map(f => (
-          <div key={f.key} style={{ marginBottom: '16px' }}>
-            <label style={ls}>{f.label}</label>
-            <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
-          </div>
-        ))}
-      </div>
-
-      {/* Editable: Banking */}
-      <SH t="Banking Details" />
-      <div style={{ padding: '12px 16px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '10px', marginBottom: '16px' }}>
-        <p style={{ color: G, fontSize: '12px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>Bank</label>
-          <select style={fs} value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))}>
-            <option value="">Select bank</option>
-            {['Standard Bank','Absa','FNB','Nedbank','Capitec','African Bank','Investec','Discovery Bank'].map(b => (
-              <option key={b} value={b}>{b}</option>
+        {/* Physical Attributes */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+          <SH t="Physical Attributes" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            {[
+              { key: 'height'      as const, label: 'Height (cm)',   ph: '168' },
+              { key: 'clothingSize'as const, label: 'Clothing Size', ph: 'S/M/L' },
+              { key: 'shoeSize'    as const, label: 'Shoe Size',     ph: '7' },
+            ].map(f => (
+              <div key={f.key}>
+                <label style={ls}>{f.label}</label>
+                <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
+              </div>
             ))}
-          </select>
+          </div>
         </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>Account Number</label>
-          <input style={fs} value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} placeholder="e.g. 1234567890" />
-        </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>Account Type</label>
-          <select style={fs} value={form.accountType} onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))}>
-            <option value="Cheque">Cheque / Current</option>
-            <option value="Savings">Savings</option>
-            <option value="Transmission">Transmission</option>
-          </select>
-        </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={ls}>Branch Code</label>
-          <input style={fs} value={form.branchCode} onChange={e => setForm(f => ({ ...f, branchCode: e.target.value }))} placeholder="e.g. 051001" />
-        </div>
-      </div>
 
-      {/* Save */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
-        <Button loading={saving} onClick={handleSave}>Save Changes</Button>
-        {error && <span style={{ color: '#f87171', fontSize: '13px' }}>{error}</span>}
+        {/* Social Media */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
+          <SH t="Social Media" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            {[
+              { key: 'instagram' as const, label: 'Instagram', ph: '@handle' },
+              { key: 'tiktok'    as const, label: 'TikTok',    ph: '@handle' },
+            ].map(f => (
+              <div key={f.key}>
+                <label style={ls}>{f.label}</label>
+                <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Banking Details */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '28px', border: `1px solid ${BB}` }}>
+          <SH t="Banking Details" />
+          <div style={{ padding: '18px 24px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '14px', marginBottom: '28px' }}>
+            <p style={{ color: G, fontSize: '14px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={ls}>Bank</label>
+              <select style={fs} value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))}>
+                <option value="">Select bank</option>
+                {['Standard Bank','Absa','FNB','Nedbank','Capitec','African Bank','Investec','Discovery Bank'].map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={ls}>Account Number</label>
+              <input style={fs} value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} placeholder="e.g. 1234567890" />
+            </div>
+            <div>
+              <label style={ls}>Account Type</label>
+              <select style={fs} value={form.accountType} onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))}>
+                <option value="Cheque">Cheque / Current</option>
+                <option value="Savings">Savings</option>
+                <option value="Transmission">Transmission</option>
+              </select>
+            </div>
+            <div>
+              <label style={ls}>Branch Code</label>
+              <input style={fs} value={form.branchCode} onChange={e => setForm(f => ({ ...f, branchCode: e.target.value }))} placeholder="e.g. 051001" />
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '20px', paddingBottom: '60px' }}>
+          <Button loading={saving} onClick={handleSave} style={{ padding: '14px 40px', fontSize: '15px' }}>Save Changes</Button>
+          {error && <span style={{ color: '#f87171', fontSize: '14px' }}>{error}</span>}
+        </div>
       </div>
     </div>
   );
