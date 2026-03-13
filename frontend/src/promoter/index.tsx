@@ -54,7 +54,7 @@ export const PromoterApp: React.FC = () => {
 
   return (
     <PromoterLayout>
-      {showBanner && (
+      {/* {showBanner && (
         <div style={{
           padding: '12px 20px', marginBottom: '24px', borderRadius: '12px',
           background: status === 'rejected' ? 'rgba(239,68,68,0.08)' : 'rgba(196,151,58,0.06)',
@@ -71,7 +71,7 @@ export const PromoterApp: React.FC = () => {
             View profile →
           </span>
         </div>
-      )}
+      )} */}
 
       {isBlacklisted && (
         <div style={{ padding: '32px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>

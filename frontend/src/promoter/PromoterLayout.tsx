@@ -29,25 +29,25 @@ const PROMOTER_NAV_GROUPS = [
   {
     label: 'Jobs',
     items: [
-      { label: 'Job Feed', icon: '💼', path: '/promoter', tab: 'jobs', external: false },
+      { label: 'Job Feed', icon: '◈', path: '/promoter', tab: 'jobs', external: false },
     ]
   },
   {
     label: 'Shifts',
     items: [
-      { label: 'My Shifts', icon: '📍', path: '/promoter', tab: 'shifts', external: false },
+      { label: 'My Shifts', icon: '▦', path: '/promoter', tab: 'shifts', external: false },
     ]
   },
   {
     label: 'Payments',
     items: [
-      { label: 'Earnings', icon: '💰', path: '/promoter', tab: 'earnings', external: false },
+      { label: 'Earnings', icon: '◆', path: '/promoter', tab: 'earnings', external: false },
     ]
   },
   {
     label: 'Profile',
     items: [
-      { label: 'My Profile', icon: '👤', path: '/promoter', tab: 'profile', external: false },
+      { label: 'My Profile', icon: '⊙', path: '/promoter', tab: 'profile', external: false },
     ]
   },
 ]

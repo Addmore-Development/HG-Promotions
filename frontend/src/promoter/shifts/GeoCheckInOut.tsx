@@ -1,6 +1,5 @@
 // promoter/shifts/GeoCheckInOut.tsx
-// Updated with real selfie simulation, issues display, toast, view toggle, and filtering.
-// Now using unified admin color palette.
+// Promoter shift check‑in/out, visually identical to the admin's live map page.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -12,24 +11,24 @@ import { showToast } from '../../shared/utils/toast';
 import type { Shift } from '../../shared/types/shift.types';
 import type { Job } from '../../shared/types/job.types';
 
-// Admin‑style tokens
-const G = '#D4880A';
-const GL = '#E8A820';
-const G2 = '#8B5A1A';
-const B = '#0C0A07';
-const BC = '#1A1508';
-const BB = 'rgba(212,136,10,0.14)';
-const W = '#FAF3E8';
-const WM = 'rgba(250,243,232,0.55)';
-const WD = 'rgba(250,243,232,0.28)';
-const FB = "'DM Sans', system-ui, sans-serif";
-const FD = "'Playfair Display', Georgia, serif";
+// Admin‑style tokens (warm amber palette)
+const G   = '#D4880A';   // primary gold
+const GL  = '#E8A820';   // bright gold
+const G2  = '#8B5A1A';   // dark brown accent
+const B   = '#0C0A07';   // near‑black background
+const BC  = '#141008';   // card background
+const BB  = 'rgba(212,136,10,0.12)';   // border
+const W   = '#FAF3E8';   // warm white text
+const WM  = 'rgba(250,243,232,0.65)';  // white muted
+const WD  = 'rgba(250,243,232,0.28)';  // white dim
+const FD  = "'Playfair Display', Georgia, serif";
+const FB  = "'DM Sans', system-ui, sans-serif";
 
 // Status colors
-const TEAL = '#4AABB8';
-const AMBER = '#E8A820';
-const CORAL = '#C4614A';
-const SKY = '#5A9EC4';
+const TEAL   = '#4AABB8';
+const AMBER  = '#E8A820';
+const CORAL  = '#C4614A';
+const SKY    = '#5A9EC4';
 
 const GEO_THRESHOLD_M = 200;
 
@@ -50,7 +49,6 @@ export const GeoCheckInOut: React.FC = () => {
   const [distM, setDistM] = useState<number | null>(null);
   const [working, setWorking] = useState(false);
   const [selfieAction, setSelfieAction] = useState<'none' | 'checkin' | 'checkout'>('none');
-  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
 
   // Filter and search
@@ -91,7 +89,6 @@ export const GeoCheckInOut: React.FC = () => {
     setGps('checking');
     setDistM(null);
     setSelfieAction('none');
-    setSelfieFile(null);
     setSelfiePreview(null);
     if (!navigator.geolocation) {
       setGps('denied');
@@ -165,141 +162,154 @@ export const GeoCheckInOut: React.FC = () => {
     return <Badge variant={s.variant}>{s.label}</Badge>;
   };
 
-  if (loading) return <div style={{ color: WD, padding: '60px 0' }}>Loading shifts…</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: WD, padding: '60px 0', justifyContent: 'center' }}>
+      <div style={{ width: 24, height: 24, border: `2px solid ${GL}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ fontSize: '15px', color: WM }}>Loading shifts…</span>
+    </div>
+  );
 
   const active = selected ? shifts.find(s => s.id === selected.id) : null;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ padding: '40px 48px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
         <div>
-          <h1 style={{ color: W, fontSize: '26px', fontWeight: 800, margin: '0 0 4px' }}>My Shifts</h1>
-          <p style={{ color: WM, fontSize: '14px', margin: 0 }}>
-            {shifts.length} total · {filteredShifts.length} shown
-          </p>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700 }}>
+            Shifts
+          </div>
+          <h1 style={{ fontFamily: FD, fontSize: 30, fontWeight: 700, color: W }}>My Shifts</h1>
+          <p style={{ fontSize: 13, color: WM, marginTop: 6 }}>{shifts.length} total · {filteredShifts.length} shown</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', background: BC, padding: '4px', borderRadius: '40px', border: `1px solid ${BB}` }}>
+        <div style={{ display: 'flex', gap: 8, background: BC, padding: 4, borderRadius: 40, border: `1px solid ${BB}` }}>
           <button
             onClick={() => setViewMode('list')}
             style={{
-              padding: '8px 20px', borderRadius: '30px', border: 'none',
+              padding: '8px 20px', borderRadius: 30, border: 'none',
               background: viewMode === 'list' ? GL : 'transparent',
               color: viewMode === 'list' ? B : WM,
-              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.2s',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
-            📋 List
+            List
           </button>
           <button
             onClick={() => setViewMode('grid')}
             style={{
-              padding: '8px 20px', borderRadius: '30px', border: 'none',
+              padding: '8px 20px', borderRadius: 30, border: 'none',
               background: viewMode === 'grid' ? GL : 'transparent',
               color: viewMode === 'grid' ? B : WM,
-              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-              transition: 'all 0.2s',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
-            🔲 Grid
+             Grid
           </button>
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: WD, fontSize: '16px' }}>🔍</span>
+      {/* Filter bar – styled like admin's city/status filters */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: 240 }}>
+          <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: WD, fontSize: 16 }}></span>
           <input
             type="text"
-            placeholder="Search by job title or venue..."
+            placeholder="Search shifts…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{
-              width: '100%', padding: '12px 12px 12px 44px',
-              background: 'rgba(250,243,232,0.05)', border: `1px solid ${BB}`,
-              borderRadius: '40px', color: W, fontSize: '14px',
-              outline: 'none', transition: 'border-color 0.2s',
+              width: '100%', padding: '10px 10px 10px 44px',
+              background: BC, border: `1px solid ${BB}`, color: W,
+              fontFamily: FB, fontSize: 13, outline: 'none', borderRadius: 2,
             }}
             onFocus={e => e.currentTarget.style.borderColor = GL}
             onBlur={e => e.currentTarget.style.borderColor = BB}
           />
         </div>
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
           {[
             { value: 'all', label: 'All' },
             { value: 'scheduled', label: 'Scheduled' },
             { value: 'checked_in', label: 'Checked In' },
             { value: 'checked_out', label: 'Checked Out' },
-            { value: 'pending_approval', label: 'Pending Approval' },
+            { value: 'pending_approval', label: 'Pending' },
             { value: 'approved', label: 'Approved' },
             { value: 'no_show', label: 'No Show' },
-          ].map(option => (
+          ].map(opt => (
             <button
-              key={option.value}
-              onClick={() => setStatusFilter(option.value as any)}
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value as any)}
               style={{
-                padding: '6px 16px', borderRadius: '30px', border: 'none',
-                fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                background: statusFilter === option.value ? GL : 'rgba(250,243,232,0.05)',
-                color: statusFilter === option.value ? B : WM,
+                padding: '6px 16px', border: `1px solid ${statusFilter === opt.value ? GL : BB}`,
+                background: statusFilter === opt.value ? `${GL}15` : 'transparent',
+                color: statusFilter === opt.value ? GL : WM, fontFamily: FB,
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', borderRadius: 2,
                 transition: 'all 0.2s',
               }}
             >
-              {option.label}
+              {opt.label}
             </button>
           ))}
         </div>
       </div>
 
-      <p style={{ color: WM, fontSize: '14px', marginBottom: '32px' }}>
-        Tap a shift to check in/out with geo-verification (within {GEO_THRESHOLD_M}m).
+      <p style={{ color: WM, fontSize: 14, marginBottom: 24 }}>
+        Tap a shift to check in/out with geo‑verification (within {GEO_THRESHOLD_M}m).
       </p>
 
       {filteredShifts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', color: WD }}>
-          <div style={{ fontSize: '40px', marginBottom: '16px', color: GL }}>🔍</div>
+          <div style={{ fontSize: 48, marginBottom: 16, color: GL }}>🔍</div>
           <p>No shifts match your filters.</p>
         </div>
       ) : (
         <>
+          {/* List View */}
           {viewMode === 'list' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredShifts.map(shift => {
-                const job = jobs.get(shift.jobId);
-                return (
-                  <div
-                    key={shift.id}
-                    onClick={() => checkGps(shift)}
-                    style={{
-                      padding: '20px 24px',
-                      background: BC,
-                      border: `1px solid ${active?.id === shift.id ? GL + '80' : BB}`,
-                      borderRadius: '14px',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.2s',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                      <div>
-                        <h3 style={{ color: W, fontWeight: 700, fontSize: '15px', margin: '0 0 4px' }}>{job?.title ?? '—'}</h3>
-                        <p style={{ color: WM, fontSize: '13px', margin: '0 0 6px' }}>{job?.venue} · {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''}</p>
-                        {shift.attendance.checkInTime && (
-                          <p style={{ color: TEAL, fontSize: '12px', margin: 0 }}>
-                            ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        )}
+            <div style={{ background: BC, border: `1px solid ${BB}`, overflow: 'hidden', borderRadius: 2 }}>
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${BB}` }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: GL }}>Your Shifts</div>
+              </div>
+              <div style={{ overflowY: 'auto' }}>
+                {filteredShifts.map((shift, i) => {
+                  const job = jobs.get(shift.jobId);
+                  return (
+                    <div
+                      key={shift.id}
+                      onClick={() => checkGps(shift)}
+                      style={{
+                        padding: '14px 20px', borderBottom: i < filteredShifts.length - 1 ? `1px solid ${BB}` : 'none',
+                        cursor: 'pointer', background: active?.id === shift.id ? `${GL}0f` : 'transparent',
+                        transition: 'background 0.2s',
+                      }}
+                      onMouseEnter={e => { if (active?.id !== shift.id) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                      onMouseLeave={e => { if (active?.id !== shift.id) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: W }}>{job?.title || '—'}</div>
+                          <div style={{ fontSize: 11, color: WM, marginTop: 2 }}>{job?.venue}</div>
+                          <div style={{ fontSize: 10, color: WD, marginTop: 2 }}>
+                            {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''} · {job?.startTime}–{job?.endTime}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          {statusBadge(shift.status)}
+                          {shift.attendance.checkInTime && (
+                            <div style={{ fontSize: 10, color: TEAL, marginTop: 5 }}>✓ In {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}</div>
+                          )}
+                        </div>
                       </div>
-                      {statusBadge(shift.status)}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
 
+          {/* Grid View */}
           {viewMode === 'grid' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {filteredShifts.map(shift => {
                 const job = jobs.get(shift.jobId);
                 return (
@@ -307,38 +317,22 @@ export const GeoCheckInOut: React.FC = () => {
                     key={shift.id}
                     onClick={() => checkGps(shift)}
                     style={{
-                      background: BC,
-                      border: `1px solid ${active?.id === shift.id ? GL + '80' : BB}`,
-                      borderRadius: '16px',
-                      padding: '18px',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s, border-color 0.2s',
-                      display: 'flex', flexDirection: 'column', gap: '12px',
+                      background: BC, border: `1px solid ${active?.id === shift.id ? GL : BB}`,
+                      padding: 18, cursor: 'pointer', transition: 'border-color 0.2s, transform 0.2s',
+                      borderRadius: 2,
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = GL + '80'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = active?.id === shift.id ? GL + '80' : BB; }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = GL; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = active?.id === shift.id ? GL : BB; }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h3 style={{ color: W, fontWeight: 700, fontSize: '16px', margin: 0 }}>{job?.title || '—'}</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <h3 style={{ color: W, fontWeight: 700, fontSize: 15, margin: 0 }}>{job?.title || '—'}</h3>
                       {statusBadge(shift.status)}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: WM, fontSize: '13px' }}>📍</span>
-                        <span style={{ color: WM, fontSize: '13px' }}>{job?.venue || '—'}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: WM, fontSize: '13px' }}>📅</span>
-                        <span style={{ color: WM, fontSize: '13px' }}>
-                          {job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : '—'}
-                        </span>
-                      </div>
-                    </div>
+                    <div style={{ fontSize: 12, color: WM, marginBottom: 4 }}>{job?.venue}</div>
+                    <div style={{ fontSize: 11, color: WD }}>{job?.date ? new Date(job.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) : ''} · {job?.startTime}–{job?.endTime}</div>
                     {shift.attendance.checkInTime && (
-                      <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: `1px solid ${BB}` }}>
-                        <p style={{ color: TEAL, fontSize: '12px', margin: 0 }}>
-                          ✓ Checked in {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                      <div style={{ marginTop: 10, borderTop: `1px solid ${BB}`, paddingTop: 8, fontSize: 11, color: TEAL }}>
+                        ✓ In {new Date(shift.attendance.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     )}
                   </div>
@@ -349,48 +343,105 @@ export const GeoCheckInOut: React.FC = () => {
         </>
       )}
 
-      {/* Bottom sheet modal */}
+      {/* Detail Modal – centered like job modal, with admin styling */}
       {selected && active && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 200, padding: 24
+          }}
           onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}
         >
           <div
-            style={{ background: BC, border: `1px solid ${GL}40`, borderRadius: '24px 24px 0 0', maxWidth: '500px', width: '100%', padding: '32px', maxHeight: '85vh', overflowY: 'auto' }}
+            style={{
+              background: BC, border: `1px solid ${BB}`, borderRadius: 4,
+              maxWidth: 540, width: '100%', maxHeight: '85vh',
+              overflowY: 'auto', padding: 32, position: 'relative'
+            }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ width: '40px', height: '4px', background: WD, borderRadius: '2px', margin: '0 auto 24px' }} />
-            <h2 style={{ color: W, fontWeight: 800, fontSize: '18px', margin: '0 0 4px' }}>{jobs.get(active.jobId)?.title}</h2>
-            <p style={{ color: WM, fontSize: '13px', marginBottom: '24px' }}>{jobs.get(active.jobId)?.venue}</p>
+            {/* Gradient top bar */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              height: 3, background: `linear-gradient(90deg, ${GL}, ${G2})`
+            }} />
+            <button
+              onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}
+              style={{
+                position: 'absolute', top: 16, right: 20,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: WD, fontSize: 18
+              }}
+            >
+              ✕
+            </button>
 
+            <h2 style={{ color: W, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>
+              {jobs.get(active.jobId)?.title}
+            </h2>
+            <p style={{ color: WM, fontSize: 14, marginBottom: 24 }}>
+              {jobs.get(active.jobId)?.venue}
+            </p>
+
+            {/* Issues display */}
             {active.attendance.issues && active.attendance.issues.length > 0 && (
-              <div style={{ marginBottom: '20px', padding: '16px', background: `${CORAL}12`, border: `1px solid ${CORAL}44`, borderRadius: '10px' }}>
-                <h4 style={{ color: CORAL, fontSize: '12px', fontWeight: 700, marginBottom: '8px' }}>⚠️ Issues Reported</h4>
+              <div style={{
+                marginBottom: 20, padding: 16,
+                background: `${CORAL}12`, border: `1px solid ${CORAL}44`,
+                borderRadius: 2
+              }}>
+                <h4 style={{ color: CORAL, fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                  ⚠️ Issues Reported
+                </h4>
                 {active.attendance.issues.map(issue => (
-                  <div key={issue.id} style={{ fontSize: '12px', color: WM, marginBottom: '6px' }}>
+                  <div key={issue.id} style={{ fontSize: 12, color: WM, marginBottom: 6 }}>
                     <strong>{issue.type}</strong>: {issue.note}
-                    <div style={{ fontSize: '10px', color: WD }}>{new Date(issue.loggedAt).toLocaleString()}</div>
+                    <div style={{ fontSize: 10, color: WD }}>
+                      {new Date(issue.loggedAt).toLocaleString()}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
 
+            {/* GPS status panel */}
             <div style={{
-              padding: '20px', borderRadius: '14px', textAlign: 'center', marginBottom: '24px',
-              background: gps === 'near' ? `${TEAL}12` : gps === 'far' ? `${CORAL}12` : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${gps === 'near' ? `${TEAL}44` : gps === 'far' ? `${CORAL}44` : BB}`,
+              padding: 20, borderRadius: 2, textAlign: 'center', marginBottom: 24,
+              background: gps === 'near' ? `${TEAL}12` : gps === 'far' ? `${CORAL}12` : BC,
+              border: `1px solid ${gps === 'near' ? TEAL : gps === 'far' ? CORAL : BB}`
             }}>
-              {gps === 'checking' && <><div style={{ fontSize: '32px', marginBottom: '8px' }}>📡</div><p style={{ color: WM, margin: 0 }}>Getting your location…</p></>}
-              {gps === 'near' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>✅</div><p style={{ color: TEAL, fontWeight: 700, margin: '0 0 4px' }}>You're at the venue</p><p style={{ color: WM, fontSize: '12px', margin: 0 }}>{distM}m from check-in point</p></>}
-              {gps === 'far' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>📍</div><p style={{ color: CORAL, fontWeight: 700, margin: '0 0 4px' }}>Too far away</p><p style={{ color: WM, fontSize: '12px', margin: 0 }}>You are {distM}m away. Must be within {GEO_THRESHOLD_M}m.</p></>}
-              {gps === 'denied' && <><div style={{ fontSize: '40px', marginBottom: '8px' }}>🚫</div><p style={{ color: CORAL, margin: 0 }}>Location access denied</p></>}
-              {gps === 'idle' && <p style={{ color: WM, margin: 0 }}>Tap below to verify your location</p>}
+              {gps === 'checking' && (
+                <><div style={{ fontSize: 32, marginBottom: 8 }}>📡</div><p style={{ color: WM, margin: 0 }}>Getting your location…</p></>
+              )}
+              {gps === 'near' && (
+                <><div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                <p style={{ color: TEAL, fontWeight: 700, margin: '0 0 4px' }}>You're at the venue</p>
+                <p style={{ color: WM, fontSize: 12, margin: 0 }}>{distM}m from check‑in point</p></>
+              )}
+              {gps === 'far' && (
+                <><div style={{ fontSize: 40, marginBottom: 8 }}>📍</div>
+                <p style={{ color: CORAL, fontWeight: 700, margin: '0 0 4px' }}>Too far away</p>
+                <p style={{ color: WM, fontSize: 12, margin: 0 }}>You are {distM}m away. Must be within {GEO_THRESHOLD_M}m.</p></>
+              )}
+              {gps === 'denied' && (
+                <><div style={{ fontSize: 40, marginBottom: 8 }}>🚫</div><p style={{ color: CORAL, margin: 0 }}>Location access denied</p></>
+              )}
+              {gps === 'idle' && (
+                <p style={{ color: WM, margin: 0 }}>Tap below to verify your location</p>
+              )}
             </div>
 
+            {/* Selfie capture */}
             {selfieAction !== 'none' && gps === 'near' && (
-              <div style={{ marginBottom: '20px', padding: '20px', background: `${GL}0f`, border: `1px solid ${GL}30`, borderRadius: '14px', textAlign: 'center' }}>
-                <p style={{ color: GL, fontWeight: 700, marginBottom: '12px' }}>
-                  📸 Take your {selfieAction === 'checkin' ? 'check-in' : 'check-out'} selfie
+              <div style={{
+                marginBottom: 20, padding: 20,
+                background: `${GL}0f`, border: `1px solid ${GL}30`,
+                borderRadius: 2, textAlign: 'center'
+              }}>
+                <p style={{ color: GL, fontWeight: 700, marginBottom: 12 }}>
+                  📸 Take your {selfieAction === 'checkin' ? 'check‑in' : 'check‑out'} selfie
                 </p>
                 <input
                   type="file"
@@ -399,7 +450,6 @@ export const GeoCheckInOut: React.FC = () => {
                   onChange={e => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      setSelfieFile(file);
                       const reader = new FileReader();
                       reader.onload = () => setSelfiePreview(reader.result as string);
                       reader.readAsDataURL(file);
@@ -410,37 +460,46 @@ export const GeoCheckInOut: React.FC = () => {
                 />
                 <label htmlFor="selfie-input" style={{ cursor: 'pointer' }}>
                   {selfiePreview ? (
-                    <img src={selfiePreview} alt="selfie" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8 }} />
+                    <img src={selfiePreview} alt="selfie" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 2 }} />
                   ) : (
                     <div style={{
-                      width: '100px', height: '100px', borderRadius: '50%',
+                      width: 100, height: 100, borderRadius: '50%',
                       background: 'rgba(255,255,255,0.04)', border: `2px dashed ${GL}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      margin: '0 auto 12px', fontSize: '36px'
+                      margin: '0 auto 12px', fontSize: 36
                     }}>
                       🤳
                     </div>
                   )}
                 </label>
                 {selfiePreview && (
-                  <Button onClick={selfieAction === 'checkin' ? doCheckIn : doCheckOut} loading={working} style={{ marginTop: '12px' }}>
-                    ✓ Confirm {selfieAction === 'checkin' ? 'Check-In' : 'Check-Out'}
+                  <Button onClick={selfieAction === 'checkin' ? doCheckIn : doCheckOut} loading={working} style={{ marginTop: 12 }}>
+                    ✓ Confirm {selfieAction === 'checkin' ? 'Check‑In' : 'Check‑Out'}
                   </Button>
                 )}
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {active.status === 'scheduled' && gps === 'near' && selfieAction === 'none' && (
-                <Button fullWidth size="lg" onClick={() => setSelfieAction('checkin')}>🟢 Start Shift — Check In</Button>
+                <Button fullWidth size="lg" onClick={() => setSelfieAction('checkin')}>
+                  🟢 Start Shift — Check In
+                </Button>
               )}
               {(active.status === 'checked_in' || active.status === 'active') && gps === 'near' && selfieAction === 'none' && (
-                <Button fullWidth size="lg" variant="secondary" onClick={() => setSelfieAction('checkout')}>🔴 End Shift — Check Out</Button>
+                <Button fullWidth size="lg" variant="secondary" onClick={() => setSelfieAction('checkout')}>
+                  🔴 End Shift — Check Out
+                </Button>
               )}
               {(gps === 'idle' || gps === 'far') && (
-                <Button fullWidth variant="ghost" onClick={() => checkGps(active)}>📡 Refresh Location</Button>
+                <Button fullWidth variant="ghost" onClick={() => checkGps(active)}>
+                  📡 Refresh Location
+                </Button>
               )}
-              <Button fullWidth variant="ghost" onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}>Close</Button>
+              <Button fullWidth variant="ghost" onClick={() => { setSelected(null); setSelfieAction('none'); setGps('idle'); }}>
+                Close
+              </Button>
             </div>
           </div>
         </div>
