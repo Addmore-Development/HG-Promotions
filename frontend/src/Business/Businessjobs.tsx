@@ -63,11 +63,13 @@ function JobFormModal({ existing, onClose, onSave, businessEmail }: {
   const [location,         setLocation]         = useState(existing?.location         || '')
   const [terms,            setTerms]            = useState(existing?.terms            || '')
   const [ratePerHour,      setRatePerHour]      = useState(String(existing?.ratePerHour || ''))
+  // ── CHANGE: startDate field added ──
+  const [startDate,        setStartDate]        = useState(existing?.startDate?.slice(0,10) || '')
   const [endDate,          setEndDate]          = useState(existing?.endDate?.slice(0,10) || '')
   const [error,            setError]            = useState<string | null>(null)
 
   const handleSave = () => {
-    if (!title || !promotersNeeded || !location || !terms || !ratePerHour || !endDate) {
+    if (!title || !promotersNeeded || !location || !terms || !ratePerHour || !startDate || !endDate) {
       setError('Please fill in all required fields.'); return
     }
     if (isNaN(Number(promotersNeeded)) || Number(promotersNeeded) < 1) {
@@ -75,6 +77,9 @@ function JobFormModal({ existing, onClose, onSave, businessEmail }: {
     }
     if (isNaN(Number(ratePerHour)) || Number(ratePerHour) < 1) {
       setError('Rate per hour must be a valid amount.'); return
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      setError('End date must be after start date.'); return
     }
     const job: Job = {
       id:              existing?.id || `job-${Date.now()}`,
@@ -84,6 +89,7 @@ function JobFormModal({ existing, onClose, onSave, businessEmail }: {
       location:        location.trim(),
       terms:           terms.trim(),
       ratePerHour:     Number(ratePerHour),
+      startDate,
       endDate,
       status:          existing?.status || 'active',
       createdAt:       existing?.createdAt || new Date().toISOString(),
@@ -121,7 +127,11 @@ function JobFormModal({ existing, onClose, onSave, businessEmail }: {
 
           <FInput label="Location" placeholder="Sandton City Mall, Sandton, 2196" value={location} onChange={setLocation} required />
 
-          <FInput label="End Date" type="date" value={endDate} onChange={setEndDate} required />
+          {/* ── CHANGE: Start Date and End Date side by side ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <FInput label="Start Date" type="date" value={startDate} onChange={setStartDate} required />
+            <FInput label="End Date" type="date" value={endDate} onChange={setEndDate} required />
+          </div>
 
           <FTextarea label="Terms & Conditions" placeholder="Describe dress code, duties, expectations…" value={terms} onChange={setTerms} required />
         </div>
@@ -149,12 +159,13 @@ function JobFormModal({ existing, onClose, onSave, businessEmail }: {
   )
 }
 
-/* ─── APPLICANT ROW ────────────────────────────────────────── */
-function ApplicantRow({ applicant, ratePerHour }: { applicant: Applicant; ratePerHour: number }) {
+/* ─── APPLICANT ROW (for team panel inside job card) ───────── */
+function ApplicantRow({ applicant, ratePerHour, isCancelled }: { applicant: Applicant; ratePerHour: number; isCancelled: boolean }) {
   const [open, setOpen] = useState(false)
   const hours   = calcHours(applicant.shifts)
   const payout  = calcPayout(applicant.shifts, ratePerHour)
-  const isLive  = applicant.shifts.some(s => !s.checkOut)
+  // ── CHANGE: treat live shifts as not-live on cancelled jobs ──
+  const isLive  = !isCancelled && applicant.shifts.some(s => !s.checkOut)
 
   return (
     <div style={{ border: `1px solid ${BLACK_BORDER}`, marginBottom: 8 }}>
@@ -196,7 +207,8 @@ function ApplicantRow({ applicant, ratePerHour }: { applicant: Applicant; ratePe
               const shiftHours = shift.checkOut
                 ? ((new Date(shift.checkOut).getTime() - new Date(shift.checkIn).getTime()) / 3600000)
                 : null
-              const isActive = !shift.checkOut
+              // ── CHANGE: on cancelled jobs, all shifts show as completed (no "in progress") ──
+              const isActive = !isCancelled && !shift.checkOut
               return (
                 <div key={shift.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: isActive ? 'rgba(74,222,128,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isActive ? 'rgba(74,222,128,0.2)' : BLACK_BORDER}`, marginBottom: 6 }}>
                   <div style={{ display: 'flex', gap: 20 }}>
@@ -207,7 +219,7 @@ function ApplicantRow({ applicant, ratePerHour }: { applicant: Applicant; ratePe
                     <div>
                       <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Check Out</p>
                       <p style={{ fontFamily: FB, fontSize: 12, color: isActive ? '#4ade80' : WHITE }}>
-                        {isActive ? 'In progress…' : new Date(shift.checkOut!).toLocaleString('en-ZA')}
+                        {isActive ? 'In progress…' : shift.checkOut ? new Date(shift.checkOut).toLocaleString('en-ZA') : '—'}
                       </p>
                     </div>
                   </div>
@@ -217,15 +229,16 @@ function ApplicantRow({ applicant, ratePerHour }: { applicant: Applicant; ratePe
                         <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_MUTED, marginBottom: 2 }}>{shiftHours.toFixed(2)} hrs</p>
                         <p style={{ fontFamily: FB, fontSize: 12, fontWeight: 600, color: GOLD }}>R {(shiftHours * ratePerHour).toFixed(2)}</p>
                       </>
-                    ) : (
+                    ) : isActive ? (
                       <p style={{ fontFamily: FB, fontSize: 11, color: '#4ade80' }}>Live</p>
+                    ) : (
+                      <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_DIM }}>—</p>
                     )}
                   </div>
                 </div>
               )
             })
           )}
-          {/* Totals */}
           {applicant.shifts.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${BLACK_BORDER}`, paddingTop: 12, marginTop: 6, gap: 24 }}>
               <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED }}>Total: <strong style={{ color: WHITE }}>{hours.toFixed(2)} hrs</strong></p>
@@ -238,24 +251,127 @@ function ApplicantRow({ applicant, ratePerHour }: { applicant: Applicant; ratePe
   )
 }
 
+/* ─── JOB DETAIL POPUP ─────────────────────────────────────── */
+// ── CHANGE: full floating popup with all job details ──
+function JobDetailModal({ job, onClose }: { job: Job; onClose: () => void }) {
+  const isCancelled = job.status === 'cancelled'
+  const isExpired = new Date(job.endDate) < new Date()
+  const totalHours = job.applicants.reduce((acc, ap) => acc + calcHours(ap.shifts), 0)
+  const totalPayout = job.applicants.reduce((acc, ap) => acc + calcPayout(ap.shifts, job.ratePerHour), 0)
+  const liveCount = !isCancelled ? job.applicants.filter(ap => ap.shifts.some(s => !s.checkOut)).length : 0
+
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div style={{ background: '#141414', border: `1px solid ${BLACK_BORDER}`, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 40px 120px rgba(0,0,0,0.8)' }}>
+        {/* Top accent */}
+        <div style={{ height: 3, background: isCancelled ? '#ff6b6b' : isExpired ? '#f0a500' : GOLD }} />
+
+        {/* Header */}
+        <div style={{ padding: '32px 36px 24px', borderBottom: `1px solid ${BLACK_BORDER}` }}>
+          <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: WHITE_MUTED, transition: 'color 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = WHITE)}
+            onMouseLeave={e => (e.currentTarget.style.color = WHITE_MUTED)}
+          >✕</button>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, paddingRight: 32 }}>
+            <h2 style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: WHITE, lineHeight: 1.2 }}>{job.title}</h2>
+            <span style={{
+              flexShrink: 0, marginLeft: 16,
+              fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase',
+              color: isCancelled ? '#ff6b6b' : isExpired ? '#f0a500' : '#4ade80',
+              background: isCancelled ? 'rgba(255,107,107,0.1)' : isExpired ? 'rgba(240,165,0,0.1)' : 'rgba(74,222,128,0.1)',
+              padding: '5px 12px',
+            }}>
+              {isCancelled ? 'Cancelled' : isExpired ? 'Expired' : 'Active'}
+            </span>
+          </div>
+          <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED }}>📍 {job.location}</p>
+        </div>
+
+        {/* Details grid */}
+        <div style={{ padding: '24px 36px', borderBottom: `1px solid ${BLACK_BORDER}` }}>
+          <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.3em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>Job Details</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+            {[
+              { label: 'Rate per Hour', value: `R ${job.ratePerHour}/hr`, accent: GOLD },
+              { label: 'Promoters Needed', value: `${job.applicants.length} / ${job.promotersNeeded}` },
+              { label: 'Start Date', value: job.startDate ? new Date(job.startDate).toLocaleDateString('en-ZA') : '—' },
+              { label: 'End Date', value: new Date(job.endDate).toLocaleDateString('en-ZA') },
+              { label: 'Total Hours', value: `${totalHours.toFixed(2)} hrs` },
+              { label: 'Total Payout', value: `R ${totalPayout.toFixed(2)}`, accent: GOLD },
+            ].map(item => (
+              <div key={item.label} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BLACK_BORDER}`, padding: '14px 16px' }}>
+                <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 6 }}>{item.label}</p>
+                <p style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: item.accent || WHITE }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Live badge */}
+          {liveCount > 0 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', padding: '8px 16px', marginBottom: 20 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
+              <span style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: '#4ade80' }}>{liveCount} promoter{liveCount !== 1 ? 's' : ''} currently on shift</span>
+            </div>
+          )}
+
+          {/* Fill bar */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM }}>Slots Filled</p>
+              <p style={{ fontFamily: FB, fontSize: 10, color: WHITE_MUTED }}>{job.applicants.length} of {job.promotersNeeded}</p>
+            </div>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+              <div style={{ height: '100%', width: `${Math.min((job.applicants.length / job.promotersNeeded) * 100, 100)}%`, background: GOLD, borderRadius: 2, transition: 'width 0.6s ease' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Terms */}
+        <div style={{ padding: '24px 36px', borderBottom: `1px solid ${BLACK_BORDER}` }}>
+          <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.3em', textTransform: 'uppercase', color: GOLD, marginBottom: 12 }}>Terms & Conditions</p>
+          <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{job.terms || 'No terms specified.'}</p>
+        </div>
+
+        {/* Team */}
+        <div style={{ padding: '24px 36px' }}>
+          <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.3em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>
+            Team — {job.applicants.length} Promoter{job.applicants.length !== 1 ? 's' : ''}
+          </p>
+          {job.applicants.length === 0 ? (
+            <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>No promoters have applied yet.</p>
+          ) : (
+            job.applicants.map(ap => (
+              <ApplicantRow key={ap.email} applicant={ap} ratePerHour={job.ratePerHour} isCancelled={isCancelled} />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── JOB CARD ─────────────────────────────────────────────── */
-function JobCard({ job, onEdit, onCancel, onSelect, selected }: {
-  job: Job; onEdit: () => void; onCancel: () => void
-  onSelect: () => void; selected: boolean
+function JobCard({ job, onEdit, onCancel, onViewDetails }: {
+  job: Job; onEdit: () => void; onCancel: () => void; onViewDetails: () => void
 }) {
+  const isCancelled = job.status === 'cancelled'
   const isExpired = new Date(job.endDate) < new Date()
   const filledSlots = job.applicants.length
 
   return (
     <div className="biz-page" style={{
-      background: BLACK_CARD, border: `1px solid ${selected ? GOLD : BLACK_BORDER}`,
+      background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`,
       position: 'relative', overflow: 'hidden', transition: 'border-color 0.3s, transform 0.2s, box-shadow 0.2s',
     }}
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 36px rgba(0,0,0,0.4)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none' }}
     >
       {/* Status bar */}
-      <div style={{ height: 3, background: job.status === 'active' ? (isExpired ? '#f0a500' : GOLD) : '#ff6b6b' }} />
+      <div style={{ height: 3, background: isCancelled ? '#ff6b6b' : isExpired ? '#f0a500' : GOLD }} />
 
       <div style={{ padding: '22px 24px' }}>
         {/* Header row */}
@@ -269,11 +385,11 @@ function JobCard({ job, onEdit, onCancel, onSelect, selected }: {
           <span style={{
             marginLeft: 12, flexShrink: 0,
             fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: job.status === 'cancelled' ? '#ff6b6b' : isExpired ? '#f0a500' : '#4ade80',
-            background: job.status === 'cancelled' ? 'rgba(255,107,107,0.1)' : isExpired ? 'rgba(240,165,0,0.1)' : 'rgba(74,222,128,0.1)',
+            color: isCancelled ? '#ff6b6b' : isExpired ? '#f0a500' : '#4ade80',
+            background: isCancelled ? 'rgba(255,107,107,0.1)' : isExpired ? 'rgba(240,165,0,0.1)' : 'rgba(74,222,128,0.1)',
             padding: '4px 10px',
           }}>
-            {job.status === 'cancelled' ? 'Cancelled' : isExpired ? 'Expired' : 'Active'}
+            {isCancelled ? 'Cancelled' : isExpired ? 'Expired' : 'Active'}
           </span>
         </div>
 
@@ -287,6 +403,12 @@ function JobCard({ job, onEdit, onCancel, onSelect, selected }: {
             <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Promoters</p>
             <p style={{ fontFamily: FB, fontSize: 14, fontWeight: 600, color: WHITE }}>{filledSlots} / {job.promotersNeeded}</p>
           </div>
+          {job.startDate && (
+            <div>
+              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Start Date</p>
+              <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED }}>{new Date(job.startDate).toLocaleDateString('en-ZA')}</p>
+            </div>
+          )}
           <div>
             <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>End Date</p>
             <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED }}>{new Date(job.endDate).toLocaleDateString('en-ZA')}</p>
@@ -302,12 +424,13 @@ function JobCard({ job, onEdit, onCancel, onSelect, selected }: {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onSelect}
-            style={{ flex: 2, padding: '9px 0', background: selected ? 'rgba(196,151,58,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${selected ? GOLD : BLACK_BORDER}`, fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: selected ? GOLD : WHITE_MUTED, cursor: 'pointer', transition: 'all 0.2s' }}
-            onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD } }}
-            onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = WHITE_MUTED } }}
+          {/* ── CHANGE: "View Details" replaces "View Team" and opens floating popup ── */}
+          <button onClick={onViewDetails}
+            style={{ flex: 2, padding: '9px 0', background: 'rgba(196,151,58,0.08)', border: `1px solid ${GOLD}44`, fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: GOLD, cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(196,151,58,0.15)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(196,151,58,0.08)' }}
           >
-            {selected ? '▲ Hide Team' : '▼ View Team'}
+            View Details
           </button>
           {job.status === 'active' && (
             <>
@@ -325,22 +448,6 @@ function JobCard({ job, onEdit, onCancel, onSelect, selected }: {
           )}
         </div>
       </div>
-
-      {/* Expanded applicants panel */}
-      {selected && (
-        <div style={{ borderTop: `1px solid ${BLACK_BORDER}`, padding: '20px 24px', background: 'rgba(0,0,0,0.3)' }}>
-          <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.3em', textTransform: 'uppercase', color: GOLD, marginBottom: 16 }}>
-            Team — {filledSlots} Promoter{filledSlots !== 1 ? 's' : ''}
-          </p>
-          {job.applicants.length === 0 ? (
-            <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>No promoters have applied yet.</p>
-          ) : (
-            job.applicants.map(ap => (
-              <ApplicantRow key={ap.email} applicant={ap} ratePerHour={job.ratePerHour} />
-            ))
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -383,7 +490,7 @@ export default function BusinessJobs() {
   const [showForm,    setShowForm]    = useState(false)
   const [editJob,     setEditJob]     = useState<Job | undefined>(undefined)
   const [cancelJob,   setCancelJob]   = useState<Job | undefined>(undefined)
-  const [selectedJob, setSelectedJob] = useState<string | null>(null)
+  const [detailJob,   setDetailJob]   = useState<Job | undefined>(undefined)  // ── CHANGE
   const [filter,      setFilter]      = useState<'all' | 'active' | 'cancelled'>('all')
 
   useEffect(() => {
@@ -418,6 +525,9 @@ export default function BusinessJobs() {
   }
 
   const filtered = jobs.filter(j => filter === 'all' ? true : j.status === filter)
+
+  // Keep detailJob in sync after reload
+  const syncedDetailJob = detailJob ? jobs.find(j => j.id === detailJob.id) : undefined
 
   return (
     <div>
@@ -465,8 +575,7 @@ export default function BusinessJobs() {
           {filtered.map(job => (
             <JobCard
               key={job.id} job={job}
-              selected={selectedJob === job.id}
-              onSelect={() => setSelectedJob(selectedJob === job.id ? null : job.id)}
+              onViewDetails={() => setDetailJob(job)}
               onEdit={() => { setEditJob(job); setShowForm(true) }}
               onCancel={() => setCancelJob(job)}
             />
@@ -488,6 +597,13 @@ export default function BusinessJobs() {
           job={cancelJob}
           onClose={() => setCancelJob(undefined)}
           onConfirm={() => handleCancel(cancelJob)}
+        />
+      )}
+      {/* ── CHANGE: job detail popup ── */}
+      {syncedDetailJob && (
+        <JobDetailModal
+          job={syncedDetailJob}
+          onClose={() => setDetailJob(undefined)}
         />
       )}
     </div>
