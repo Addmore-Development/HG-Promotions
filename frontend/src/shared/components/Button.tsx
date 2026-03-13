@@ -11,6 +11,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
+// New admin‑style tokens
+const G = '#D4880A';
+const GL = '#E8A820';
+const B = '#0C0A07';
+const BB = 'rgba(212,136,10,0.14)';
+const W = '#FAF3E8';
+const WM = 'rgba(250,243,232,0.55)';
+const CORAL = '#C4614A';
+const FB = "'DM Sans', system-ui, sans-serif";
+
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
@@ -27,7 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
     justifyContent: 'center',
     gap: '8px',
     borderRadius: '8px',
-    fontFamily: 'inherit',
+    fontFamily: FB,
     fontWeight: 700,
     letterSpacing: '0.04em',
     cursor: disabled || loading ? 'not-allowed' : 'pointer',
@@ -45,10 +55,10 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variants: Record<ButtonVariant, React.CSSProperties> = {
-    primary:   { background: 'linear-gradient(135deg, #D4AF37, #B8962E)', color: '#0A0A0A' },
-    secondary: { background: 'rgba(212,175,55,0.1)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' },
-    ghost:     { background: 'transparent', color: '#a0a0a0', border: '1px solid rgba(255,255,255,0.12)' },
-    danger:    { background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' },
+    primary:   { background: `linear-gradient(135deg, ${G}, ${GL})`, color: B },
+    secondary: { background: 'rgba(232,168,32,0.1)', color: GL, border: `1px solid ${GL}80` },
+    ghost:     { background: 'transparent', color: WM, border: `1px solid ${BB}` },
+    danger:    { background: 'rgba(196,97,74,0.15)', color: CORAL, border: `1px solid ${CORAL}80` },
   };
 
   return (

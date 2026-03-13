@@ -11,13 +11,39 @@ import { Badge }            from '../../shared/components/Badge';
 import { showToast }        from '../../shared/utils/toast';
 import type { UserProfile } from '../../shared/types/user.types';
 
-const G = '#D4AF37';
-const BC = '#161616';
-const BB = 'rgba(255,255,255,0.07)';
-const W = '#F4EFE6';
-const WM = 'rgba(244,239,230,0.55)';
-const WD = '#555';
-const FB = "'DM Sans', system-ui, sans-serif";
+// Admin‑style tokens (same as admin settings)
+const G   = '#D4880A';
+const GL  = '#E8A820';
+const G2  = '#8B5A1A';
+const B   = '#0C0A07';
+const BC  = '#141008';
+const D2  = '#1A1508';   // card background
+const D3  = '#221C0C';   // darker card
+const BB  = 'rgba(212,136,10,0.12)';
+const W   = '#FAF3E8';
+const WM  = 'rgba(250,243,232,0.65)';
+const WD  = 'rgba(250,243,232,0.28)';
+const W28 = WD;
+const FD  = "'Playfair Display', Georgia, serif";
+const FB  = "'DM Sans', system-ui, sans-serif";
+
+// Status colors
+const TEAL   = '#4AABB8';
+const AMBER  = '#E8A820';
+const CORAL  = '#C4614A';
+const SKY    = '#5A9EC4';
+
+// Input styles (matches admin)
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'rgba(250,243,232,0.05)',
+  border: `1px solid ${BB}`, padding: '10px 14px',
+  color: W, fontFamily: FB, fontSize: 13, outline: 'none',
+  borderRadius: 2,
+};
+const labelStyle: React.CSSProperties = {
+  fontSize: 9, fontWeight: 700, letterSpacing: '0.15em',
+  textTransform: 'uppercase', color: WM, display: 'block', marginBottom: 7,
+};
 
 export const EditOwnProfile: React.FC = () => {
   const { user } = useAuth();
@@ -90,20 +116,6 @@ export const EditOwnProfile: React.FC = () => {
     }
   };
 
-  // Styles
-  const fs: React.CSSProperties = {
-    width: '100%', padding: '12px 14px',
-    background: 'rgba(255,255,255,0.04)', border: `1px solid ${BB}`,
-    borderRadius: '8px', color: W, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-  };
-  const ls: React.CSSProperties = {
-    display: 'block', color: WM, fontSize: '11px', fontWeight: 600,
-    letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px',
-  };
-  const SH = ({ t }: { t: string }) => (
-    <h3 style={{ color: G, fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '28px 0 16px' }}>{t}</h3>
-  );
-
   const statusBadge = () => {
     if (!profile) return null;
     const map: Record<string, { variant: 'warning' | 'success' | 'danger' | 'neutral'; label: string }> = {
@@ -117,192 +129,266 @@ export const EditOwnProfile: React.FC = () => {
     return <Badge variant={s.variant}>{s.label}</Badge>;
   };
 
-  // Read onboarding status from session as fallback while profile loads
   const sessionStatus = (() => {
     try { return JSON.parse(localStorage.getItem('hg_session') || '{}').status || ''; } catch { return ''; }
   })();
 
   if (loading) return (
-    <div style={{ color: WD, padding: '60px 0', textAlign: 'center' }}>Loading profile…</div>
+    <div style={{ display:'flex', alignItems:'center', gap:'12px', color: WD, padding:'60px 0', justifyContent:'center' }}>
+      <div style={{ width:24, height:24, border:`2px solid ${GL}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+      <span style={{ fontSize:'15px', color:WM }}>Loading profile…</span>
+    </div>
   );
 
   const displayName = profile?.fullName || user?.name || 'Promoter';
   const status      = profile?.onboardingStatus || sessionStatus;
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 30px' }}>
-      {/* Header with badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ padding: '40px 48px' }}>
+      {/* Header – exactly like admin's settings */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
         <div>
-          <h1 style={{ color: W, fontSize: '28px', fontWeight: 800, margin: '0 0 6px' }}>My Profile</h1>
-          <p style={{ color: WD, fontSize: '14px', margin: 0 }}>Keep your details up to date to match more jobs.</p>
+          <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700 }}>
+            Profile
+          </div>
+          <h1 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: W }}>My Profile</h1>
         </div>
-        {statusBadge()}
+        <Button loading={saving} onClick={handleSave}>Save Changes</Button>
       </div>
 
-      {/* Rejection notice */}
-      {status === 'rejected' && profile?.rejectionReason && (
-        <div style={{ padding: '16px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '28px' }}>
-          <p style={{ color: '#f87171', fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
-            <strong>Reason:</strong> {profile.rejectionReason}. Please contact support or update your documents.
-          </p>
+      {/* Success/error messages */}
+      {error && (
+        <div style={{
+          padding: '12px 18px', background: `${CORAL}12`, border: `1px solid ${CORAL}44`,
+          marginBottom: 20, fontSize: 13, color: CORAL, fontWeight: 600, borderRadius: 2,
+        }}>
+          {error}
         </div>
       )}
 
-      {/* Identity Card */}
-      <div style={{ padding: '36px', background: BC, border: `1px solid ${BB}`, borderRadius: '24px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '30px', flexWrap: 'wrap' }}>
-          <div style={{
-            width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-            background: 'linear-gradient(135deg,#D4AF37,#B8962E)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 900,
-            color: '#0A0A0A', border: `2px solid ${G}80`,
-          }}>
-            {profile?.profilePhoto
-              ? <img src={profile.profilePhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : displayName.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h3 style={{ color: W, fontWeight: 700, fontSize: '22px', margin: '0 0 6px' }}>{displayName}</h3>
-            <p style={{ color: WD, fontSize: '15px', margin: '0 0 3px' }}>{user?.email}</p>
-            {(profile?.city || form.city) && (profile?.province || form.province) && (
-              <p style={{ color: '#555', fontSize: '14px', margin: 0 }}>
-                📍 {profile?.city || form.city}, {profile?.province || form.province}
-              </p>
-            )}
-          </div>
+      {/* Rejection notice */}
+      {status === 'rejected' && profile?.rejectionReason && (
+        <div style={{
+          padding: '12px 18px', background: `${CORAL}12`, border: `1px solid ${CORAL}44`,
+          marginBottom: 20, fontSize: 13, color: CORAL, fontWeight: 600, borderRadius: 2,
+        }}>
+          <strong>Reason:</strong> {profile.rejectionReason}. Please contact support or update your documents.
         </div>
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '28px' }}>
-          {[
-            { label: 'Reliability',   value: profile?.reliabilityScore ? `⭐ ${profile.reliabilityScore}/5` : 'No rating yet' },
-            { label: 'Member Since',  value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }) : '—' },
-            { label: 'ID Number',     value: profile?.idNumber ? `${profile.idNumber.slice(0, 6)}••••` : '—' },
-          ].map(row => (
-            <div key={row.label}>
-              <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
-              <p style={{ color: '#e0e0e0', fontSize: '15px', fontWeight: 600, margin: 0 }}>{row.value}</p>
+      {/* Identity Card – premium card with top accent */}
+      <div style={{ background: D2, border: `1px solid ${BB}`, borderRadius: 2, marginBottom: 24, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${GL}, ${G2})` }} />
+        <div style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+              background: `linear-gradient(135deg, ${G}, ${GL})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 32, fontWeight: 900, color: B,
+              border: `2px solid ${GL}80`,
+            }}>
+              {profile?.profilePhoto
+                ? <img src={profile.profilePhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : displayName.charAt(0).toUpperCase()}
             </div>
-          ))}
-        </div>
+            <div>
+              <h3 style={{ color: W, fontWeight: 700, fontSize: 22, margin: '0 0 6px' }}>{displayName}</h3>
+              <p style={{ color: WM, fontSize: 14, margin: '0 0 2px' }}>{user?.email}</p>
+              {(profile?.city || form.city) && (profile?.province || form.province) && (
+                <p style={{ color: WD, fontSize: 13, margin: 0 }}>
+                  📍 {profile?.city || form.city}, {profile?.province || form.province}
+                </p>
+              )}
+            </div>
+            <div style={{ marginLeft: 'auto' }}>{statusBadge()}</div>
+          </div>
 
-        {(profile?.physicalAttributes?.height ?? 0) > 0 && (
-          <div style={{ paddingTop: '24px', borderTop: `1px solid ${BB}`, display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 20, marginBottom: 20 }}>
             {[
-              { label: 'Height',   value: `${profile!.physicalAttributes.height}cm` },
-              { label: 'Clothing', value: profile!.physicalAttributes.clothingSize || '—' },
-              { label: 'Shoe',     value: profile!.physicalAttributes.shoeSize     || '—' },
-            ].map(a => (
-              <div key={a.label}>
-                <p style={{ color: '#555', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
-                <p style={{ color: G, fontSize: '18px', fontWeight: 700, margin: 0 }}>{a.value}</p>
+              { label: 'Reliability',   value: profile?.reliabilityScore ? `⭐ ${profile.reliabilityScore}/5` : 'No rating yet' },
+              { label: 'Member Since',  value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }) : '—' },
+              { label: 'ID Number',     value: profile?.idNumber ? `${profile.idNumber.slice(0, 6)}••••` : '—' },
+            ].map(row => (
+              <div key={row.label}>
+                <p style={{ color: WD, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 4px' }}>{row.label}</p>
+                <p style={{ color: W, fontSize: 14, fontWeight: 600, margin: 0 }}>{row.value}</p>
               </div>
             ))}
           </div>
-        )}
+
+          {(profile?.physicalAttributes?.height ?? 0) > 0 && (
+            <div style={{ paddingTop: 20, borderTop: `1px solid ${BB}`, display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Height',   value: `${profile!.physicalAttributes.height}cm` },
+                { label: 'Clothing', value: profile!.physicalAttributes.clothingSize || '—' },
+                { label: 'Shoe',     value: profile!.physicalAttributes.shoeSize     || '—' },
+              ].map(a => (
+                <div key={a.label}>
+                  <p style={{ color: WD, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 3px' }}>{a.label}</p>
+                  <p style={{ color: GL, fontSize: 16, fontWeight: 700, margin: 0 }}>{a.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Document change notice */}
-      <div style={{ padding: '18px 24px', background: 'rgba(255,255,255,0.02)', border: `1px solid ${BB}`, borderRadius: '16px', marginBottom: '12px' }}>
-        <p style={{ color: '#555', fontSize: '14px', margin: 0, lineHeight: 1.6 }}>
-          📎 <strong style={{ color: '#888' }}>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
+      <div style={{ padding: '16px 20px', background: `${GL}0f`, border: `1px solid ${GL}30`, borderRadius: 2, marginBottom: 24 }}>
+        <p style={{ color: GL, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+          📎 <strong>Documents:</strong> To update your ID, photos, or CV, please contact support. Document changes require admin review before taking effect.
         </p>
       </div>
 
-      {/* Editable Sections with Cards */}
-      <div style={{ marginTop: '40px' }}>
+      {/* Editable sections – grid of cards like admin settings */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
         {/* Location */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
-          <SH t="Location" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div>
-              <label style={ls}>City</label>
-              <input style={fs} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="e.g. Johannesburg" />
-            </div>
-            <div>
-              <label style={ls}>Province</label>
-              <select style={fs} value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))}>
-                <option value="">Select</option>
-                {['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
+        <div style={{ background: D2, padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>Location</div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>City</label>
+            <input
+              style={inputStyle}
+              value={form.city}
+              onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+              placeholder="e.g. Johannesburg"
+              onFocus={e => e.currentTarget.style.borderColor = GL}
+              onBlur={e => e.currentTarget.style.borderColor = BB}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Province</label>
+            <select
+              style={{ ...inputStyle, background: D3, cursor: 'pointer' }}
+              value={form.province}
+              onChange={e => setForm(f => ({ ...f, province: e.target.value }))}
+            >
+              <option value="">Select</option>
+              {['Gauteng','Western Cape','KwaZulu-Natal','Eastern Cape','Limpopo','Mpumalanga','North West','Free State','Northern Cape'].map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* Physical Attributes */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
-          <SH t="Physical Attributes" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-            {[
-              { key: 'height'      as const, label: 'Height (cm)',   ph: '168' },
-              { key: 'clothingSize'as const, label: 'Clothing Size', ph: 'S/M/L' },
-              { key: 'shoeSize'    as const, label: 'Shoe Size',     ph: '7' },
-            ].map(f => (
-              <div key={f.key}>
-                <label style={ls}>{f.label}</label>
-                <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
-              </div>
-            ))}
+        <div style={{ background: D2, padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>Physical Attributes</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Height (cm)</label>
+              <input
+                style={inputStyle}
+                value={form.height}
+                onChange={e => setForm(f => ({ ...f, height: e.target.value }))}
+                placeholder="168"
+                onFocus={e => e.currentTarget.style.borderColor = GL}
+                onBlur={e => e.currentTarget.style.borderColor = BB}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Clothing Size</label>
+              <input
+                style={inputStyle}
+                value={form.clothingSize}
+                onChange={e => setForm(f => ({ ...f, clothingSize: e.target.value }))}
+                placeholder="S/M/L"
+                onFocus={e => e.currentTarget.style.borderColor = GL}
+                onBlur={e => e.currentTarget.style.borderColor = BB}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Shoe Size</label>
+              <input
+                style={inputStyle}
+                value={form.shoeSize}
+                onChange={e => setForm(f => ({ ...f, shoeSize: e.target.value }))}
+                placeholder="7"
+                onFocus={e => e.currentTarget.style.borderColor = GL}
+                onBlur={e => e.currentTarget.style.borderColor = BB}
+              />
+            </div>
           </div>
         </div>
 
         {/* Social Media */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '20px', border: `1px solid ${BB}` }}>
-          <SH t="Social Media" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            {[
-              { key: 'instagram' as const, label: 'Instagram', ph: '@handle' },
-              { key: 'tiktok'    as const, label: 'TikTok',    ph: '@handle' },
-            ].map(f => (
-              <div key={f.key}>
-                <label style={ls}>{f.label}</label>
-                <input style={fs} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} />
-              </div>
-            ))}
+        <div style={{ background: D2, padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>Social Media</div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Instagram</label>
+            <input
+              style={inputStyle}
+              value={form.instagram}
+              onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
+              placeholder="@handle"
+              onFocus={e => e.currentTarget.style.borderColor = GL}
+              onBlur={e => e.currentTarget.style.borderColor = BB}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>TikTok</label>
+            <input
+              style={inputStyle}
+              value={form.tiktok}
+              onChange={e => setForm(f => ({ ...f, tiktok: e.target.value }))}
+              placeholder="@handle"
+              onFocus={e => e.currentTarget.style.borderColor = GL}
+              onBlur={e => e.currentTarget.style.borderColor = BB}
+            />
           </div>
         </div>
 
         {/* Banking Details */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '32px', marginBottom: '28px', border: `1px solid ${BB}` }}>
-          <SH t="Banking Details" />
-          <div style={{ padding: '18px 24px', background: `${G}0f`, border: `1px solid ${G}30`, borderRadius: '14px', marginBottom: '28px' }}>
-            <p style={{ color: G, fontSize: '14px', margin: 0, lineHeight: 1.6 }}>🔒 Encrypted and POPIA compliant. Used only for EFT payroll disbursements.</p>
+        <div style={{ background: D2, padding: 28 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>Banking Details</div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Bank</label>
+            <select
+              style={{ ...inputStyle, background: D3, cursor: 'pointer' }}
+              value={form.bankName}
+              onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))}
+            >
+              <option value="">Select bank</option>
+              {['Standard Bank','Absa','FNB','Nedbank','Capitec','African Bank','Investec','Discovery Bank'].map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div>
-              <label style={ls}>Bank</label>
-              <select style={fs} value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))}>
-                <option value="">Select bank</option>
-                {['Standard Bank','Absa','FNB','Nedbank','Capitec','African Bank','Investec','Discovery Bank'].map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={ls}>Account Number</label>
-              <input style={fs} value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} placeholder="e.g. 1234567890" />
-            </div>
-            <div>
-              <label style={ls}>Account Type</label>
-              <select style={fs} value={form.accountType} onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))}>
-                <option value="Cheque">Cheque / Current</option>
-                <option value="Savings">Savings</option>
-                <option value="Transmission">Transmission</option>
-              </select>
-            </div>
-            <div>
-              <label style={ls}>Branch Code</label>
-              <input style={fs} value={form.branchCode} onChange={e => setForm(f => ({ ...f, branchCode: e.target.value }))} placeholder="e.g. 051001" />
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Account Number</label>
+            <input
+              style={inputStyle}
+              value={form.accountNumber}
+              onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))}
+              placeholder="1234567890"
+              onFocus={e => e.currentTarget.style.borderColor = GL}
+              onBlur={e => e.currentTarget.style.borderColor = BB}
+            />
           </div>
-        </div>
-
-        {/* Save Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '20px', paddingBottom: '60px' }}>
-          <Button loading={saving} onClick={handleSave} style={{ padding: '14px 40px', fontSize: '15px' }}>Save Changes</Button>
-          {error && <span style={{ color: '#f87171', fontSize: '14px' }}>{error}</span>}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Account Type</label>
+            <select
+              style={{ ...inputStyle, background: D3, cursor: 'pointer' }}
+              value={form.accountType}
+              onChange={e => setForm(f => ({ ...f, accountType: e.target.value }))}
+            >
+              <option value="Cheque">Cheque / Current</option>
+              <option value="Savings">Savings</option>
+              <option value="Transmission">Transmission</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Branch Code</label>
+            <input
+              style={inputStyle}
+              value={form.branchCode}
+              onChange={e => setForm(f => ({ ...f, branchCode: e.target.value }))}
+              placeholder="051001"
+              onFocus={e => e.currentTarget.style.borderColor = GL}
+              onBlur={e => e.currentTarget.style.borderColor = BB}
+            />
+          </div>
         </div>
       </div>
     </div>

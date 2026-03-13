@@ -1,23 +1,19 @@
+// promoter/index.tsx
+// Promoter portal shell using the dedicated PromoterLayout.
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AppLayout }      from '../shared/layout/AppLayout';
-import { Dashboard }      from './dashboard/dashboard';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PromoterLayout } from './PromoterLayout';
+import { Dashboard } from './dashboard/dashboard';
 import { ViewAcceptJobs } from './jobs/ViewAcceptJobs';
-import { GeoCheckInOut }  from './shifts/GeoCheckInOut';
-import { ViewEarnings }   from './payments/ViewEarnings';
+import { GeoCheckInOut } from './shifts/GeoCheckInOut';
+import { ViewEarnings } from './payments/ViewEarnings';
 import { EditOwnProfile } from './users/EditOwnProfile';
-import { useAuth }        from '../shared/hooks/useAuth';
-import type { NavItem }   from '../shared/layout/Sidebar';
+import { FullCRUDUsers } from './users/FullCRUDUsers';
+import { useAuth } from '../shared/hooks/useAuth';
 
-type PromoterView = 'dashboard' | 'jobs' | 'shifts' | 'earnings' | 'profile';
-
-const NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard',  icon: '🏠' },
-  { id: 'jobs',      label: 'Job Feed',   icon: '💼' },
-  { id: 'shifts',    label: 'My Shifts',  icon: '📍' },
-  { id: 'earnings',  label: 'Earnings',   icon: '💰' },
-  { id: 'profile',   label: 'My Profile', icon: '👤' },
-];
+// Design tokens (only needed for banner)
+const G = '#C4973A';
 
 function getSessionStatus(): string {
   try {
@@ -29,12 +25,12 @@ function getSessionStatus(): string {
 }
 
 export const PromoterApp: React.FC = () => {
-  const { user, isLoading } = useAuth(); // 👈 get isLoading
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [view,   setView]   = useState<PromoterView>('dashboard');
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'dashboard';
   const [status, setStatus] = useState<string>(() => getSessionStatus());
 
-  // Wait for auth to finish loading before redirecting
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/login', { replace: true });
@@ -45,17 +41,9 @@ export const PromoterApp: React.FC = () => {
     setStatus(getSessionStatus());
   }, [user?.id]);
 
-  // Show nothing while auth is loading or redirecting
   if (isLoading || !user) return null;
 
-  const handleNavigate = (id: string) => setView(id as PromoterView);
-
   const isBlacklisted = status === 'blacklisted';
-  const navItems: NavItem[] = NAV.map(item => ({
-    ...item,
-    locked: isBlacklisted && item.id !== 'profile',
-  }));
-
   const showBanner = status !== 'approved' && !isBlacklisted;
 
   const BANNER: Record<string, string> = {
@@ -65,30 +53,25 @@ export const PromoterApp: React.FC = () => {
   };
 
   return (
-    <AppLayout
-      title="Promoter Portal"
-      navItems={navItems}
-      activeNav={view}
-      onNavigate={handleNavigate}
-    >
-      {showBanner && (
+    <PromoterLayout>
+      {/* {showBanner && (
         <div style={{
           padding: '12px 20px', marginBottom: '24px', borderRadius: '12px',
-          background: status === 'rejected' ? 'rgba(239,68,68,0.08)' : 'rgba(212,175,55,0.06)',
-          border: `1px solid ${status === 'rejected' ? 'rgba(239,68,68,0.25)' : 'rgba(212,175,55,0.2)'}`,
+          background: status === 'rejected' ? 'rgba(239,68,68,0.08)' : 'rgba(196,151,58,0.06)',
+          border: `1px solid ${status === 'rejected' ? 'rgba(239,68,68,0.25)' : 'rgba(196,151,58,0.2)'}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
         }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: status === 'rejected' ? '#f87171' : '#D4AF37' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: status === 'rejected' ? '#f87171' : G }}>
             {BANNER[status] ?? '⏳ Pending review.'}
           </span>
           <span
-            onClick={() => handleNavigate('profile')}
-            style={{ color: '#555', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
+            onClick={() => navigate('/promoter?tab=profile')}
+            style={{ color: 'rgba(244,239,230,0.22)', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
           >
             View profile →
           </span>
         </div>
-      )}
+      )} */}
 
       {isBlacklisted && (
         <div style={{ padding: '32px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
@@ -98,11 +81,12 @@ export const PromoterApp: React.FC = () => {
         </div>
       )}
 
-      {view === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
-      {view === 'jobs'      && <ViewAcceptJobs />}
-      {view === 'shifts'    && <GeoCheckInOut />}
-      {view === 'earnings'  && <ViewEarnings />}
-      {view === 'profile'   && <EditOwnProfile />}
-    </AppLayout>
+      {tab === 'dashboard' && <Dashboard onNavigate={(view: string) => navigate(`/promoter?tab=${view}`)} />}
+      {tab === 'jobs'      && <ViewAcceptJobs />}
+      {tab === 'shifts'    && <GeoCheckInOut />}
+      {tab === 'earnings'  && <ViewEarnings />}
+      {tab === 'profile'   && <EditOwnProfile />}
+      {tab === 'users'     && <FullCRUDUsers />}
+    </PromoterLayout>
   );
 };
