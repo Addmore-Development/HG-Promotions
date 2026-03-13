@@ -21,6 +21,7 @@ export interface Job {
   location:        string
   terms:           string
   ratePerHour:     number
+  startDate?:      string  // ── CHANGE: ISO date string, optional for backwards compat
   endDate:         string  // ISO date string
   status:          'active' | 'cancelled'
   createdAt:       string
