@@ -39,6 +39,11 @@ export default function BusinessLayout() {
     navigate('/')
   }
 
+  // ── CHANGE: navigate to landing page without logging out ──
+  const handleViewSite = () => {
+    navigate('/')
+  }
+
   if (!session) return null
 
   return (
@@ -112,6 +117,28 @@ export default function BusinessLayout() {
               </button>
             )
           })}
+
+          {/* ── CHANGE: View Site link ── */}
+          <button
+            onClick={handleViewSite}
+            title={collapsed ? 'View Site' : undefined}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              gap: 12, padding: collapsed ? '13px 0' : '13px 24px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              background: 'transparent',
+              borderLeft: '3px solid transparent',
+              border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+              color: WHITE_MUTED,
+              marginTop: 8,
+              borderTop: `1px solid ${BLACK_BORDER}`,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = GOLD }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = WHITE_MUTED }}
+          >
+            <span style={{ fontSize: 15, flexShrink: 0 }}>⊹</span>
+            {!collapsed && <span style={{ fontFamily: FB, fontSize: 12, fontWeight: 500, letterSpacing: '0.06em' }}>View Site</span>}
+          </button>
         </nav>
 
         {/* User + logout */}
@@ -157,9 +184,25 @@ export default function BusinessLayout() {
               {NAV_ITEMS.find(n => n.path === location.pathname)?.label || 'Business Portal'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} />
-            <span style={{ fontFamily: FB, fontSize: 11, color: WHITE_MUTED }}>Active</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* ── CHANGE: View Site button in top bar ── */}
+            <button
+              onClick={handleViewSite}
+              style={{
+                background: 'none', border: `1px solid ${BLACK_BORDER}`, cursor: 'pointer',
+                fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em',
+                textTransform: 'uppercase', color: WHITE_MUTED, padding: '6px 14px',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = WHITE_MUTED }}
+            >
+              ← View Site
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} />
+              <span style={{ fontFamily: FB, fontSize: 11, color: WHITE_MUTED }}>Active</span>
+            </div>
           </div>
         </div>
 
