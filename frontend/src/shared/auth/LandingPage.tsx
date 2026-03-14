@@ -17,11 +17,11 @@ const W28 = 'rgba(250,243,232,0.28)'
 const W12 = 'rgba(250,243,232,0.12)'
 const BB  = 'rgba(212,136,10,0.16)'
 
-const FD = "'Playfair Display', Georgia, serif"
+const FD = "'Work Sans', 'worksans', sans-serif"
 
 // ── Global CSS ────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,900;1,400;1,700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Bodoni+Moda:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { -webkit-font-smoothing: antialiased; background: ${B}; font-family: ${FD}; }
@@ -373,7 +373,7 @@ function FeatureSlideshow() {
         ))}
       </div>
       <div key={displayIdx} className={exiting ? 'feat-slide-exit' : 'feat-slide-enter'}
-        style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 80, alignItems: 'center', background: `linear-gradient(135deg, ${D2} 0%, ${D1} 100%)`, border: `1px solid ${BB}`, padding: '64px 72px', position: 'relative', overflow: 'hidden' }}>
+        style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 80, alignItems: 'center', background: `linear-gradient(135deg, ${D2} 0%, ${D1} 100%)`, border: `1px solid ${BB}`, padding: '64px 72px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, ${G5})` }} />
         <div style={{ position: 'absolute', bottom: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(232,168,32,0.06) 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <div>
@@ -384,12 +384,7 @@ function FeatureSlideshow() {
           <div style={{ fontFamily: FD, fontSize: 56, color: GL, marginBottom: 20, lineHeight: 1 }}>{f.icon}</div>
           <h3 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.15, color: W, marginBottom: 22 }}>{f.title}</h3>
           <p style={{ fontSize: 16, lineHeight: 1.85, color: W55, fontFamily: FD, fontWeight: 400, maxWidth: 500 }}>{f.body}</p>
-        </div>
-        <div style={{ background: `rgba(20,16,5,0.8)`, backdropFilter: 'blur(8px)', border: `1px solid ${BB}`, padding: '44px 40px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: GL }} />
-          <div style={{ fontFamily: FD, fontSize: 72, fontWeight: 900, color: GL, lineHeight: 1, marginBottom: 8 }}>{f.stat}</div>
-          <div style={{ fontSize: 12, color: W55, letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: FD }}>{f.statLabel}</div>
-          <div style={{ marginTop: 32, display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <div style={{ marginTop: 32, display: 'flex', gap: 8 }}>
             {features.map((_, i) => (
               <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === active ? GL : W12, transition: 'all 0.3s' }} />
             ))}
@@ -486,10 +481,10 @@ function ImageTriptych() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', height: 520 }}>
-        {/* Left — concert crowd b&w */}
+        {/* Left */}
         <div className="triptych-img" style={{ position: 'relative' }}>
           <img
-            src="/mnt/user-data/uploads/1773407562035_image.png"
+            src="/leftFooter.jpg"
             alt="Concert crowd"
             style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
             onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
@@ -498,10 +493,10 @@ function ImageTriptych() {
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(12,10,7,0.3), transparent)' }} />
         </div>
 
-        {/* Center — celebrity (color, brightest) */}
+        {/* Center — color, brightest */}
         <div className="triptych-img center" style={{ position: 'relative', zIndex: 2 }}>
           <img
-            src="/mnt/user-data/uploads/1773407523955_image.png"
+            src="/centreFooter.jpg"
             alt="Promoter at event"
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', filter: 'brightness(1.05) saturate(1.1)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
             onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
@@ -511,14 +506,13 @@ function ImageTriptych() {
           <div style={{ position: 'absolute', inset: 0, border: `2px solid ${GL}`, pointerEvents: 'none', opacity: 0.4 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
-          {/* Center overlay gradient for text */}
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,7,0.7) 0%, transparent 50%)' }} />
         </div>
 
-        {/* Right — support your friends street b&w */}
+        {/* Right */}
         <div className="triptych-img" style={{ position: 'relative' }}>
           <img
-            src="/mnt/user-data/uploads/1773407532291_image.png"
+            src="/rightFooter.jpg"
             alt="Street crowd"
             style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
             onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
@@ -565,7 +559,27 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [showLoginPrompt, setLoginPrompt] = useState(false)
   const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null)
-  const [videoError, setVideoError] = useState(false)
+  const [heroSlide, setHeroSlide] = useState(0)
+  const heroSlideRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const heroMedia = [
+    { type: 'image', src: '/1_hero.jpg' },
+    { type: 'image', src: '/2_hero.jpg' },
+    { type: 'video', src: '/3_hero.mp4' },
+    { type: 'image', src: '/4_hero.jpg' },
+    { type: 'image', src: '/5_hero.jpg' },
+  ]
+
+  const advanceHeroSlide = (to: number) => {
+    setHeroSlide(to)
+  }
+
+  useEffect(() => {
+    heroSlideRef.current = setInterval(() => {
+      setHeroSlide(prev => (prev + 1) % heroMedia.length)
+    }, 5000)
+    return () => { if (heroSlideRef.current) clearInterval(heroSlideRef.current) }
+  }, [])
 
   useEffect(() => {
     const s = localStorage.getItem('hg_session')
@@ -611,146 +625,195 @@ export default function LandingPage() {
     <div style={{ fontFamily: FD, background: B, color: W, overflowX: 'hidden', width: '100%' }}>
       <style>{GLOBAL_CSS}</style>
 
-      {/* ── NAV ── */}
+      {/* ── NAV — always solid black, no border ── */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-        padding: scrolled ? '14px 80px' : '28px 80px',
+        padding: '0 48px',
+        height: 68,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: scrolled ? 'rgba(12,10,7,0.97)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(28px)' : 'none',
-        borderBottom: scrolled ? `1px solid ${BB}` : 'none',
-        transition: 'all 0.5s cubic-bezier(0.22,1,0.36,1)',
+        background: '#000',
       }}>
-        <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.02em' }}
+        {/* Logo */}
+        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.01em', flexShrink: 0 }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
         </div>
-        <ul style={{ display: 'flex', gap: 48, listStyle: 'none' }}>
+
+        {/* Centre nav links */}
+        <ul style={{ display: 'flex', gap: 52, listStyle: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
           {[
             { label: 'Jobs',     ref: secJobs },
             { label: 'Features', ref: secFeatures },
             { label: 'About',    ref: secAbout },
           ].map(({ label, ref }) => (
-            <li key={label}><button className="nav-link" onClick={() => scrollTo(ref)}>{label}</button></li>
+            <li key={label}>
+              <button onClick={() => scrollTo(ref)} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontFamily: FD, fontSize: 13, fontWeight: 600,
+                letterSpacing: '0.1em', textTransform: 'uppercase', color: W,
+                transition: 'color 0.2s', padding: 0,
+              }}
+                onMouseEnter={e => e.currentTarget.style.color = GL}
+                onMouseLeave={e => e.currentTarget.style.color = W}>
+                {label}
+              </button>
+            </li>
           ))}
         </ul>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+
+        {/* Right CTA */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           {session ? (
             <>
-              <button onClick={handleDashboard}
-                style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '10px 26px', cursor: 'pointer', transition: 'all 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = G }}
-                onMouseLeave={e => { e.currentTarget.style.background = GL }}>
+              <button onClick={handleDashboard} style={{
+                fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', background: GL, border: 'none', color: B,
+                padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = G}
+                onMouseLeave={e => e.currentTarget.style.background = GL}>
                 My Dashboard
               </button>
-              <button onClick={handleLogout}
-                style={{ fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${BB}`, color: W55, padding: '10px 20px', cursor: 'pointer', transition: 'all 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(139,90,26,0.6)`; e.currentTarget.style.color = `#C8A090` }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W55 }}>
+              <button onClick={handleLogout} style={{
+                fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em',
+                textTransform: 'uppercase', background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.3)', color: W,
+                padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>
                 Log Out
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/login')}
-                style={{ fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase', background: 'transparent', border: `1px solid ${BB}`, color: W, padding: '10px 26px', cursor: 'pointer', transition: 'all 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W }}>
-                Log In
+              <button onClick={() => navigate('/login')} style={{
+                fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em',
+                textTransform: 'uppercase', background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.3)', color: W,
+                padding: '11px 22px', cursor: 'pointer', transition: 'all 0.2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>
+                LOG IN
               </button>
-              <button onClick={() => navigate('/register')}
-                style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '10px 28px', cursor: 'pointer', transition: 'all 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
-                Register
+              <button onClick={() => navigate('/register')} style={{
+                fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', background: GL, border: 'none', color: B,
+                padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = G}
+                onMouseLeave={e => e.currentTarget.style.background = GL}>
+                REGISTER
               </button>
             </>
           )}
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0 }}>
-          {!videoError ? (
-            <video autoPlay muted loop playsInline onError={() => setVideoError(true)}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}>
-              <source src="/assets/hero-reel.mp4" type="video/mp4" />
-            </video>
-          ) : (
-            <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, #1A1408 0%, #0C0A07 50%, #140E04 100%)` }}>
-              <div style={{ position: 'absolute', inset: 0, backgroundImage: `radial-gradient(ellipse at 60% 40%, rgba(232,168,32,0.1) 0%, transparent 60%)` }} />
-              <div style={{ position: 'absolute', inset: 0, opacity: 0.03, backgroundImage: `linear-gradient(${GL} 1px, transparent 1px), linear-gradient(90deg, ${GL} 1px, transparent 1px)`, backgroundSize: '64px 64px' }} />
-            </div>
-          )}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,7,1) 0%, rgba(12,10,7,0.7) 30%, rgba(12,10,7,0.25) 60%, rgba(12,10,7,0.5) 100%)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(12,10,7,0.85) 0%, rgba(12,10,7,0.2) 55%, transparent 100%)' }} />
-        </div>
-        <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 1360, margin: '0 auto', padding: '0 80px 120px', display: 'grid', gridTemplateColumns: '1fr 0.45fr', gap: 80, alignItems: 'flex-end' }}>
-          <div style={{ animation: 'hero-fade 1s 0.2s cubic-bezier(0.22,1,0.36,1) both' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28 }}>
-              <div style={{ width: 36, height: 1, background: GL }} />
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>National Promoter Platform</span>
-            </div>
-            <h1 style={{ fontFamily: FD, fontSize: 'clamp(38px, 5.5vw, 76px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.02em', marginBottom: 28 }}>
-              <span style={{ color: W }}>We put </span>
-              <span style={{ color: GL, fontStyle: 'italic' }}>promoters</span>
-              <br /><span style={{ color: W }}>centre stage.</span>
-            </h1>
-            <p style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.8, color: W55, maxWidth: 480, marginBottom: 44, fontFamily: FD }}>
-              Honey Group manages 280+ brand promoters across South Africa — now fully digital. From onboarding to geo-verified shifts to payroll calculations.
-            </p>
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-              {session ? (
-                <>
-                  <button onClick={handleDashboard}
-                    style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: GL, color: B, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'pulse-ring 3s 2s infinite' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
-                    Go to Dashboard
-                  </button>
-                  <button onClick={() => navigate('/jobs')}
-                    style={{ fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: W85, border: `1px solid ${BB}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W85 }}>
-                    Browse Jobs ↓
-                  </button>
-                </>
+      {/* ── HERO — full width with text overlaid on top of slideshow ── */}
+      <section style={{ height: '75vh', minHeight: 540, maxHeight: 820, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'stretch', background: '#000', marginTop: 68, padding: '28px 48px' }}>
+
+        {/* SLIDESHOW — starts at 48%, restored full size, quarter of PROMOTERS overlaps */}
+        <div style={{ position: 'absolute', top: 28, left: '48%', right: 48, bottom: 28, borderRadius: 16, overflow: 'hidden', zIndex: 1 }}>
+          {heroMedia.map((media, idx) => (
+            <div key={idx} style={{
+              position: 'absolute', inset: 0,
+              opacity: heroSlide === idx ? 1 : 0,
+              transition: 'opacity 1s ease',
+              zIndex: heroSlide === idx ? 1 : 0,
+            }}>
+              {media.type === 'video' ? (
+                <video autoPlay muted loop playsInline
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}>
+                  <source src={media.src} type="video/mp4" />
+                </video>
               ) : (
-                <>
-                  <button onClick={() => navigate('/register')}
-                    style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: GL, color: B, border: 'none', padding: '18px 52px', cursor: 'pointer', transition: 'all 0.3s', animation: 'pulse-ring 3s 2s infinite' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
-                    Join as a Promoter
-                  </button>
-                  <button onClick={() => navigate('/jobs')}
-                    style={{ fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: W85, border: `1px solid ${BB}`, padding: '18px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W85 }}>
-                    Browse Jobs ↓
-                  </button>
-                </>
+                <img src={media.src} alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center',
+                    animation: heroSlide === idx ? 'img-scale 8s ease-out forwards' : 'none' }} />
               )}
             </div>
+          ))}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: '#111' }} />
+          {/* Dark overlay so text is readable */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.1) 100%)' }} />
+
+          {/* Slide dots — bottom left */}
+          <div style={{ position: 'absolute', bottom: 20, left: 24, zIndex: 10, display: 'flex', gap: 6 }}>
+            {heroMedia.map((_, idx) => (
+              <button key={idx}
+                onClick={() => { if (heroSlideRef.current) clearInterval(heroSlideRef.current); advanceHeroSlide(idx) }}
+                style={{
+                  width: idx === heroSlide ? 24 : 6, height: 3, border: 'none', cursor: 'pointer', borderRadius: 2,
+                  background: idx === heroSlide ? GL : 'rgba(255,255,255,0.35)',
+                  transition: 'all 0.4s ease', padding: 0,
+                }} />
+            ))}
           </div>
-          {/* Stats panel */}
-          <div style={{ animation: 'hero-fade 1s 0.5s cubic-bezier(0.22,1,0.36,1) both', background: 'rgba(20,16,5,0.72)', backdropFilter: 'blur(20px)', border: `1px solid ${BB}`, padding: '36px 32px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${G5}, ${GL}, ${G5})` }} />
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.35em', textTransform: 'uppercase', color: GL, marginBottom: 28, fontFamily: FD }}>Platform at a Glance</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
-              {stats.map((s, i) => (
-                <div key={i} style={{ background: D2, padding: '22px 18px' }}>
-                  <div style={{ fontFamily: FD, fontSize: 32, fontWeight: 700, color: W, lineHeight: 1, marginBottom: 6 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, color: W28, letterSpacing: '0.1em', fontFamily: FD }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
+
+          {/* Pause button — bottom right */}
+          <div style={{
+            position: 'absolute', bottom: 16, right: 16, zIndex: 10,
+            width: 34, height: 34, border: '1px solid rgba(255,255,255,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', background: 'rgba(0,0,0,0.3)',
+          }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>⏸</span>
           </div>
         </div>
-        <div style={{ position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: W28, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', zIndex: 3, fontFamily: FD }}>
-          <div style={{ width: 1, height: 48, background: `linear-gradient(to bottom, ${GL}, transparent)` }} />
-          Scroll
+
+        {/* TEXT — positioned so only PROMOTERS bleeds into slideshow */}
+        <div style={{
+          position: 'absolute',
+          top: 0, bottom: 0, left: 0,
+          width: '100%',
+          zIndex: 5,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '0 0 0 48px',
+          pointerEvents: 'none',
+        }}>
+          <h1 style={{
+            fontFamily: "'Bodoni Moda', 'Modern No. 20', 'Didot', Georgia, serif",
+            fontSize: 'clamp(58px, 7.8vw, 112px)',
+            fontWeight: 900,
+            lineHeight: 0.95,
+            letterSpacing: '-0.02em',
+            textTransform: 'uppercase',
+            marginBottom: 36,
+            fontStyle: 'italic',
+          }}>
+            <span style={{ color: W, display: 'block' }}>WE PUT <span style={{ color: GL }}>PROMOTERS</span></span>
+            <span style={{ color: W, display: 'inline-block', maxWidth: '46%' }}>CENTRE STAGE</span>
+          </h1>
+
+          {session ? (
+            <button onClick={handleDashboard} style={{
+              fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+              textTransform: 'uppercase', background: 'transparent',
+              border: '2px solid rgba(255,255,255,0.7)', color: W,
+              padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
+              display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all',
+              width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
+              ▶ MY DASHBOARD
+            </button>
+          ) : (
+            <button onClick={() => navigate('/register')} style={{
+              fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+              textTransform: 'uppercase', background: 'transparent',
+              border: '2px solid rgba(255,255,255,0.7)', color: W,
+              padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
+              display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all',
+              width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
+              ▶ JOIN AS PROMOTER
+            </button>
+          )}
         </div>
       </section>
 
@@ -770,25 +833,73 @@ export default function LandingPage() {
         style={{ padding: '100px 80px', background: D1, borderBottom: `1px solid ${BB}`, position: 'relative', overflow: 'hidden' }}
       >
         <div style={{ maxWidth: 1360, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* GOLD CARD WRAPPER */}
+          <div style={{
+            position: 'relative',
+            background: `linear-gradient(145deg, #2A1E06 0%, #1A1205 40%, #120D03 100%)`,
+            border: `1px solid rgba(232,168,32,0.35)`,
+            boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 80px rgba(232,168,32,0.07), inset 0 1px 0 rgba(232,168,32,0.2)`,
+            padding: '52px 56px 56px',
+            overflow: 'hidden',
+          }}>
+            {/* Gold top border accent */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})` }} />
+            {/* Ambient glow bottom-left */}
+            <div style={{ position: 'absolute', bottom: -80, left: -80, width: 400, height: 400, background: 'radial-gradient(ellipse, rgba(232,168,32,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />
+
+            {/* ✦ STARS / GLITTER — top-right corner ✦ */}
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 240, height: 200, pointerEvents: 'none', overflow: 'hidden' }}>
+              {/* Large anchor stars */}
+              {[
+                { top: 22, right: 28, size: 22, opacity: 0.85, color: GL, delay: '0s', dur: '2.4s' },
+                { top: 14, right: 72, size: 14, opacity: 0.6, color: '#F5C842', delay: '0.7s', dur: '3.1s' },
+                { top: 44, right: 52, size: 10, opacity: 0.5, color: W, delay: '1.2s', dur: '2.8s' },
+                { top: 8,  right: 118, size: 8,  opacity: 0.45, color: GL, delay: '0.3s', dur: '3.5s' },
+                { top: 60, right: 22, size: 16, opacity: 0.55, color: G,  delay: '1.8s', dur: '2.2s' },
+                { top: 36, right: 100, size: 7, opacity: 0.4, color: W,  delay: '2.1s', dur: '4s' },
+                { top: 80, right: 68, size: 9,  opacity: 0.38, color: GL, delay: '0.9s', dur: '3.3s' },
+                { top: 18, right: 158, size: 6, opacity: 0.35, color: '#F5C842', delay: '1.5s', dur: '2.9s' },
+                { top: 70, right: 140, size: 5, opacity: 0.3, color: W,  delay: '2.5s', dur: '3.8s' },
+                { top: 100, right: 30, size: 7, opacity: 0.28, color: GL, delay: '0.5s', dur: '3.6s' },
+              ].map((s, i) => (
+                <div key={i} style={{
+                  position: 'absolute', top: s.top, right: s.right,
+                  fontSize: s.size, color: s.color, opacity: s.opacity,
+                  animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
+                  lineHeight: 1,
+                }}>✦</div>
+              ))}
+              {/* Glitter dots */}
+              {[
+                { top: 30, right: 42, size: 3 }, { top: 55, right: 88, size: 2 },
+                { top: 12, right: 95, size: 2.5 }, { top: 90, right: 55, size: 2 },
+                { top: 48, right: 130, size: 2 }, { top: 75, right: 110, size: 1.5 },
+              ].map((d, i) => (
+                <div key={`dot-${i}`} style={{
+                  position: 'absolute', top: d.top, right: d.right,
+                  width: d.size, height: d.size, borderRadius: '50%',
+                  background: i % 2 === 0 ? GL : W, opacity: 0.5,
+                  animation: `twinkle ${2.5 + i * 0.4}s ${i * 0.6}s ease-in-out infinite`,
+                }} />
+              ))}
+            </div>
+
           {/* Section header — editorial typographic style */}
           <div style={{ marginBottom: 64 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ width: 1, height: 64, background: `linear-gradient(to bottom, transparent, ${GL})` }} />
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, marginBottom: 10, fontFamily: FD }}>Current Opportunities</div>
-                <h2 style={{ fontFamily: FD, fontSize: 'clamp(44px,6vw,84px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em' }}>
-                  <span style={{ color: W }}>Live</span>
-                  <br />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 32, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Current Opportunities</div>
+                <h2 style={{ fontFamily: FD, fontSize: 'clamp(36px,5vw,68px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em' }}>
+                  <span style={{ color: W }}>Live </span>
                   <span style={{ color: GL, fontStyle: 'italic' }}>Jobs.</span>
                 </h2>
+                <p style={{ fontSize: 14, color: W55, lineHeight: 1.75, fontFamily: FD }}>
+                  3 newest approved positions.
+                  {!session && <> <span style={{ color: GL }}>Login or register</span> to apply.</>}
+                </p>
               </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 24 }}>
-              <p style={{ fontSize: 14, color: W55, maxWidth: 400, lineHeight: 1.75, fontFamily: FD }}>
-                3 newest approved positions.
-                {!session && <> <span style={{ color: GL }}>Login or register</span> to apply.</>}
-              </p>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
                 {!session ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(212,136,10,0.08)`, border: `1px solid ${BB}` }}>
                     <span style={{ fontSize: 12, color: GL }}>⬡</span>
@@ -827,6 +938,8 @@ export default function LandingPage() {
               View All {totalActiveJobs} Jobs →
             </button>
           </div>
+
+          </div>{/* end gold card */}
         </div>
       </section>
 
