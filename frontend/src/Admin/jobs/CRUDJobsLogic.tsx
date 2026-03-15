@@ -520,90 +520,150 @@ export default function CRUDJobsLogic() {
 
         {/* TABLE */}
         {loading ? (
-          <div style={{ padding:60, textAlign:'center', color:W28, fontFamily:FD }}>Loading jobs…</div>
+          <div style={{ padding:60, textAlign:'center', color:W55, fontFamily:FD }}>Loading jobs…</div>
         ) : (
           <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
+              <colgroup>
+                <col style={{ width:'6%'  }} />{/* ID */}
+                <col style={{ width:'20%' }} />{/* Title */}
+                <col style={{ width:'11%' }} />{/* Client */}
+                <col style={{ width:'12%' }} />{/* Location */}
+                <col style={{ width:'8%'  }} />{/* Date */}
+                <col style={{ width:'7%'  }} />{/* Pay */}
+                <col style={{ width:'6%'  }} />{/* Slots */}
+                <col style={{ width:'7%'  }} />{/* Status */}
+                <col style={{ width:'5%'  }} />{/* Source */}
+                <col style={{ width:'18%' }} />{/* Actions */}
+              </colgroup>
               <thead>
                 <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
                   {['ID','Title / Category','Client','Location','Date','Pay','Slots','Status','Source','Actions'].map(h=>(
-                    <th key={h} style={{ padding:'13px 16px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD, whiteSpace:'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding:'13px 16px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(250,243,232,0.55)', fontFamily:FD, whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((job, i) => {
                   const isBase = job.source === 'base'
+                  // bright muted text colour — clearly readable
+                  const DIM = 'rgba(250,243,232,0.60)'
                   return (
                     <tr key={job.id}
                       style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s', background:isBase?hex2rgba(GL,0.01):'transparent' }}
                       onMouseEnter={e=>e.currentTarget.style.background=BB2}
                       onMouseLeave={e=>e.currentTarget.style.background=isBase?hex2rgba(GL,0.01):'transparent'}>
-                      <td style={{ padding:'13px 16px', fontSize:11, color:W28, fontFamily:MONO }}>{job.id}</td>
-                      <td style={{ padding:'13px 16px' }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{job.title}</div>
-                        {job.category && <div style={{ fontSize:10, color:W28, marginTop:2, fontFamily:FD }}>{job.category}</div>}
+
+                      {/* ID */}
+                      <td style={{ padding:'16px 16px', fontSize:10, color:DIM, fontFamily:MONO, verticalAlign:'top', paddingTop:18 }}>{job.id}</td>
+
+                      {/* Title / Tags */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top' }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, lineHeight:1.3, marginBottom:3 }}>{job.title}</div>
+                        {job.category && (
+                          <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginBottom:5 }}>{job.category}</div>
+                        )}
                         {job.tags && job.tags.length > 0 && (
-                          <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:4 }}>
+                          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                             {job.tags.slice(0,3).map((t,ti)=>(
-                              <span key={ti} style={{ fontSize:8, color:W28, border:`1px solid ${BB}`, padding:'1px 6px', borderRadius:2, fontFamily:FD }}>{t}</span>
+                              <span key={ti} style={{ fontSize:9, color:'rgba(250,243,232,0.70)', background:'rgba(250,243,232,0.07)', border:`1px solid rgba(212,136,10,0.30)`, padding:'2px 7px', borderRadius:2, fontFamily:FD }}>{t}</span>
                             ))}
                           </div>
                         )}
                       </td>
-                      <td style={{ padding:'13px 16px', fontSize:12, color:W55, fontFamily:FD }}>{job.client}</td>
-                      <td style={{ padding:'13px 16px' }}>
-                        <div style={{ fontSize:12, color:W, fontFamily:FD }}>{job.city || job.location?.split(',').pop()?.trim()}</div>
-                        <div style={{ fontSize:11, color:W28, fontFamily:FD, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:140 }}>{job.venue}</div>
+
+                      {/* Client */}
+                      <td style={{ padding:'16px 16px', fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'top', paddingTop:18 }}>{job.client}</td>
+
+                      {/* Location */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:12, color:W, fontFamily:FD, fontWeight:600 }}>{job.city || job.location?.split(',').slice(-1)[0]?.trim()}</div>
+                        <div style={{ fontSize:11, color:DIM, fontFamily:FD, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
                       </td>
-                      <td style={{ padding:'13px 16px', whiteSpace:'nowrap' }}>
-                        <div style={{ fontSize:12, color:W55, fontFamily:FD }}>
+
+                      {/* Date */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, fontWeight:600 }}>
                           {job.jobDate || job.date ? new Date(job.jobDate||job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) : '—'}
                         </div>
-                        <div style={{ fontSize:10, color:W28, fontFamily:FD }}>{isBase && job.duration ? job.duration : `${job.startTime}–${job.endTime}`}</div>
+                        <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginTop:3 }}>
+                          {isBase && job.duration ? job.duration : `${job.startTime}–${job.endTime}`}
+                        </div>
                       </td>
-                      <td style={{ padding:'13px 16px', fontSize:13, color:GL, fontWeight:700, fontFamily:FD, whiteSpace:'nowrap' }}>
+
+                      {/* Pay */}
+                      <td style={{ padding:'16px 16px', fontSize:14, color:GL, fontWeight:700, fontFamily:FD, verticalAlign:'top', paddingTop:18, whiteSpace:'nowrap' }}>
                         {isBase ? job.pay : `R${job.hourlyRate}/hr`}
                       </td>
-                      <td style={{ padding:'13px 16px' }}>
-                        <div style={{ fontSize:12, color:W, fontFamily:FD }}>{job.filledSlots}/{job.totalSlots}</div>
-                        <div style={{ marginTop:5, height:3, background:BB, borderRadius:2, width:40 }}>
+
+                      {/* Slots */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:13, color:W, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
+                        <div style={{ marginTop:6, height:3, background:'rgba(212,136,10,0.22)', borderRadius:2, width:44 }}>
                           <div style={{ height:'100%', borderRadius:2, background:STATUS_COLOR[job.status], width:`${job.totalSlots>0?(job.filledSlots/job.totalSlots)*100:0}%`, transition:'width 0.3s' }} />
                         </div>
                       </td>
-                      <td style={{ padding:'13px 16px' }}><StatusBadge status={job.status} /></td>
-                      <td style={{ padding:'13px 16px' }}><SourceBadge source={job.source} /></td>
-                      <td style={{ padding:'13px 16px' }}>
-                        <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' }}>
-                          <button onClick={()=>openEdit(job)} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700 }}>Edit</button>
-                          <span style={{ color:W28 }}>·</span>
-                          <button onClick={()=>openPromoterPanel(job)} style={{ fontSize:11, color:G4, background:'none', border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700 }}>Staff</button>
-                          <span style={{ color:W28 }}>·</span>
-                          {(job.status==='open'||job.status==='filled') && (
-                            <>
-                              <button onClick={()=>markComplete(job)} style={{ fontSize:11, color:G3, background:'none', border:'none', cursor:'pointer', fontFamily:FD }}>Complete</button>
-                              <span style={{ color:W28 }}>·</span>
-                            </>
-                          )}
+
+                      {/* Status */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <StatusBadge status={job.status} />
+                      </td>
+
+                      {/* Source */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <SourceBadge source={job.source} />
+                      </td>
+
+                      {/* Actions — single row of compact pills */}
+                      <td style={{ padding:'12px 16px', verticalAlign:'middle' }}>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+                          {/* Edit */}
+                          <button onClick={()=>openEdit(job)}
+                            style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.20)}
+                            onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(GL,0.10)}>
+                            Edit
+                          </button>
+                          {/* Staff */}
+                          <button onClick={()=>openPromoterPanel(job)}
+                            style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G4,0.20)}
+                            onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(G4,0.10)}>
+                            Staff
+                          </button>
+
+                          {/* Cancel base */}
                           {isBase && job.status==='open' && (
-                            <>
-                              <button onClick={()=>toggleBaseStatus(job,'cancelled')} style={{ fontSize:11, color:W28, background:'none', border:'none', cursor:'pointer', fontFamily:FD }}>Cancel</button>
-                              <span style={{ color:W28 }}>·</span>
-                            </>
+                            <button onClick={()=>toggleBaseStatus(job,'cancelled')}
+                              style={{ fontSize:10, color:'rgba(250,243,232,0.60)', background:'rgba(250,243,232,0.05)', border:`1px solid rgba(250,243,232,0.18)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background='rgba(250,243,232,0.10)'}
+                              onMouseLeave={e=>e.currentTarget.style.background='rgba(250,243,232,0.05)'}>
+                              Cancel
+                            </button>
                           )}
+                          {/* Reopen base */}
                           {isBase && job.status==='cancelled' && (
-                            <>
-                              <button onClick={()=>toggleBaseStatus(job,'open')} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD }}>Re-open</button>
-                              <span style={{ color:W28 }}>·</span>
-                            </>
+                            <button onClick={()=>toggleBaseStatus(job,'open')}
+                              style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.20)}
+                              onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(GL,0.10)}>
+                              Reopen
+                            </button>
                           )}
+                          {/* Open slot */}
                           {job.status==='filled' && !isBase && (
-                            <>
-                              <button onClick={()=>markSlotOpen(job)} style={{ fontSize:11, color:G4, background:'none', border:'none', cursor:'pointer', fontFamily:FD }}>Open Slot</button>
-                              <span style={{ color:W28 }}>·</span>
-                            </>
+                            <button onClick={()=>markSlotOpen(job)}
+                              style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G4,0.20)}
+                              onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(G4,0.10)}>
+                              +Slot
+                            </button>
                           )}
-                          <button onClick={()=>setDeleting(job.id)} style={{ fontSize:11, color:'#C89A70', background:'none', border:'none', cursor:'pointer', fontFamily:FD }}>
+                          {/* Hide / Delete */}
+                          <button onClick={()=>setDeleting(job.id)}
+                            style={{ fontSize:10, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(139,90,26,0.25)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='rgba(139,90,26,0.12)'}>
                             {isBase ? 'Hide' : 'Delete'}
                           </button>
                         </div>
@@ -614,7 +674,7 @@ export default function CRUDJobsLogic() {
               </tbody>
             </table>
             {filtered.length===0 && (
-              <div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>No jobs match your filters.</div>
+              <div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No jobs match your filters.</div>
             )}
           </div>
         )}
