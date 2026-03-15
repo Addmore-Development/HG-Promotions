@@ -1,23 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider }      from './shared/context/AuthContext'
-import LandingPage           from './shared/auth/LandingPage'
-import LoginPage             from './shared/auth/LoginPage'
-import RegisterPage          from './shared/auth/RegisterPage'
-import AboutPage             from './shared/auth/AboutPage'
-import AdminDashboard        from './Admin/dashboard/adminDashboard'
-import FullCRUDUsers         from './Admin/users/FullCRUDUsers'
-import CRUDJobsLogic         from './Admin/jobs/CRUDJobsLogic'
-import ViewLiveMap           from './Admin/shifts/ViewLiveMap'
-import ApproveExport         from './Admin/payments/ApproveExport'
-import ReviewApproveDocs     from './Admin/onboarding/ReviewApproveDocs'
-import { PromoterApp }      from './promoter/index'
-import JobDetailPage         from './shared/jobs/JobdetailPage'
-import BusinessLayout        from './Business/BusinessLayout'
-import BusinessDashboard     from './Business/Businessdashboard'
-import BusinessJobs          from './Business/Businessjobs'
-import BusinessTracking      from './Business/Businesstracking'
-import BusinessPayroll       from './Business/Businesspayroll'
-import JobsPage              from './shared/jobs/JobsPage'
+import { AuthProvider }             from './shared/context/AuthContext'
+import LandingPage                  from './shared/auth/LandingPage'
+import LoginPage                    from './shared/auth/LoginPage'
+import RegisterPage                 from './shared/auth/RegisterPage'
+import AboutPage                    from './shared/auth/AboutPage'
+import AdminDashboard               from './Admin/dashboard/adminDashboard'
+import FullCRUDUsers                from './Admin/users/FullCRUDUsers'
+import CRUDJobsLogic                from './Admin/jobs/CRUDJobsLogic'
+import ViewLiveMap                  from './Admin/shifts/ViewLiveMap'
+import ApproveExport                from './Admin/payments/ApproveExport'
+import ReviewApproveDocs            from './Admin/onboarding/ReviewApproveDocs'
+import ReviewsAndComplaintsPage     from './Admin/reviews/ReviewsandComplaintsPage'
+import { PromoterApp }             from './promoter/index'
+import JobDetailPage                from './shared/jobs/JobdetailPage'
+import BusinessLayout               from './Business/BusinessLayout'
+import BusinessDashboard            from './Business/Businessdashboard'
+import BusinessJobs                 from './Business/Businessjobs'
+import BusinessTracking             from './Business/Businesstracking'
+import BusinessPayroll              from './Business/Businesspayroll'
+import JobsPage                     from './shared/jobs/JobsPage'
 
 export default function App() {
   return (
@@ -38,12 +39,13 @@ export default function App() {
           <Route path="/promoter/" element={<PromoterApp />} />
 
           {/* ── Admin ── */}
-          <Route path="/admin"            element={<AdminDashboard />}    />
-          <Route path="/admin/users"      element={<FullCRUDUsers />}     />
-          <Route path="/admin/jobs"       element={<CRUDJobsLogic />}     />
-          <Route path="/admin/map"        element={<ViewLiveMap />}       />
-          <Route path="/admin/payments"   element={<ApproveExport />}     />
-          <Route path="/admin/onboarding" element={<ReviewApproveDocs />} />
+          <Route path="/admin"             element={<AdminDashboard />}            />
+          <Route path="/admin/users"       element={<FullCRUDUsers />}             />
+          <Route path="/admin/jobs"        element={<CRUDJobsLogic />}             />
+          <Route path="/admin/map"         element={<ViewLiveMap />}               />
+          <Route path="/admin/payments"    element={<ApproveExport />}             />
+          <Route path="/admin/onboarding"  element={<ReviewApproveDocs />}         />
+          <Route path="/admin/reviews"     element={<ReviewsAndComplaintsPage />}  />
 
           {/* ── Business ── */}
           <Route path="/business" element={<BusinessLayout />}>

@@ -17,12 +17,11 @@ const W28 = 'rgba(250,243,232,0.28)'
 const W12 = 'rgba(250,243,232,0.12)'
 const BB  = 'rgba(212,136,10,0.16)'
 
-// Jobs section dark overlays (text on gold bg)
-const JB  = 'rgba(12,10,7,0.82)'   // near-black text
+const JB  = 'rgba(12,10,7,0.82)'
 const JB6 = 'rgba(12,10,7,0.60)'
 const JB4 = 'rgba(12,10,7,0.40)'
 const JB2 = 'rgba(12,10,7,0.18)'
-const JBB = 'rgba(12,10,7,0.22)'   // border on gold
+const JBB = 'rgba(12,10,7,0.22)'
 
 const FD = "'Work Sans', 'worksans', sans-serif"
 
@@ -47,9 +46,7 @@ const GLOBAL_CSS = `
   @keyframes feature-out { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-40px) scale(0.97)} }
   @keyframes twinkle { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
   @keyframes glitter-drift { 0%{transform:translateY(0) rotate(0deg);opacity:0.6} 100%{transform:translateY(-80px) rotate(180deg);opacity:0} }
-  @keyframes pyramid-glow { 0%,100%{box-shadow:0 0 0 0 rgba(232,168,32,0)} 50%{box-shadow:0 0 32px 8px rgba(232,168,32,0.18)} }
   @keyframes card-rise { 0%{opacity:0;transform:translateY(60px)} 100%{opacity:1;transform:translateY(0)} }
-  @keyframes num-count { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
   @keyframes img-scale { 0%{transform:scale(1.08)} 100%{transform:scale(1)} }
 
   .feat-card-0, .feat-card-1, .feat-card-2 {
@@ -67,13 +64,17 @@ const GLOBAL_CSS = `
   .feat-slide-enter { animation: feature-in 0.65s cubic-bezier(0.22,1,0.36,1) both; }
   .feat-slide-exit  { animation: feature-out 0.45s cubic-bezier(0.22,1,0.36,1) both; }
 
-  .job-card-hover:hover { transform: translateY(-8px) !important; }
-  .job-card-hover:hover .card-inner { border-color: ${GL} !important; box-shadow: 0 32px 64px rgba(0,0,0,0.7), 0 0 40px rgba(232,168,32,0.15) !important; }
+  .job-card-hover:hover { transform: translateY(-6px) !important; }
+  .job-card-hover:hover .card-inner { border-color: rgba(232,168,32,0.5) !important; box-shadow: 0 24px 48px rgba(0,0,0,0.7), 0 0 32px rgba(232,168,32,0.12) !important; }
 
   .triptych-img { overflow: hidden; position: relative; }
   .triptych-img img { width:100%; height:100%; object-fit:cover; transition: transform 0.8s cubic-bezier(0.22,1,0.36,1); filter: grayscale(100%); }
   .triptych-img.center img { filter: grayscale(0%) !important; }
   .triptych-img:hover img { transform: scale(1.04); }
+
+  .jobs-grid-scroll::-webkit-scrollbar { height: 4px; }
+  .jobs-grid-scroll::-webkit-scrollbar-track { background: rgba(12,10,7,0.3); }
+  .jobs-grid-scroll::-webkit-scrollbar-thumb { background: ${GL}; border-radius: 2px; }
 `
 
 // ── Reveal hook ───────────────────────────────────────────────────────────────
@@ -126,190 +127,258 @@ function GlitterField() {
   )
 }
 
-// ── Jobs Section ──────────────────────────────────────────────────────────────
+// ── Single Job Card (compact, for the full grid) ──────────────────────────────
+function JobCard({ job, index, isLoggedIn, onLock, onView }: {
+  job: ReturnType<typeof getActiveJobs>[0]
+  index: number
+  isLoggedIn: boolean
+  onLock: () => void
+  onView: (id: string) => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  const fillPct = Math.round(((job.slots - job.slotsLeft) / job.slots) * 100)
+  const isFeatured = index === 0
+  const accent = job.accentLine || GL
+
+  return (
+    <div
+      className="job-card-hover"
+      style={{
+        transition: 'transform 0.35s cubic-bezier(0.22,1,0.36,1)',
+        animation: `card-rise 0.6s ${Math.min(index * 0.06, 0.5)}s cubic-bezier(0.22,1,0.36,1) both`,
+        minWidth: 0,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div
+        className="card-inner"
+        style={{
+          position: 'relative', overflow: 'hidden', height: '100%',
+          background: isFeatured
+            ? `linear-gradient(160deg, #2A1E06 0%, #1E1504 50%, #160F03 100%)`
+            : `linear-gradient(160deg, ${D2} 0%, rgba(20,16,5,0.98) 100%)`,
+          border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.4)' : BB}`,
+          transition: 'border-color 0.3s, box-shadow 0.3s',
+          boxShadow: isFeatured
+            ? `0 8px 32px rgba(0,0,0,0.5), 0 0 40px rgba(232,168,32,0.08)`
+            : `0 4px 16px rgba(0,0,0,0.4)`,
+          cursor: 'pointer',
+          padding: '0 0 20px 0',
+          display: 'flex', flexDirection: 'column',
+        }}
+      >
+        {/* Top bar */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          height: isFeatured ? 3 : 2,
+          background: isFeatured
+            ? `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})`
+            : `linear-gradient(90deg, ${G5}, ${accent}88, ${G5})`,
+        }} />
+
+        {/* Featured glow */}
+        {isFeatured && (
+          <div style={{
+            position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)',
+            width: 200, height: 120,
+            background: 'radial-gradient(ellipse, rgba(232,168,32,0.1) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+        )}
+
+        <div style={{ padding: '20px 20px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {/* Tag + date */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase',
+              color: isFeatured ? GL : W28, fontFamily: FD,
+              padding: isFeatured ? '3px 8px' : '0',
+              background: isFeatured ? 'rgba(232,168,32,0.1)' : 'transparent',
+              border: isFeatured ? `1px solid rgba(232,168,32,0.2)` : 'none',
+            }}>
+              {isFeatured ? '★ Featured' : job.type}
+            </span>
+            <span style={{ fontSize: 8, color: W28, fontFamily: FD }}>{job.slotsLeft} left</span>
+          </div>
+
+          {/* Company */}
+          <div style={{ fontSize: 10, color: isFeatured ? GL : G3, fontWeight: 700, letterSpacing: '0.04em', fontFamily: FD, marginBottom: 4 }}>{job.company}</div>
+
+          {/* Title */}
+          <h3 style={{
+            fontFamily: FD, fontSize: isFeatured ? 16 : 13,
+            fontWeight: 800, lineHeight: 1.2, color: W,
+            marginBottom: 8,
+            fontStyle: isFeatured ? 'italic' : 'normal',
+            flex: 1,
+          }}>{job.title}</h3>
+
+          {/* Pay */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
+            <span style={{ fontFamily: FD, fontSize: isFeatured ? 26 : 20, fontWeight: 900, color: GL, lineHeight: 1 }}>{job.pay}</span>
+            <span style={{ fontSize: 10, color: W28, fontFamily: FD }}>{job.payPer}</span>
+          </div>
+
+          {/* Location */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 8, color: GL }}>◎</span>
+            <span style={{ fontSize: 10, color: W55, fontFamily: FD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.location}</span>
+          </div>
+
+          {/* Slots bar */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ height: 2, background: 'rgba(250,243,232,0.07)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${fillPct}%`,
+                background: `linear-gradient(90deg, ${G5}, ${accent})`,
+                transition: 'width 0.7s ease',
+              }} />
+            </div>
+          </div>
+
+          {/* CTA */}
+          {isLoggedIn ? (
+            <button onClick={() => onView(job.id)} style={{
+              width: '100%', padding: '9px',
+              border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.45)' : BB}`,
+              background: isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent',
+              color: GL, fontFamily: FD, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.16em', textTransform: 'uppercase',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,168,32,0.14)'; e.currentTarget.style.borderColor = GL }}
+              onMouseLeave={e => { e.currentTarget.style.background = isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent'; e.currentTarget.style.borderColor = isFeatured ? 'rgba(232,168,32,0.45)' : BB }}>
+              View Details →
+            </button>
+          ) : (
+            <button onClick={onLock} style={{
+              width: '100%', padding: '9px',
+              border: `1px solid ${BB}`,
+              background: 'transparent',
+              color: W55, fontFamily: FD, fontSize: 9,
+              fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase',
+              cursor: 'pointer', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <span style={{ fontSize: 9 }}>⬡</span> Login to Apply
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Jobs Section — full 24 jobs in a scrollable grid ─────────────────────────
 function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
   jobs: ReturnType<typeof getActiveJobs>
   isLoggedIn: boolean
   onLock: () => void
   onView: (id: string) => void
 }) {
-  const [hovered, setHovered] = useState<number | null>(null)
-  const preview = jobs.slice(0, 3)
+  const [cityFilter, setCityFilter] = useState('All')
+  const [typeFilter, setTypeFilter] = useState('All')
+  const [showAll,    setShowAll   ] = useState(false)
 
-  const isGold = (i: number) => i === 0
+  const cities = ['All', 'Johannesburg', 'Cape Town', 'Durban', 'Pretoria']
+  const types  = ['All', 'Brand Activation', 'Sampling', 'In-Store', 'Events & Hosting']
+
+  const filtered = jobs.filter(j => {
+    const cm = cityFilter === 'All' || j.location.toLowerCase().includes(cityFilter.toLowerCase())
+    const tm = typeFilter === 'All' || j.type === typeFilter
+    return cm && tm
+  })
+
+  const visible = showAll ? filtered : filtered.slice(0, 8)
 
   return (
     <div style={{ position: 'relative' }}>
       <GlitterField />
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 2,
-        position: 'relative',
-        zIndex: 1,
-      }}>
-        {preview.map((job, i) => {
-          const gold = isGold(i)
-          const isHov = hovered === i
-          const fillPct = Math.round(((job.slots - job.slotsLeft) / job.slots) * 100)
 
-          return (
-            <div
-              key={job.id}
-              className="job-card-hover"
-              style={{
-                transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1)',
-                animation: `card-rise 0.7s ${i * 0.15}s cubic-bezier(0.22,1,0.36,1) both`,
-              }}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <div
-                className="card-inner"
-                style={{
-                  position: 'relative', overflow: 'hidden', height: '100%',
-                  background: gold
-                    ? `linear-gradient(160deg, #2A1E06 0%, #1E1504 50%, #160F03 100%)`
-                    : `linear-gradient(160deg, ${D2} 0%, rgba(20,16,5,0.98) 100%)`,
-                  border: `1px solid ${gold ? 'rgba(232,168,32,0.4)' : BB}`,
-                  transition: 'border-color 0.35s, box-shadow 0.35s',
-                  boxShadow: gold
-                    ? `0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(232,168,32,0.08)`
-                    : `0 4px 24px rgba(0,0,0,0.4)`,
-                  cursor: 'pointer',
-                  padding: '0 0 28px 0',
-                }}
-              >
-                {/* Top gradient bar */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: gold ? 4 : 2,
-                  background: gold
-                    ? `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})`
-                    : `linear-gradient(90deg, ${G5}, rgba(232,168,32,0.5), ${G5})`,
-                }} />
-
-                {/* Gold card ambient glow */}
-                {gold && (
-                  <div style={{
-                    position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)',
-                    width: 300, height: 200,
-                    background: 'radial-gradient(ellipse, rgba(232,168,32,0.12) 0%, transparent 70%)',
-                    pointerEvents: 'none',
-                  }} />
-                )}
-
-                {/* Mini glitters on gold card */}
-                {gold && [0,1,2,3,4].map(si => (
-                  <div key={si} style={{
-                    position: 'absolute',
-                    left: `${10 + si * 18}%`, top: `${15 + (si % 3) * 20}%`,
-                    fontSize: `${6 + si % 3}px`, color: si % 2 === 0 ? GL : W,
-                    opacity: 0.3,
-                    animation: `twinkle ${2 + si * 0.6}s ${si * 0.4}s ease-in-out infinite`,
-                    pointerEvents: 'none',
-                  }}>★</div>
-                ))}
-
-                <div style={{ padding: '32px 28px 0' }}>
-                  {/* Tag row */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase',
-                      color: gold ? GL : W28, fontFamily: FD,
-                      padding: gold ? '4px 10px' : '4px 0',
-                      background: gold ? 'rgba(232,168,32,0.1)' : 'transparent',
-                      border: gold ? `1px solid rgba(232,168,32,0.2)` : 'none',
-                    }}>
-                      {gold ? '★ Featured' : job.type}
-                    </span>
-                    <span style={{ fontSize: 9, color: W28, fontFamily: FD, letterSpacing: '0.08em' }}>{job.date}</span>
-                  </div>
-
-                  {/* Company */}
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, color: gold ? GL : G3, fontWeight: 700, letterSpacing: '0.06em', fontFamily: FD }}>{job.company}</div>
-                    {!gold && <div style={{ fontSize: 9, color: W28, marginTop: 2, letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: FD }}>{job.type}</div>}
-                  </div>
-
-                  {/* Title */}
-                  <h3 style={{
-                    fontFamily: FD,
-                    fontSize: gold ? 26 : 20,
-                    fontWeight: 900,
-                    lineHeight: 1.15,
-                    color: gold ? W : W85,
-                    marginBottom: 6,
-                    fontStyle: gold ? 'italic' : 'normal',
-                    letterSpacing: gold ? '-0.01em' : '0',
-                  }}>{job.title}</h3>
-
-                  {/* Pay */}
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 24 }}>
-                    <span style={{ fontFamily: FD, fontSize: gold ? 36 : 28, fontWeight: 900, color: GL, lineHeight: 1 }}>{job.pay}</span>
-                    <span style={{ fontSize: 11, color: W28, fontFamily: FD }}>{job.payPer}</span>
-                  </div>
-
-                  {/* Meta */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                    {[
-                      { icon: '◎', text: job.location },
-                      { icon: '◉', text: `${job.duration} · ${job.slots} slots` },
-                    ].map((m, mi) => (
-                      <div key={mi} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 9, color: GL, flexShrink: 0 }}>{m.icon}</span>
-                        <span style={{ fontSize: 12, color: W55, fontFamily: FD }}>{m.text}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Slots bar */}
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 9, color: W28, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: FD }}>Availability</span>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: job.slotsLeft <= 2 ? '#EF9060' : GL, fontFamily: FD }}>{job.slotsLeft} left</span>
-                    </div>
-                    <div style={{ height: gold ? 3 : 2, background: 'rgba(250,243,232,0.07)', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', width: `${fillPct}%`,
-                        background: gold
-                          ? `linear-gradient(90deg, ${G5}, ${GL}, #F5C842)`
-                          : `linear-gradient(90deg, ${G5}, ${GL})`,
-                        transition: 'width 0.7s ease',
-                      }} />
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  {isLoggedIn ? (
-                    <button onClick={() => onView(job.id)} style={{
-                      width: '100%', padding: gold ? '14px' : '11px',
-                      border: `1px solid ${gold ? 'rgba(232,168,32,0.5)' : BB}`,
-                      background: gold ? 'rgba(232,168,32,0.1)' : 'transparent',
-                      color: GL, fontFamily: FD, fontSize: 10, fontWeight: 700,
-                      letterSpacing: '0.18em', textTransform: 'uppercase',
-                      cursor: 'pointer', transition: 'all 0.25s',
-                    }}>
-                      View Full Details →
-                    </button>
-                  ) : (
-                    <button onClick={onLock} style={{
-                      width: '100%', padding: gold ? '14px' : '11px',
-                      border: `1px solid ${gold ? 'rgba(232,168,32,0.35)' : BB}`,
-                      background: 'transparent',
-                      color: gold ? W85 : W55, fontFamily: FD, fontSize: 10,
-                      fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase',
-                      cursor: 'pointer', transition: 'all 0.25s',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    }}>
-                      <span style={{ fontSize: 10 }}>⬡</span> Login to Apply
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
+      {/* Filter pills */}
+      <div style={{ position: 'relative', zIndex: 2, marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {cities.map(c => (
+            <button key={c} onClick={() => setCityFilter(c)} style={{
+              padding: '5px 12px',
+              background: cityFilter === c ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)',
+              border: `1px solid ${cityFilter === c ? JBB : 'rgba(12,10,7,0.3)'}`,
+              color: cityFilter === c ? B : JB6,
+              fontFamily: FD, fontSize: 9, fontWeight: cityFilter === c ? 700 : 500,
+              cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase',
+              transition: 'all 0.18s', borderRadius: 2,
+            }}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <div style={{ width: 1, height: 16, background: JBB, flexShrink: 0 }} />
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {types.map(t => (
+            <button key={t} onClick={() => setTypeFilter(t)} style={{
+              padding: '5px 12px',
+              background: typeFilter === t ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)',
+              border: `1px solid ${typeFilter === t ? JBB : 'rgba(12,10,7,0.3)'}`,
+              color: typeFilter === t ? B : JB6,
+              fontFamily: FD, fontSize: 9, fontWeight: typeFilter === t ? 700 : 500,
+              cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase',
+              transition: 'all 0.18s', borderRadius: 2,
+            }}>
+              {t === 'All' ? 'All Types' : t}
+            </button>
+          ))}
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: 10, color: JB6, fontFamily: FD }}>
+          {filtered.length} position{filtered.length !== 1 ? 's' : ''}
+        </div>
       </div>
+
+      {/* Grid */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 8,
+      }}>
+        {visible.map((job, i) => (
+          <JobCard
+            key={job.id}
+            job={job}
+            index={i}
+            isLoggedIn={isLoggedIn}
+            onLock={onLock}
+            onView={onView}
+          />
+        ))}
+      </div>
+
+      {/* Show more / less */}
+      {filtered.length > 8 && (
+        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
+          <button
+            onClick={() => setShowAll(!showAll)}
+            style={{
+              padding: '10px 32px',
+              background: 'rgba(12,10,7,0.6)',
+              border: `1px solid ${JBB}`,
+              color: B, fontFamily: FD, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.18em', textTransform: 'uppercase',
+              cursor: 'pointer', transition: 'all 0.25s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(12,10,7,0.82)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(12,10,7,0.6)'}
+          >
+            {showAll ? `▲ Show Less` : `▼ Show All ${filtered.length} Jobs`}
+          </button>
+        </div>
+      )}
+
+      {filtered.length === 0 && (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: JB6, fontFamily: FD, fontSize: 13 }}>
+          No jobs match your filters.
+        </div>
+      )}
     </div>
   )
 }
@@ -353,106 +422,38 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: {
 function FeatureSlideshow() {
   const features = [
     {
-      tag: 'Smart Dispatch',
-      icon: '◎',
-      title: 'Right person, right place.',
+      tag: 'Smart Dispatch', icon: '◎', title: 'Right person, right place.',
       body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.',
       stat: '280+', statLabel: 'Active Promoters',
       bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
-      border: 'rgba(232,168,32,0.30)',
-      accent: GL,
-      rotate: '-3deg',
-      translateY: '12px',
-      zIndex: 1,
+      border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '-3deg', translateY: '12px', zIndex: 1,
     },
     {
-      tag: 'Geo-Verified Shifts',
-      icon: '⬡',
-      title: 'Attendance you can trust.',
+      tag: 'Geo-Verified Shifts', icon: '⬡', title: 'Attendance you can trust.',
       body: 'Promoters check in only when within 5m of the venue. GPS verification plus mandatory selfie — no proxy clock-ins, ever.',
       stat: '98%', statLabel: 'Shift Attendance',
       bg: `linear-gradient(160deg, #3D2E0A 0%, #2A1E05 100%)`,
-      border: '#AB8D3F',
-      accent: '#AB8D3F',
-      rotate: '0deg',
-      translateY: '0px',
-      zIndex: 3,
+      border: '#AB8D3F', accent: '#AB8D3F', rotate: '0deg', translateY: '0px', zIndex: 3,
     },
     {
-      tag: 'Smart Payroll',
-      icon: '◈',
-      title: 'Calculate pay in minutes.',
+      tag: 'Smart Payroll', icon: '◈', title: 'Calculate pay in minutes.',
       body: 'Hours × Rate calculations done instantly. View earnings per promoter and per campaign. Admin approves — no direct payments on-platform.',
       stat: '12', statLabel: 'Cities Covered',
       bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
-      border: 'rgba(232,168,32,0.30)',
-      accent: GL,
-      rotate: '3deg',
-      translateY: '12px',
-      zIndex: 1,
+      border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '3deg', translateY: '12px', zIndex: 1,
     },
   ]
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, alignItems: 'flex-start', perspective: '1200px' }}>
       {features.map((f, i) => (
-        <div
-          key={i}
-          className={`feat-card-${i}`}
-          style={{
-            transform: `rotate(${f.rotate}) translateY(${f.translateY})`,
-            zIndex: f.zIndex,
-            transition: 'transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s ease',
-            transformStyle: 'preserve-3d',
-            cursor: 'default',
-            position: 'relative',
-          }}
-          onMouseEnter={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.transform = `rotate(0deg) translateY(-16px) rotateY(4deg)`
-            el.style.zIndex = '10'
-            el.style.boxShadow = `0 40px 80px rgba(0,0,0,0.7), 0 0 60px rgba(232,168,32,0.12)`
-          }}
-          onMouseLeave={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.transform = `rotate(${f.rotate}) translateY(${f.translateY})`
-            el.style.zIndex = String(f.zIndex)
-            el.style.boxShadow = 'none'
-          }}
-        >
-          <div style={{
-            background: f.bg,
-            border: `1px solid ${f.border}`,
-            position: 'relative', overflow: 'hidden',
-            boxShadow: i === 1
-              ? `0 16px 48px rgba(0,0,0,0.6), 0 0 40px rgba(171,141,63,0.15)`
-              : `0 8px 32px rgba(0,0,0,0.5)`,
-          }}>
-            {/* Top accent bar */}
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: i === 1 ? 4 : 2,
-              background: i === 1
-                ? `linear-gradient(90deg, #6B4F10, #AB8D3F, #D4B86A, #AB8D3F, #6B4F10)`
-                : `linear-gradient(90deg, ${G5}, ${GL}, ${G5})`,
-            }} />
-
-            {/* Page-fold corner */}
-            <div style={{
-              position: 'absolute', top: 0, right: 0, width: 0, height: 0,
-              borderStyle: 'solid',
-              borderWidth: '0 28px 28px 0',
-              borderColor: `transparent ${i === 1 ? 'rgba(171,141,63,0.25)' : 'rgba(232,168,32,0.15)'} transparent transparent`,
-            }} />
-
-            {/* Content — evenly distributed with flexbox column */}
-            <div style={{
-              padding: '48px 36px 44px',
-              display: 'flex', flexDirection: 'column',
-              gap: 0,
-              minHeight: 420,
-              justifyContent: 'space-between',
-            }}>
-              {/* Top: tag + icon */}
+        <div key={i} className={`feat-card-${i}`}
+          style={{ transform: `rotate(${f.rotate}) translateY(${f.translateY})`, zIndex: f.zIndex, transition: 'transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s ease', transformStyle: 'preserve-3d', cursor: 'default', position: 'relative' }}
+          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = `rotate(0deg) translateY(-16px) rotateY(4deg)`; el.style.zIndex = '10'; el.style.boxShadow = `0 40px 80px rgba(0,0,0,0.7), 0 0 60px rgba(232,168,32,0.12)` }}
+          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = `rotate(${f.rotate}) translateY(${f.translateY})`; el.style.zIndex = String(f.zIndex); el.style.boxShadow = 'none' }}>
+          <div style={{ background: f.bg, border: `1px solid ${f.border}`, position: 'relative', overflow: 'hidden', boxShadow: i === 1 ? `0 16px 48px rgba(0,0,0,0.6), 0 0 40px rgba(171,141,63,0.15)` : `0 8px 32px rgba(0,0,0,0.5)` }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: i === 1 ? 4 : 2, background: i === 1 ? `linear-gradient(90deg, #6B4F10, #AB8D3F, #D4B86A, #AB8D3F, #6B4F10)` : `linear-gradient(90deg, ${G5}, ${GL}, ${G5})` }} />
+            <div style={{ padding: '48px 36px 44px', display: 'flex', flexDirection: 'column', gap: 0, minHeight: 420, justifyContent: 'space-between' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
                   <div style={{ width: 20, height: 1, background: f.accent }} />
@@ -460,23 +461,11 @@ function FeatureSlideshow() {
                 </div>
                 <div style={{ fontSize: 48, color: f.accent, lineHeight: 1, marginBottom: 20 }}>{f.icon}</div>
               </div>
-
-              {/* Middle: title + body */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '8px 0 24px' }}>
-                <h3 style={{
-                  fontFamily: FD, fontSize: 22, fontWeight: 800, lineHeight: 1.2,
-                  color: W, marginBottom: 16,
-                  letterSpacing: '-0.01em',
-                }}>{f.title}</h3>
+                <h3 style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, lineHeight: 1.2, color: W, marginBottom: 16, letterSpacing: '-0.01em' }}>{f.title}</h3>
                 <p style={{ fontSize: 13, lineHeight: 1.8, color: W55, fontFamily: FD }}>{f.body}</p>
               </div>
-
-              {/* Bottom: stat */}
-              <div style={{
-                display: 'flex', alignItems: 'baseline', gap: 8,
-                paddingTop: 24,
-                borderTop: `1px solid ${i === 1 ? 'rgba(171,141,63,0.2)' : BB}`,
-              }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingTop: 24, borderTop: `1px solid ${i === 1 ? 'rgba(171,141,63,0.2)' : BB}` }}>
                 <span style={{ fontSize: 32, fontWeight: 900, color: f.accent, fontFamily: FD, lineHeight: 1 }}>{f.stat}</span>
                 <span style={{ fontSize: 11, color: W28, fontFamily: FD, letterSpacing: '0.06em' }}>{f.statLabel}</span>
               </div>
@@ -488,106 +477,50 @@ function FeatureSlideshow() {
   )
 }
 
-// ── About Section — Editorial Brutalist Luxury ────────────────────────────────
+// ── About Section ─────────────────────────────────────────────────────────────
 function AboutCapabilities({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
   const [hoveredCap, setHoveredCap] = useState<number | null>(null)
-
   const caps = [
-    { label: 'Promoter Onboarding',   icon: '◉' },
-    { label: 'Geo Check-In / Out',    icon: '⬡' },
-    { label: 'Live Operations Map',   icon: '◎' },
-    { label: 'Smart Job Allocation',  icon: '◈' },
-    { label: 'Payroll Calculations',  icon: '◆' },
-    { label: 'Document Vault',        icon: '▣' },
-    { label: 'Supervisor Monitoring', icon: '◉' },
-    { label: 'Client Reports',        icon: '◎' },
-    { label: 'SMS Notifications',     icon: '⬡' },
-    { label: 'Reliability Scoring',   icon: '◈' },
-    { label: 'Earnings Export',       icon: '◆' },
-    { label: 'POPIA Compliance',      icon: '▣' },
+    { label: 'Promoter Onboarding', icon: '◉' }, { label: 'Geo Check-In / Out', icon: '⬡' },
+    { label: 'Live Operations Map', icon: '◎' }, { label: 'Smart Job Allocation', icon: '◈' },
+    { label: 'Payroll Calculations', icon: '◆' }, { label: 'Document Vault', icon: '▣' },
+    { label: 'Supervisor Monitoring', icon: '◉' }, { label: 'Client Reports', icon: '◎' },
+    { label: 'SMS Notifications', icon: '⬡' }, { label: 'Reliability Scoring', icon: '◈' },
+    { label: 'Earnings Export', icon: '◆' }, { label: 'POPIA Compliance', icon: '▣' },
   ]
-
   return (
     <div>
-
-      {/* ── PART 1: Giant editorial headline row ── */}
-      <div style={{
-        position: 'relative', overflow: 'hidden',
-        borderBottom: `1px solid ${BB}`,
-      }}>
-        {/* Enormous background watermark */}
-        <div style={{
-          position: 'absolute', top: '-0.15em', left: '-0.05em',
-          fontSize: 'clamp(180px, 24vw, 300px)',
-          fontWeight: 900, fontFamily: FD,
-          color: 'transparent',
-          WebkitTextStroke: `1px rgba(232,168,32,0.06)`,
-          lineHeight: 1, pointerEvents: 'none', userSelect: 'none',
-          zIndex: 0,
-        }}>HG</div>
-
+      <div style={{ position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${BB}` }}>
+        <div style={{ position: 'absolute', top: '-0.15em', left: '-0.05em', fontSize: 'clamp(180px, 24vw, 300px)', fontWeight: 900, fontFamily: FD, color: 'transparent', WebkitTextStroke: `1px rgba(232,168,32,0.06)`, lineHeight: 1, pointerEvents: 'none', userSelect: 'none', zIndex: 0 }}>HG</div>
         <div style={{ position: 'relative', zIndex: 1, padding: '64px 0 56px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
             <div style={{ width: 40, height: 1, background: GL }} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Est. 2018 · South Africa</span>
           </div>
-          <h2 style={{
-            fontFamily: "'Bodoni Moda', Georgia, serif",
-            fontSize: 'clamp(42px, 5.5vw, 80px)',
-            fontWeight: 900, fontStyle: 'italic',
-            lineHeight: 0.92, letterSpacing: '-0.03em',
-            color: W,
-          }}>
+          <h2 style={{ fontFamily: "'Bodoni Moda', Georgia, serif", fontSize: 'clamp(42px, 5.5vw, 80px)', fontWeight: 900, fontStyle: 'italic', lineHeight: 0.92, letterSpacing: '-0.03em', color: W }}>
             One platform.<br />
             <span style={{ color: 'transparent', WebkitTextStroke: `2px ${GL}` }}>Infinite scale.</span>
           </h2>
         </div>
       </div>
-
-      {/* ── PART 3: Capabilities ── */}
       <div style={{ padding: '56px 0 72px', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 48 }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Full Suite</div>
-          <div style={{ fontSize: 'clamp(22px,3vw,36px)', fontWeight: 900, color: W, fontFamily: FD, letterSpacing: '-0.02em' }}>
-            Platform <span style={{ color: GL, fontStyle: 'italic' }}>Capabilities</span>
-          </div>
+          <div style={{ fontSize: 'clamp(22px,3vw,36px)', fontWeight: 900, color: W, fontFamily: FD, letterSpacing: '-0.02em' }}>Platform <span style={{ color: GL, fontStyle: 'italic' }}>Capabilities</span></div>
         </div>
-
-        {/* 4-column capability cells with alternating gold/dark highlight */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: `1px solid ${BB}` }}>
-          {caps.map((cap, i) => {
-            const isHighlight = i === 3 || i === 8
-            return (
-              <div key={i}
-                style={{
-                  padding: '22px 24px',
-                  borderRight: (i + 1) % 4 !== 0 ? `1px solid ${BB}` : 'none',
-                  borderBottom: i < 8 ? `1px solid ${BB}` : 'none',
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  background: hoveredCap === i ? `rgba(171,141,63,0.08)` : isHighlight ? `rgba(232,168,32,0.04)` : 'transparent',
-                  transition: 'background 0.25s, transform 0.2s',
-                  cursor: 'default',
-                  transform: hoveredCap === i ? 'translateX(4px)' : 'translateX(0)',
-                  position: 'relative',
-                }}
-                onMouseEnter={() => setHoveredCap(i)}
-                onMouseLeave={() => setHoveredCap(null)}
-              >
-                {/* Animated left bar on hover */}
-                <div style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
-                  width: hoveredCap === i ? 3 : 0,
-                  background: GL,
-                  transition: 'width 0.2s ease',
-                }} />
-                <span style={{ fontSize: 14, color: hoveredCap === i ? GL : W28, transition: 'color 0.2s', flexShrink: 0 }}>{cap.icon}</span>
-                <span style={{ fontSize: 12, color: hoveredCap === i ? W : W55, fontFamily: FD, transition: 'color 0.2s', fontWeight: hoveredCap === i ? 600 : 400 }}>{cap.label}</span>
-              </div>
-            )
-          })}
+          {caps.map((cap, i) => (
+            <div key={i}
+              style={{ padding: '22px 24px', borderRight: (i + 1) % 4 !== 0 ? `1px solid ${BB}` : 'none', borderBottom: i < 8 ? `1px solid ${BB}` : 'none', display: 'flex', alignItems: 'center', gap: 14, background: hoveredCap === i ? `rgba(171,141,63,0.08)` : (i === 3 || i === 8) ? `rgba(232,168,32,0.04)` : 'transparent', transition: 'background 0.25s, transform 0.2s', cursor: 'default', transform: hoveredCap === i ? 'translateX(4px)' : 'translateX(0)', position: 'relative' }}
+              onMouseEnter={() => setHoveredCap(i)}
+              onMouseLeave={() => setHoveredCap(null)}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: hoveredCap === i ? 3 : 0, background: GL, transition: 'width 0.2s ease' }} />
+              <span style={{ fontSize: 14, color: hoveredCap === i ? GL : W28, transition: 'color 0.2s', flexShrink: 0 }}>{cap.icon}</span>
+              <span style={{ fontSize: 12, color: hoveredCap === i ? W : W55, fontFamily: FD, transition: 'color 0.2s', fontWeight: hoveredCap === i ? 600 : 400 }}>{cap.label}</span>
+            </div>
+          ))}
         </div>
       </div>
-
     </div>
   )
 }
@@ -597,41 +530,18 @@ function ImageTriptych() {
   return (
     <section style={{ position: 'relative', overflow: 'hidden', background: B, borderTop: `1px solid ${BB}` }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', height: 520 }}>
-        {/* Left */}
         <div className="triptych-img" style={{ position: 'relative' }}>
-          <img
-            src="/leftFooter.jpg"
-            alt="Concert crowd"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }}
-          />
+          <img src="/leftFooter.jpg" alt="Concert crowd" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(12,10,7,0.3), transparent)' }} />
         </div>
-
-        {/* Center — color, brightest */}
         <div className="triptych-img center" style={{ position: 'relative', zIndex: 2 }}>
-          <img
-            src="/centreFooter.jpg"
-            alt="Promoter at event"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', filter: 'brightness(1.05) saturate(1.1)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }}
-          />
+          <img src="/centreFooter.jpg" alt="Promoter at event" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', filter: 'brightness(1.05) saturate(1.1)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, border: `2px solid ${GL}`, pointerEvents: 'none', opacity: 0.4 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
         </div>
-
-        {/* Right */}
         <div className="triptych-img" style={{ position: 'relative' }}>
-          <img
-            src="/rightFooter.jpg"
-            alt="Street crowd"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }}
-          />
+          <img src="/rightFooter.jpg" alt="Street crowd" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to left, rgba(12,10,7,0.3), transparent)' }} />
         </div>
       </div>
@@ -647,6 +557,7 @@ export default function LandingPage() {
   const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null)
   const [heroSlide, setHeroSlide] = useState(0)
   const heroSlideRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [allJobs, setAllJobs] = useState<ReturnType<typeof getActiveJobs>>([])
 
   const heroMedia = [
     { type: 'image', src: '/1_hero.jpg' },
@@ -655,10 +566,6 @@ export default function LandingPage() {
     { type: 'image', src: '/4_hero.jpg' },
     { type: 'image', src: '/5_hero.jpg' },
   ]
-
-  const advanceHeroSlide = (to: number) => {
-    setHeroSlide(to)
-  }
 
   useEffect(() => {
     heroSlideRef.current = setInterval(() => {
@@ -672,8 +579,14 @@ export default function LandingPage() {
     if (s) { try { setSession(JSON.parse(s)) } catch {} }
   }, [])
 
-  const previewJobs = getActiveJobs(getAllJobsWithAdminJobs()).slice(0, 3)
-  const totalActiveJobs = getActiveJobs(getAllJobsWithAdminJobs()).length
+  // Load all 24 jobs + any admin-created ones
+  useEffect(() => {
+    const load = () => setAllJobs(getActiveJobs(getAllJobsWithAdminJobs()))
+    load()
+    window.addEventListener('storage', load)
+    const interval = setInterval(load, 2000)
+    return () => { window.removeEventListener('storage', load); clearInterval(interval) }
+  }, [])
 
   const handleLogout = () => { localStorage.removeItem('hg_session'); setSession(null) }
   const handleDashboard = () => {
@@ -684,11 +597,9 @@ export default function LandingPage() {
 
   const secFeatures = useRef<HTMLElement>(null)
   const secJobs     = useRef<HTMLElement>(null)
-  const secAbout    = useRef<HTMLElement>(null)
 
   const rFeatures = useReveal()
   const rJobs     = useReveal()
-  const rAbout    = useReveal()
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 60)
@@ -698,13 +609,6 @@ export default function LandingPage() {
 
   const scrollTo = (ref: React.RefObject<HTMLElement>) => ref.current?.scrollIntoView({ behavior: 'smooth' })
 
-  const stats = [
-    { value: '280+', label: 'Active Promoters' },
-    { value: '12',   label: 'Cities Covered' },
-    { value: '4.8★', label: 'Avg Promoter Rating' },
-    { value: '98%',  label: 'Shift Attendance Rate' },
-  ]
-
   const tickerItems = ['Brand Activations', 'In-Store Demos', 'Event Staffing', 'Field Marketing', 'Geo-Verified Shifts', 'Live Payroll Calc', 'Supervisor Monitoring', 'Nationwide Coverage']
 
   return (
@@ -712,32 +616,14 @@ export default function LandingPage() {
       <style>{GLOBAL_CSS}</style>
 
       {/* ── NAV ── */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
-        padding: '0 48px',
-        height: 68,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: '#000',
-      }}>
-        {/* Logo */}
-        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.01em', flexShrink: 0 }}
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '0 48px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#000' }}>
+        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.01em', flexShrink: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
         </div>
-
-        {/* Centre nav links */}
         <ul style={{ display: 'flex', gap: 52, listStyle: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          {[
-            { label: 'Jobs',     ref: secJobs },
-            { label: 'Features', ref: secFeatures },
-          ].map(({ label, ref }) => (
+          {[{ label: 'Jobs', ref: secJobs }, { label: 'Features', ref: secFeatures }].map(({ label, ref }) => (
             <li key={label}>
-              <button onClick={() => scrollTo(ref)} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontFamily: FD, fontSize: 13, fontWeight: 600,
-                letterSpacing: '0.1em', textTransform: 'uppercase', color: W,
-                transition: 'color 0.2s', padding: 0,
-              }}
+              <button onClick={() => scrollTo(ref)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W, transition: 'color 0.2s', padding: 0 }}
                 onMouseEnter={e => e.currentTarget.style.color = GL}
                 onMouseLeave={e => e.currentTarget.style.color = W}>
                 {label}
@@ -745,52 +631,16 @@ export default function LandingPage() {
             </li>
           ))}
         </ul>
-
-        {/* Right CTA */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           {session ? (
             <>
-              <button onClick={handleDashboard} style={{
-                fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
-                textTransform: 'uppercase', background: GL, border: 'none', color: B,
-                padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = G}
-                onMouseLeave={e => e.currentTarget.style.background = GL}>
-                My Dashboard
-              </button>
-              <button onClick={handleLogout} style={{
-                fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em',
-                textTransform: 'uppercase', background: 'transparent',
-                border: '1px solid rgba(255,255,255,0.3)', color: W,
-                padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>
-                Log Out
-              </button>
+              <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = G} onMouseLeave={e => e.currentTarget.style.background = GL}>My Dashboard</button>
+              <button onClick={handleLogout} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>Log Out</button>
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/login')} style={{
-                fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em',
-                textTransform: 'uppercase', background: 'transparent',
-                border: '1px solid rgba(255,255,255,0.3)', color: W,
-                padding: '11px 22px', cursor: 'pointer', transition: 'all 0.2s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>
-                LOG IN
-              </button>
-              <button onClick={() => navigate('/register')} style={{
-                fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em',
-                textTransform: 'uppercase', background: GL, border: 'none', color: B,
-                padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = G}
-                onMouseLeave={e => e.currentTarget.style.background = GL}>
-                REGISTER
-              </button>
+              <button onClick={() => navigate('/login')} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: W, padding: '11px 22px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>LOG IN</button>
+              <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = G} onMouseLeave={e => e.currentTarget.style.background = GL}>REGISTER</button>
             </>
           )}
         </div>
@@ -798,97 +648,38 @@ export default function LandingPage() {
 
       {/* ── HERO ── */}
       <section style={{ height: '75vh', minHeight: 540, maxHeight: 820, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'stretch', background: '#000', marginTop: 68, padding: '28px 48px' }}>
-
         <div style={{ position: 'absolute', top: 28, left: '48%', right: 48, bottom: 28, borderRadius: 16, overflow: 'hidden', zIndex: 1 }}>
           {heroMedia.map((media, idx) => (
-            <div key={idx} style={{
-              position: 'absolute', inset: 0,
-              opacity: heroSlide === idx ? 1 : 0,
-              transition: 'opacity 1s ease',
-              zIndex: heroSlide === idx ? 1 : 0,
-            }}>
+            <div key={idx} style={{ position: 'absolute', inset: 0, opacity: heroSlide === idx ? 1 : 0, transition: 'opacity 1s ease', zIndex: heroSlide === idx ? 1 : 0 }}>
               {media.type === 'video' ? (
-                <video autoPlay muted loop playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}>
-                  <source src={media.src} type="video/mp4" />
-                </video>
+                <video autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}><source src={media.src} type="video/mp4" /></video>
               ) : (
-                <img src={media.src} alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center',
-                    animation: heroSlide === idx ? 'img-scale 8s ease-out forwards' : 'none' }} />
+                <img src={media.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', animation: heroSlide === idx ? 'img-scale 8s ease-out forwards' : 'none' }} />
               )}
             </div>
           ))}
           <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: '#111' }} />
           <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.1) 100%)' }} />
-
           <div style={{ position: 'absolute', bottom: 20, left: 24, zIndex: 10, display: 'flex', gap: 6 }}>
             {heroMedia.map((_, idx) => (
-              <button key={idx}
-                onClick={() => { if (heroSlideRef.current) clearInterval(heroSlideRef.current); advanceHeroSlide(idx) }}
-                style={{
-                  width: idx === heroSlide ? 24 : 6, height: 3, border: 'none', cursor: 'pointer', borderRadius: 2,
-                  background: idx === heroSlide ? GL : 'rgba(255,255,255,0.35)',
-                  transition: 'all 0.4s ease', padding: 0,
-                }} />
+              <button key={idx} onClick={() => { if (heroSlideRef.current) clearInterval(heroSlideRef.current); setHeroSlide(idx) }}
+                style={{ width: idx === heroSlide ? 24 : 6, height: 3, border: 'none', cursor: 'pointer', borderRadius: 2, background: idx === heroSlide ? GL : 'rgba(255,255,255,0.35)', transition: 'all 0.4s ease', padding: 0 }} />
             ))}
           </div>
-
-          <div style={{
-            position: 'absolute', bottom: 16, right: 16, zIndex: 10,
-            width: 34, height: 34, border: '1px solid rgba(255,255,255,0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', background: 'rgba(0,0,0,0.3)',
-          }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>⏸</span>
-          </div>
         </div>
-
-        <div style={{
-          position: 'absolute',
-          top: 0, bottom: 0, left: 0,
-          width: '100%',
-          zIndex: 5,
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          padding: '0 0 0 48px',
-          pointerEvents: 'none',
-        }}>
-          <h1 style={{
-            fontFamily: "'Bodoni Moda', 'Modern No. 20', 'Didot', Georgia, serif",
-            fontSize: 'clamp(58px, 7.8vw, 112px)',
-            fontWeight: 900,
-            lineHeight: 0.95,
-            letterSpacing: '-0.02em',
-            textTransform: 'uppercase',
-            marginBottom: 36,
-            fontStyle: 'italic',
-          }}>
+        <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '100%', zIndex: 5, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 48px', pointerEvents: 'none' }}>
+          <h1 style={{ fontFamily: "'Bodoni Moda', 'Modern No. 20', 'Didot', Georgia, serif", fontSize: 'clamp(58px, 7.8vw, 112px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: 36, fontStyle: 'italic' }}>
             <span style={{ color: W, display: 'block' }}>WE PUT <span style={{ color: GL }}>PROMOTERS</span></span>
             <span style={{ color: W, display: 'inline-block', maxWidth: '46%' }}>CENTRE STAGE</span>
           </h1>
-
           {session ? (
-            <button onClick={handleDashboard} style={{
-              fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
-              textTransform: 'uppercase', background: 'transparent',
-              border: '2px solid rgba(255,255,255,0.7)', color: W,
-              padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
-              display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all',
-              width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%',
-            }}
+            <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(255,255,255,0.7)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
               ▶ MY DASHBOARD
             </button>
           ) : (
-            <button onClick={() => navigate('/register')} style={{
-              fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
-              textTransform: 'uppercase', background: 'transparent',
-              border: '2px solid rgba(255,255,255,0.7)', color: W,
-              padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s',
-              display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all',
-              width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%',
-            }}
+            <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(255,255,255,0.7)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
               ▶ JOIN AS PROMOTER
@@ -906,99 +697,41 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── JOBS SECTION — everything on gold background ── */}
+      {/* ── JOBS SECTION — all 24 jobs, 4-col grid with filters ── */}
       <section
         ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el }}
         className="reveal"
-        style={{
-          padding: '48px 80px 52px',
-          background: '#AB8D3F',
-          borderBottom: `1px solid rgba(120,75,0,0.4)`,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
+        style={{ padding: '48px 80px 56px', background: '#AB8D3F', borderBottom: `1px solid rgba(120,75,0,0.4)`, position: 'relative', overflow: 'hidden' }}
       >
-        {/* Depth texture on gold */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-          background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)',
-        }} />
+        {/* Depth texture */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)' }} />
 
-        {/* ✦ Top-left star band ✦ */}
+        {/* Star bands — top-left */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-          {[
-            { top:  12, left:  16, size: 28, opacity: 0.55, delay: '0s',   dur: '2.6s' },
-            { top:  10, left:  64, size: 16, opacity: 0.40, delay: '0.5s', dur: '3.2s' },
-            { top:  38, left:  36, size: 12, opacity: 0.35, delay: '1.0s', dur: '2.9s' },
-            { top:   8, left: 108, size: 10, opacity: 0.28, delay: '0.3s', dur: '3.7s' },
-            { top:  60, left:  14, size: 20, opacity: 0.45, delay: '1.4s', dur: '2.4s' },
-            { top:  52, left:  72, size:  8, opacity: 0.25, delay: '0.8s', dur: '4.0s' },
-            { top:  80, left:  44, size: 14, opacity: 0.32, delay: '2.0s', dur: '3.0s' },
-            { top:  28, left: 148, size:  7, opacity: 0.22, delay: '1.7s', dur: '3.5s' },
-            { top: 100, left:  20, size: 10, opacity: 0.28, delay: '0.6s', dur: '2.8s' },
-            { top:  70, left: 112, size:  6, opacity: 0.20, delay: '2.3s', dur: '3.3s' },
-            { top: 118, left:  62, size: 18, opacity: 0.38, delay: '1.1s', dur: '2.7s' },
-            { top:  18, left: 190, size:  8, opacity: 0.18, delay: '1.9s', dur: '4.2s' },
-            { top: 140, left:  30, size:  8, opacity: 0.22, delay: '0.4s', dur: '3.1s' },
-            { top:  92, left: 158, size:  5, opacity: 0.16, delay: '2.6s', dur: '3.8s' },
-            { top: 162, left:  84, size: 12, opacity: 0.28, delay: '1.3s', dur: '2.5s' },
-            { top:  46, left: 220, size:  6, opacity: 0.14, delay: '2.1s', dur: '3.6s' },
-            { top: 130, left: 130, size:  9, opacity: 0.20, delay: '0.9s', dur: '3.4s' },
-            { top: 180, left:  50, size:  7, opacity: 0.18, delay: '1.6s', dur: '2.9s' },
-          ].map((s, i) => (
-            <div key={`tl-${i}`} style={{
-              position: 'absolute', top: s.top, left: s.left,
-              fontSize: s.size, color: W, opacity: s.opacity,
-              animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
-              lineHeight: 1,
-            }}>✦</div>
+          {[{top:12,left:16,size:28,opacity:0.55,delay:'0s',dur:'2.6s'},{top:10,left:64,size:16,opacity:0.40,delay:'0.5s',dur:'3.2s'},{top:38,left:36,size:12,opacity:0.35,delay:'1.0s',dur:'2.9s'},{top:8,left:108,size:10,opacity:0.28,delay:'0.3s',dur:'3.7s'},{top:60,left:14,size:20,opacity:0.45,delay:'1.4s',dur:'2.4s'},{top:52,left:72,size:8,opacity:0.25,delay:'0.8s',dur:'4.0s'},{top:80,left:44,size:14,opacity:0.32,delay:'2.0s',dur:'3.0s'},{top:28,left:148,size:7,opacity:0.22,delay:'1.7s',dur:'3.5s'}].map((s,i)=>(
+            <div key={i} style={{ position:'absolute', top:s.top, left:s.left, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
 
-        {/* ✦ Bottom-right star band ✦ */}
+        {/* Star bands — bottom-right */}
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-          {[
-            { bottom:  12, right:  16, size: 28, opacity: 0.55, delay: '0.2s', dur: '2.6s' },
-            { bottom:  10, right:  64, size: 16, opacity: 0.40, delay: '0.7s', dur: '3.2s' },
-            { bottom:  38, right:  36, size: 12, opacity: 0.35, delay: '1.2s', dur: '2.9s' },
-            { bottom:   8, right: 108, size: 10, opacity: 0.28, delay: '0.4s', dur: '3.7s' },
-            { bottom:  60, right:  14, size: 20, opacity: 0.45, delay: '1.6s', dur: '2.4s' },
-            { bottom:  52, right:  72, size:  8, opacity: 0.25, delay: '0.9s', dur: '4.0s' },
-            { bottom:  80, right:  44, size: 14, opacity: 0.32, delay: '2.1s', dur: '3.0s' },
-            { bottom:  28, right: 148, size:  7, opacity: 0.22, delay: '1.8s', dur: '3.5s' },
-            { bottom: 100, right:  20, size: 10, opacity: 0.28, delay: '0.7s', dur: '2.8s' },
-            { bottom:  70, right: 112, size:  6, opacity: 0.20, delay: '2.4s', dur: '3.3s' },
-            { bottom: 118, right:  62, size: 18, opacity: 0.38, delay: '1.2s', dur: '2.7s' },
-            { bottom:  18, right: 190, size:  8, opacity: 0.18, delay: '2.0s', dur: '4.2s' },
-            { bottom: 140, right:  30, size:  8, opacity: 0.22, delay: '0.5s', dur: '3.1s' },
-            { bottom:  92, right: 158, size:  5, opacity: 0.16, delay: '2.7s', dur: '3.8s' },
-            { bottom: 162, right:  84, size: 12, opacity: 0.28, delay: '1.4s', dur: '2.5s' },
-            { bottom:  46, right: 220, size:  6, opacity: 0.14, delay: '2.2s', dur: '3.6s' },
-            { bottom: 130, right: 130, size:  9, opacity: 0.20, delay: '1.0s', dur: '3.4s' },
-            { bottom: 180, right:  50, size:  7, opacity: 0.18, delay: '1.7s', dur: '2.9s' },
-          ].map((s, i) => (
-            <div key={`br-${i}`} style={{
-              position: 'absolute', bottom: s.bottom, right: s.right,
-              fontSize: s.size, color: W, opacity: s.opacity,
-              animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
-              lineHeight: 1,
-            }}>✦</div>
+          {[{bottom:12,right:16,size:28,opacity:0.55,delay:'0.2s',dur:'2.6s'},{bottom:10,right:64,size:16,opacity:0.40,delay:'0.7s',dur:'3.2s'},{bottom:38,right:36,size:12,opacity:0.35,delay:'1.2s',dur:'2.9s'},{bottom:60,right:14,size:20,opacity:0.45,delay:'1.6s',dur:'2.4s'},{bottom:80,right:44,size:14,opacity:0.32,delay:'2.1s',dur:'3.0s'}].map((s,i)=>(
+            <div key={i} style={{ position:'absolute', bottom:s.bottom, right:s.right, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
 
         <div style={{ maxWidth: 1360, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-
-          {/* Section header — dark text on gold */}
-          <div style={{ marginBottom: 32 }}>
+          {/* Section header */}
+          <div style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
               <div>
-                <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em', marginBottom: 10 }}>
+                <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em', marginBottom: 8 }}>
                   <span style={{ color: B }}>Live </span>
                   <span style={{ color: B, fontStyle: 'italic' }}>Jobs.</span>
                 </h2>
                 <p style={{ fontSize: 13, color: JB6, lineHeight: 1.6, fontFamily: FD }}>
-                  3 newest approved positions.
-                  {!session && <> <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Login or register</span> to apply.</>}
+                  {allJobs.length} active positions across South Africa.
+                  {!session && <> <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/login')}>Login</span> or <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/register')}>register</span> to apply.</>}
                 </p>
               </div>
               <div style={{ flexShrink: 0 }}>
@@ -1023,26 +756,24 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Job cards */}
+          {/* All jobs grid with filters */}
           <JobsSection
-            jobs={previewJobs}
+            jobs={allJobs}
             isLoggedIn={!!session}
             onLock={() => setLoginPrompt(true)}
             onView={(id) => navigate(`/jobs/${id}`)}
           />
 
-          {/* Footer row */}
-          <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
-            <p style={{ fontSize: 12, color: JB4, fontFamily: FD }}>Showing 3 of <strong style={{ color: JB6 }}>{totalActiveJobs} active jobs</strong></p>
+          {/* View all CTA */}
+          <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 1, height: 32, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
             <button onClick={() => navigate('/jobs')}
-              style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: B, border: `1px solid ${B}`, color: GL, padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s' }}
+              style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: B, border: `1px solid ${B}`, color: GL, padding: '12px 40px', cursor: 'pointer', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.background = G5; e.currentTarget.style.borderColor = G5 }}
               onMouseLeave={e => { e.currentTarget.style.background = B; e.currentTarget.style.borderColor = B }}>
-              View All {totalActiveJobs} Jobs →
+              Open Full Jobs Board →
             </button>
           </div>
-
         </div>
       </section>
 
@@ -1052,26 +783,14 @@ export default function LandingPage() {
         className="reveal"
         style={{ padding: '80px 80px 100px', background: B, borderBottom: `1px solid ${BB}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
-          {/* Header row */}
-          <div style={{
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-            marginBottom: 56, borderBottom: `1px solid ${BB}`, paddingBottom: 32,
-          }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 56, borderBottom: `1px solid ${BB}`, paddingBottom: 32 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Platform Capabilities</div>
-            <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,48px)', fontWeight: 900, lineHeight: 1, textAlign: 'right' }}>
-              Built for <span style={{ color: GL, fontStyle: 'italic' }}>precision.</span>
-            </h2>
+            <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,48px)', fontWeight: 900, lineHeight: 1, textAlign: 'right' }}>Built for <span style={{ color: GL, fontStyle: 'italic' }}>precision.</span></h2>
           </div>
           <FeatureSlideshow />
-          {/* About Us button — below cards */}
           <div style={{ marginTop: 48, display: 'flex', justifyContent: 'center' }}>
             <button onClick={() => navigate('/about')}
-              style={{
-                fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em',
-                textTransform: 'uppercase', background: 'transparent',
-                border: `1px solid rgba(232,168,32,0.4)`, color: GL,
-                padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s',
-              }}
+              style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: 'transparent', border: `1px solid rgba(232,168,32,0.4)`, color: GL, padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.background = `rgba(232,168,32,0.08)`; e.currentTarget.style.borderColor = GL }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `rgba(232,168,32,0.4)` }}>
               About Us →
@@ -1083,155 +802,58 @@ export default function LandingPage() {
       {/* ── IMAGE TRIPTYCH ── */}
       <ImageTriptych />
 
-      {/* ── GOLD SEPARATOR LINE ── */}
+      {/* ── GOLD LINE ── */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})` }} />
 
       {/* ── FOOTER ── */}
       <footer style={{ background: B }}>
-
-        {/* Main footer body */}
         <div style={{ padding: '72px 80px 56px' }}>
           <div style={{ maxWidth: 1360, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 1fr', gap: 80, alignItems: 'start' }}>
-
-            {/* LEFT — Newsletter sign-up */}
             <div>
-              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, marginBottom: 32, letterSpacing: '0.01em' }}>
-                <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
-              </div>
+              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, marginBottom: 32, letterSpacing: '0.01em' }}><span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span></div>
               <h3 style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: W, marginBottom: 12, lineHeight: 1.2 }}>Newsletter Sign-Up</h3>
-              <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, fontFamily: FD, marginBottom: 28, maxWidth: 300 }}>
-                Subscribe to receive our latest opportunities and platform updates directly to your inbox.
-              </p>
-              {/* Name field */}
+              <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, fontFamily: FD, marginBottom: 28, maxWidth: 300 }}>Subscribe to receive our latest opportunities and platform updates directly to your inbox.</p>
               <div style={{ marginBottom: 12 }}>
-                <input
-                  type="text"
-                  placeholder="YOUR NAME"
-                  style={{
-                    width: '100%', background: 'transparent',
-                    border: `1px solid ${BB}`, borderRadius: 0,
-                    padding: '14px 16px',
-                    fontFamily: FD, fontSize: 11, fontWeight: 500,
-                    letterSpacing: '0.12em', color: W55,
-                    outline: 'none',
-                  }}
-                  onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`}
-                  onBlur={e => e.currentTarget.style.borderColor = BB}
-                />
+                <input type="text" placeholder="YOUR NAME" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: W55, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
               </div>
-              {/* Email field */}
               <div style={{ marginBottom: 20 }}>
-                <input
-                  type="email"
-                  placeholder="YOUR EMAIL"
-                  style={{
-                    width: '100%', background: 'transparent',
-                    border: `1px solid ${BB}`, borderRadius: 0,
-                    padding: '14px 16px',
-                    fontFamily: FD, fontSize: 11, fontWeight: 500,
-                    letterSpacing: '0.12em', color: W55,
-                    outline: 'none',
-                  }}
-                  onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`}
-                  onBlur={e => e.currentTarget.style.borderColor = BB}
-                />
+                <input type="email" placeholder="YOUR EMAIL" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: W55, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
               </div>
-              {/* Submit */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', paddingBottom: 6, borderBottom: `1px solid ${BB}`, width: 'fit-content' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = GL }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = BB }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', paddingBottom: 6, borderBottom: `1px solid ${BB}`, width: 'fit-content' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = GL }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = BB }}>
                 <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: W }}>SUBMIT</span>
                 <span style={{ fontSize: 16, color: GL }}>↗</span>
               </div>
             </div>
-
-            {/* CENTRE — Nav links */}
             <div style={{ paddingTop: 8 }}>
-              {[
-                { label: 'Jobs Board',    href: '/jobs' },
-                { label: 'Features',      href: '/#features' },
-                { label: 'About',         href: '/#about' },
-                { label: 'News & Updates',href: '#' },
-                { label: 'Contact',       href: '#' },
-              ].map(link => (
-                <div key={link.label}
-                  style={{
-                    padding: '14px 0',
-                    borderBottom: `1px solid ${BB}`,
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => link.href !== '#' && navigate(link.href)}
-                  onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }}
-                  onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = W55 }}
-                >
-                  <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W55, transition: 'color 0.2s' }}>
-                    {link.label}
-                  </span>
+              {[{ label: 'Jobs Board', href: '/jobs' }, { label: 'Features', href: '/#features' }, { label: 'About', href: '/#about' }, { label: 'News & Updates', href: '#' }, { label: 'Contact', href: '#' }].map(link => (
+                <div key={link.label} style={{ padding: '14px 0', borderBottom: `1px solid ${BB}`, cursor: 'pointer' }} onClick={() => link.href !== '#' && navigate(link.href)} onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }} onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = W55 }}>
+                  <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W55, transition: 'color 0.2s' }}>{link.label}</span>
                 </div>
               ))}
             </div>
-
-            {/* RIGHT — Contact info + social */}
             <div style={{ paddingTop: 8 }}>
-              {/* Partnership */}
-              <div style={{ marginBottom: 32 }}>
-                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Partnership Opportunities</h4>
-                <a href="mailto:partnerships@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-                  partnerships@honeygroup.co.za
-                </a>
-              </div>
-              {/* Career */}
-              <div style={{ marginBottom: 32 }}>
-                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Career Opportunities</h4>
-                <a href="mailto:careers@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-                  careers@honeygroup.co.za
-                </a>
-              </div>
-              {/* Press */}
-              <div style={{ marginBottom: 36 }}>
-                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Press</h4>
-                <a href="mailto:press@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-                  press@honeygroup.co.za
-                </a>
-              </div>
-              {/* Social icons */}
+              {[{ label: 'Partnership Opportunities', email: 'partnerships@honeygroup.co.za' }, { label: 'Career Opportunities', email: 'careers@honeygroup.co.za' }, { label: 'Press', email: 'press@honeygroup.co.za' }].map(c => (
+                <div key={c.label} style={{ marginBottom: 32 }}>
+                  <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>{c.label}</h4>
+                  <a href={`mailto:${c.email}`} style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>{c.email}</a>
+                </div>
+              ))}
               <div style={{ display: 'flex', gap: 10, marginBottom: 40 }}>
-                {[
-                  { label: 'LI', title: 'LinkedIn' },
-                  { label: 'IG', title: 'Instagram' },
-                  { label: 'FB', title: 'Facebook' },
-                ].map(s => (
-                  <div key={s.label} title={s.title} style={{
-                    width: 38, height: 38,
-                    border: `1px solid ${BB}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', transition: 'all 0.25s',
-                    fontSize: 10, fontWeight: 700, color: W28, fontFamily: FD, letterSpacing: '0.04em',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL; e.currentTarget.style.background = `rgba(232,168,32,0.06)` }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W28; e.currentTarget.style.background = 'transparent' }}>
-                    {s.label}
-                  </div>
+                {[{ label: 'LI', title: 'LinkedIn' }, { label: 'IG', title: 'Instagram' }, { label: 'FB', title: 'Facebook' }].map(s => (
+                  <div key={s.label} title={s.title} style={{ width: 38, height: 38, border: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.25s', fontSize: 10, fontWeight: 700, color: W28, fontFamily: FD, letterSpacing: '0.04em' }} onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL; e.currentTarget.style.background = `rgba(232,168,32,0.06)` }} onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W28; e.currentTarget.style.background = 'transparent' }}>{s.label}</div>
                 ))}
               </div>
-              {/* Copyright tucked into right column */}
               <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 24 }}>
                 <p style={{ fontSize: 11, color: W28, fontFamily: FD, marginBottom: 12 }}>©2026 Honey Group Promotions. All rights reserved.</p>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                   {['Privacy Policy', 'POPIA Compliant', 'Terms of Use'].map(t => (
-                    <span key={t} style={{ fontSize: 10, color: W28, letterSpacing: '0.06em', fontFamily: FD, cursor: 'pointer', transition: 'color 0.2s' }}
-                      onMouseEnter={e => e.currentTarget.style.color = GL}
-                      onMouseLeave={e => e.currentTarget.style.color = W28}>
-                      {t}
-                    </span>
+                    <span key={t} style={{ fontSize: 10, color: W28, letterSpacing: '0.06em', fontFamily: FD, cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = GL} onMouseLeave={e => e.currentTarget.style.color = W28}>{t}</span>
                   ))}
                 </div>
               </div>
             </div>
-
           </div>
         </div>
-
       </footer>
 
       {showLoginPrompt && <LoginPromptModal onClose={() => setLoginPrompt(false)} onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />}

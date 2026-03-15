@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { AdminLayout } from '../AdminLayout'
 
-// ─── Palette (unchanged) ──────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const G   = '#D4880A'
 const GL  = '#E8A820'
 const G2  = '#8B5A1A'
 const G3  = '#C07818'
 const G4  = '#F0C050'
-const B   = '#0C0A07'
 const D1  = '#0E0C06'
 const D2  = '#151209'
 const BB  = 'rgba(212,136,10,0.16)'
@@ -58,6 +57,35 @@ const STATUS_LABEL: Record<CheckStatus, string> = {
   'completed':  'Completed',
 }
 
+// ─── Mock live promoters with real SA coordinates ─────────────────────────────
+const MOCK_LIVE_PROMOTERS: LivePromoter[] = [
+  // Johannesburg
+  { id:'P001', name:'Ayanda Dlamini',  job:'Castle Lager Launch',        venue:'Sandton City',              city:'Johannesburg', status:'checked-in', time:'08:12', lat:-26.1073, lng:28.0560 },
+  { id:'P002', name:'Thabo Nkosi',     job:'MTN Brand Ambassador',        venue:'Maponya Mall, Soweto',      city:'Johannesburg', status:'checked-in', time:'08:05', lat:-26.2678, lng:27.8546 },
+  { id:'P003', name:'Zanele Motha',    job:'Absolut Vodka Night',         venue:'Rosebank Mall',             city:'Johannesburg', status:'late',       time:'—',     lat:-26.1452, lng:28.0408 },
+  { id:'P004', name:'Bongani Khumalo', job:'Nando\'s In-Store Tasting',   venue:'Fourways Mall',             city:'Johannesburg', status:'checked-in', time:'09:00', lat:-26.0154, lng:28.0103 },
+  { id:'P005', name:'Sipho Mhlongo',   job:'Listerine Sampling',          venue:'Noord Taxi Rank',           city:'Johannesburg', status:'absent',     time:'—',     lat:-26.2008, lng:28.0436 },
+  { id:'P006', name:'Lerato Mokoena',  job:'Distell Premium Wines',       venue:'Sandton Convention Centre', city:'Johannesburg', status:'completed',  time:'07:45', lat:-26.1076, lng:28.0567 },
+
+  // Cape Town
+  { id:'P007', name:'Marco van Wyk',   job:'Red Bull Sampling',           venue:'V&A Waterfront',            city:'Cape Town',    status:'checked-in', time:'08:30', lat:-33.9030, lng:18.4185 },
+  { id:'P008', name:'Mia Louw',        job:'Woolworths Food Tasting',     venue:'Cavendish Square',          city:'Cape Town',    status:'checked-in', time:'08:22', lat:-33.9878, lng:18.4695 },
+  { id:'P009', name:'Lungelo Mgqibi',  job:'Coca-Cola Spaza Activation',  venue:'Khayelitsha',               city:'Cape Town',    status:'late',       time:'—',     lat:-34.0350, lng:18.6732 },
+  { id:'P010', name:'Chanel Botha',    job:'Vodacom Product Demo',        venue:'Canal Walk',                city:'Cape Town',    status:'completed',  time:'07:55', lat:-33.8668, lng:18.5102 },
+
+  // Durban
+  { id:'P011', name:'Nomsa Zulu',      job:'Jack Daniel\'s Whisky Night', venue:'uShaka Marine World',       city:'Durban',       status:'checked-in', time:'08:10', lat:-29.8625, lng:31.0452 },
+  { id:'P012', name:'Priya Naidoo',    job:'Dove Beauty Sampling',        venue:'Gateway Theatre of Shopping',city:'Durban',      status:'checked-in', time:'08:35', lat:-29.7280, lng:31.0670 },
+  { id:'P013', name:'Sibusiso Vilak',  job:'Pick n Pay Smart Shopper',    venue:'Pavilion Shopping Centre',  city:'Durban',       status:'absent',     time:'—',     lat:-29.8728, lng:30.9648 },
+  { id:'P014', name:'Ruan Kotze',      job:'FreshBrands In-Store',        venue:'Musgrave Centre',           city:'Durban',       status:'late',       time:'—',     lat:-29.8618, lng:31.0026 },
+
+  // Pretoria
+  { id:'P015', name:'Pieter Joubert',  job:'Menlyn Fashion Night',        venue:'Menlyn Mall',               city:'Pretoria',     status:'checked-in', time:'09:05', lat:-25.7823, lng:28.2773 },
+  { id:'P016', name:'Andile Nxumalo',  job:'Hyundai Test Drive',          venue:'Menlyn Park',               city:'Pretoria',     status:'completed',  time:'07:50', lat:-25.7820, lng:28.2755 },
+  { id:'P017', name:'Tebogo Radebe',   job:'Shoprite Easter Promos',      venue:'Woodlands Boulevard',       city:'Pretoria',     status:'checked-in', time:'08:48', lat:-25.8099, lng:28.2826 },
+  { id:'P018', name:'Kagiso Motsepe',  job:'Standard Bank Career Expo',   venue:'Hatfield Plaza',            city:'Pretoria',     status:'absent',     time:'—',     lat:-25.7503, lng:28.2328 },
+]
+
 function StatusBadge({ status }: { status: CheckStatus }) {
   return (
     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:STATUS_COLOR[status], background:STATUS_BG[status], border:`1px solid ${STATUS_BORDER[status]}`, padding:'3px 8px', borderRadius:3 }}>
@@ -80,10 +108,7 @@ function StatCard({ count, label, status, active, onClick }: { count:number; lab
 
 // ─── Google Maps loader ───────────────────────────────────────────────────────
 declare global {
-  interface Window {
-    google: any
-    initHGMap: () => void
-  }
+  interface Window { google: any; initHGMap: () => void }
 }
 
 const GMAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
@@ -92,7 +117,6 @@ function loadGoogleMaps(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.google?.maps) { resolve(); return }
     if (document.getElementById('hg-gmaps-script')) {
-      // Already loading — wait
       const interval = setInterval(() => {
         if (window.google?.maps) { clearInterval(interval); resolve() }
       }, 100)
@@ -100,8 +124,8 @@ function loadGoogleMaps(): Promise<void> {
     }
     window.initHGMap = () => resolve()
     const script = document.createElement('script')
-    script.id  = 'hg-gmaps-script'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAP_KEY}&callback=initHGMap`
+    script.id    = 'hg-gmaps-script'
+    script.src   = `https://maps.googleapis.com/maps/api/js?key=${GMAP_KEY}&callback=initHGMap`
     script.async = true
     script.defer = true
     script.onerror = () => reject(new Error('Google Maps failed to load'))
@@ -109,25 +133,25 @@ function loadGoogleMaps(): Promise<void> {
   })
 }
 
-// ─── Map styles — dark gold theme ─────────────────────────────────────────────
+// ─── Dark gold map style ──────────────────────────────────────────────────────
 const MAP_STYLES = [
-  { elementType:'geometry',       stylers:[{ color:'#0C0A07' }] },
-  { elementType:'labels.text.stroke', stylers:[{ color:'#0C0A07' }] },
-  { elementType:'labels.text.fill',   stylers:[{ color:'#6B4F1A' }] },
-  { featureType:'administrative',     elementType:'geometry', stylers:[{ color:'#1C1709' }] },
-  { featureType:'administrative.country', elementType:'labels.text.fill', stylers:[{ color:'#9D8A5A' }] },
-  { featureType:'administrative.province', elementType:'labels.text.fill', stylers:[{ color:'#7A6535' }] },
-  { featureType:'landscape',      stylers:[{ color:'#0E0C06' }] },
-  { featureType:'poi',            stylers:[{ visibility:'off' }] },
-  { featureType:'road',           elementType:'geometry', stylers:[{ color:'#1C1709' }] },
-  { featureType:'road',           elementType:'geometry.stroke', stylers:[{ color:'#0E0C06' }] },
-  { featureType:'road',           elementType:'labels.text.fill', stylers:[{ color:'#5A4520' }] },
-  { featureType:'road.highway',   elementType:'geometry', stylers:[{ color:'#2A1F08' }] },
-  { featureType:'road.highway',   elementType:'geometry.stroke', stylers:[{ color:'#1A1305' }] },
-  { featureType:'road.highway',   elementType:'labels.text.fill', stylers:[{ color:'#D4880A' }] },
-  { featureType:'transit',        stylers:[{ visibility:'off' }] },
-  { featureType:'water',          elementType:'geometry', stylers:[{ color:'#040503' }] },
-  { featureType:'water',          elementType:'labels.text.fill', stylers:[{ color:'#2A2008' }] },
+  { elementType:'geometry',                stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.stroke',      stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.fill',        stylers:[{ color:'#6B4F1A' }] },
+  { featureType:'administrative',          elementType:'geometry',            stylers:[{ color:'#1C1709' }] },
+  { featureType:'administrative.country',  elementType:'labels.text.fill',   stylers:[{ color:'#9D8A5A' }] },
+  { featureType:'administrative.province', elementType:'labels.text.fill',   stylers:[{ color:'#7A6535' }] },
+  { featureType:'landscape',               stylers:[{ color:'#0E0C06' }] },
+  { featureType:'poi',                     stylers:[{ visibility:'off' }] },
+  { featureType:'road',                    elementType:'geometry',            stylers:[{ color:'#1C1709' }] },
+  { featureType:'road',                    elementType:'geometry.stroke',     stylers:[{ color:'#0E0C06' }] },
+  { featureType:'road',                    elementType:'labels.text.fill',    stylers:[{ color:'#5A4520' }] },
+  { featureType:'road.highway',            elementType:'geometry',            stylers:[{ color:'#2A1F08' }] },
+  { featureType:'road.highway',            elementType:'geometry.stroke',     stylers:[{ color:'#1A1305' }] },
+  { featureType:'road.highway',            elementType:'labels.text.fill',    stylers:[{ color:'#D4880A' }] },
+  { featureType:'transit',                 stylers:[{ visibility:'off' }] },
+  { featureType:'water',                   elementType:'geometry',            stylers:[{ color:'#040503' }] },
+  { featureType:'water',                   elementType:'labels.text.fill',    stylers:[{ color:'#2A2008' }] },
 ]
 
 export default function ViewLiveMap() {
@@ -136,25 +160,27 @@ export default function ViewLiveMap() {
   const markersRef    = useRef<Map<string, any>>(new Map())
   const infoWindowRef = useRef<any>(null)
 
-  const [promoters,    setPromoters   ] = useState<LivePromoter[]>([])
+  const [promoters,    setPromoters   ] = useState<LivePromoter[]>(MOCK_LIVE_PROMOTERS)
   const [selected,     setSelected    ] = useState<LivePromoter | null>(null)
   const [filterStatus, setFilterStatus] = useState<CheckStatus | 'all'>('all')
+  const [filterCity,   setFilterCity  ] = useState<string>('all')
   const [mapReady,     setMapReady    ] = useState(false)
   const [mapError,     setMapError    ] = useState('')
   const [pulse,        setPulse       ] = useState(true)
   const [lastUpdated,  setLastUpdated ] = useState<Date>(new Date())
 
-  // ── Pulse animation ──────────────────────────────────────────────────────────
   useEffect(() => {
     const t = setInterval(() => setPulse(p => !p), 1500)
     return () => clearInterval(t)
   }, [])
 
-  // ── Load promoter data from API ───────────────────────────────────────────────
+  // ── Try to load real data; fall back to mock silently ─────────────────────
   const loadPromoters = useCallback(async () => {
     try {
       const token = localStorage.getItem('hg_token')
-      const [shiftsRes, usersRes] = await Promise.all([
+      if (!token) { setLastUpdated(new Date()); return }
+
+      const [shiftsRes, locRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/shifts/all`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -163,41 +189,34 @@ export default function ViewLiveMap() {
         }),
       ])
 
-      const shifts: any[] = shiftsRes.ok ? await shiftsRes.json() : []
-      const liveLocations: any[] = usersRes.ok ? await usersRes.json() : []
+      if (!shiftsRes.ok) { setLastUpdated(new Date()); return }
 
-      // Build a map of userId → live location
+      const shifts: any[]    = await shiftsRes.json()
+      const liveLocations: any[] = locRes.ok ? await locRes.json() : []
       const locMap = new Map(liveLocations.map((l: any) => [l.userId, l]))
 
-      // Today's date for late/absent logic
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0)
       const today = shifts.filter((s: any) => {
-        const jobDate = s.job?.date ? new Date(s.job.date) : null
-        return jobDate && jobDate >= todayStart
+        const d = s.job?.date ? new Date(s.job.date) : null
+        return d && d >= todayStart
       })
 
-      const result: LivePromoter[] = today.map((s: any) => {
-        const loc = locMap.get(s.promoterId)
-        const rawStatus = s.status?.toLowerCase() || ''
+      if (today.length === 0) { setLastUpdated(new Date()); return }
 
+      const result: LivePromoter[] = today.map((s: any) => {
+        const loc       = locMap.get(s.promoterId)
+        const rawStatus = s.status?.toLowerCase() || ''
         let checkStatus: CheckStatus = 'absent'
         if (rawStatus === 'checked_in' || rawStatus === 'checked-in') checkStatus = 'checked-in'
         else if (rawStatus === 'approved' || rawStatus === 'pending_approval') checkStatus = 'completed'
         else if (rawStatus === 'scheduled') {
-          // Check if they're late (job start time passed by > 15 min)
-          const jobDate = s.job?.date ? new Date(s.job.date) : null
-          const startTime = s.job?.startTime || '09:00'
+          const jobDate  = s.job?.date ? new Date(s.job.date) : null
+          const [h, m]   = (s.job?.startTime || '09:00').split(':').map(Number)
           if (jobDate) {
-            const [h, m] = startTime.split(':').map(Number)
-            const jobStart = new Date(jobDate)
-            jobStart.setHours(h, m, 0, 0)
-            const nowMs = Date.now()
-            checkStatus = nowMs - jobStart.getTime() > 15 * 60 * 1000 ? 'late' : 'absent'
+            const start  = new Date(jobDate); start.setHours(h, m, 0, 0)
+            checkStatus  = Date.now() - start.getTime() > 15 * 60 * 1000 ? 'late' : 'absent'
           }
         }
-
         return {
           id:     s.promoterId,
           name:   s.promoter?.fullName || 'Unknown Promoter',
@@ -215,25 +234,26 @@ export default function ViewLiveMap() {
 
       setPromoters(result)
       setLastUpdated(new Date())
-    } catch (e) {
-      console.warn('Live map: using offline data', e)
+    } catch {
+      // Stay on mock data silently
+      setLastUpdated(new Date())
     }
   }, [])
 
   useEffect(() => {
     loadPromoters()
-    const interval = setInterval(loadPromoters, 30_000) // refresh every 30s
+    const interval = setInterval(loadPromoters, 30_000)
     return () => clearInterval(interval)
   }, [loadPromoters])
 
-  // ── Init Google Map ───────────────────────────────────────────────────────────
+  // ── Init map ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return
     loadGoogleMaps()
       .then(() => {
         if (!mapRef.current || mapInstance.current) return
         mapInstance.current = new window.google.maps.Map(mapRef.current, {
-          center:            { lat: -29.0, lng: 25.0 }, // Centre of SA
+          center:            { lat: -28.7, lng: 25.5 },
           zoom:              6,
           styles:            MAP_STYLES,
           disableDefaultUI:  false,
@@ -245,59 +265,52 @@ export default function ViewLiveMap() {
         infoWindowRef.current = new window.google.maps.InfoWindow()
         setMapReady(true)
       })
-      .catch(() => setMapError('Google Maps unavailable. Set VITE_GOOGLE_MAPS_KEY in your .env'))
+      .catch(() => setMapError('Google Maps unavailable — check VITE_GOOGLE_MAPS_KEY in your .env'))
   }, [])
 
-  // ── Update markers whenever promoters or filter change ────────────────────────
+  // ── Draw / update markers ─────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady || !mapInstance.current) return
 
     const filtered = promoters.filter(p =>
-      filterStatus === 'all' || p.status === filterStatus
+      (filterStatus === 'all' || p.status === filterStatus) &&
+      (filterCity   === 'all' || p.city === filterCity)
     )
 
-    // Remove old markers not in filtered set
     const filteredIds = new Set(filtered.map(p => p.id))
     markersRef.current.forEach((marker, id) => {
       if (!filteredIds.has(id)) { marker.setMap(null); markersRef.current.delete(id) }
     })
 
-    // Add / update markers
     filtered.forEach(p => {
       const color = STATUS_COLOR[p.status]
-      const svgIcon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
-          <path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22S28 23.63 28 14C28 6.27 21.73 0 14 0z"
-            fill="${color}" stroke="#0C0A07" stroke-width="1.5"/>
-          <circle cx="14" cy="14" r="5" fill="#0C0A07" opacity="0.6"/>
-        </svg>
-      `
-      const icon = {
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgIcon),
+      const svg   = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22S28 23.63 28 14C28 6.27 21.73 0 14 0z" fill="${color}" stroke="#0C0A07" stroke-width="1.5"/><circle cx="14" cy="14" r="5" fill="#0C0A07" opacity="0.6"/></svg>`
+      const icon  = {
+        url:        'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
         scaledSize: new window.google.maps.Size(28, 36),
         anchor:     new window.google.maps.Point(14, 36),
       }
 
       if (markersRef.current.has(p.id)) {
-        const existing = markersRef.current.get(p.id)
-        existing.setPosition({ lat: p.lat, lng: p.lng })
-        existing.setIcon(icon)
+        markersRef.current.get(p.id).setPosition({ lat: p.lat, lng: p.lng })
+        markersRef.current.get(p.id).setIcon(icon)
       } else {
         const marker = new window.google.maps.Marker({
-          position: { lat: p.lat, lng: p.lng },
-          map:      mapInstance.current,
+          position:  { lat: p.lat, lng: p.lng },
+          map:       mapInstance.current,
           icon,
-          title:    p.name,
+          title:     p.name,
           animation: window.google.maps.Animation.DROP,
         })
         marker.addListener('click', () => {
           setSelected(p)
           infoWindowRef.current?.setContent(`
-            <div style="background:#151209;color:#FAF3E8;padding:10px 14px;font-family:'DM Sans',sans-serif;min-width:160px;border-radius:4px;">
+            <div style="background:#151209;color:#FAF3E8;padding:10px 14px;font-family:'DM Sans',sans-serif;min-width:170px;border-radius:4px;">
               <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${p.name}</div>
               <div style="font-size:11px;color:#D4880A;margin-bottom:2px;">${p.venue}</div>
               <div style="font-size:10px;color:rgba(250,243,232,0.55);">${p.job}</div>
               <div style="font-size:10px;margin-top:6px;color:${color};font-weight:600;">${STATUS_LABEL[p.status]}${p.time !== '—' ? ' · In at ' + p.time : ''}</div>
+              <div style="font-size:10px;color:rgba(250,243,232,0.35);margin-top:2px;">${p.city}</div>
             </div>
           `)
           infoWindowRef.current?.open(mapInstance.current, marker)
@@ -305,15 +318,21 @@ export default function ViewLiveMap() {
         markersRef.current.set(p.id, marker)
       }
     })
-  }, [promoters, filterStatus, mapReady])
+  }, [promoters, filterStatus, filterCity, mapReady])
 
-  const filtered = promoters.filter(p => filterStatus === 'all' || p.status === filterStatus)
+  const filtered = promoters.filter(p =>
+    (filterStatus === 'all' || p.status === filterStatus) &&
+    (filterCity   === 'all' || p.city === filterCity)
+  )
+
   const counts: Record<CheckStatus, number> = {
     'checked-in': promoters.filter(p => p.status === 'checked-in').length,
     'late':       promoters.filter(p => p.status === 'late').length,
     'absent':     promoters.filter(p => p.status === 'absent').length,
     'completed':  promoters.filter(p => p.status === 'completed').length,
   }
+
+  const cities = ['all', ...Array.from(new Set(promoters.map(p => p.city))).sort()]
 
   return (
     <AdminLayout>
@@ -324,7 +343,7 @@ export default function ViewLiveMap() {
           <div>
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Operations · Live</div>
             <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Live Operations Map</h1>
-            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Real-time attendance across all active shifts.</p>
+            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Real-time attendance across all active shifts — {promoters.length} promoters on shift today.</p>
           </div>
           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -337,7 +356,7 @@ export default function ViewLiveMap() {
           </div>
         </div>
 
-        {/* STATUS SUMMARY CARDS */}
+        {/* STAT CARDS */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:28 }}>
           {(Object.keys(counts) as CheckStatus[]).map(s => (
             <StatCard key={s} count={counts[s]} label={STATUS_LABEL[s]} status={s} active={filterStatus===s} onClick={()=>setFilterStatus(filterStatus===s?'all':s)} />
@@ -346,10 +365,10 @@ export default function ViewLiveMap() {
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:20 }}>
 
-          {/* MAP PANEL */}
+          {/* MAP */}
           <div style={{ background:D2, border:`1px solid ${BB}`, position:'relative', overflow:'hidden', minHeight:520, borderRadius:4 }}>
 
-            {/* Filter pills on top of map */}
+            {/* Filter pills */}
             <div style={{ position:'absolute', top:14, left:14, zIndex:10, display:'flex', gap:6, flexWrap:'wrap' }}>
               {(['all','checked-in','late','absent','completed'] as const).map(s => (
                 <button key={s} onClick={()=>setFilterStatus(s)}
@@ -359,23 +378,23 @@ export default function ViewLiveMap() {
               ))}
             </div>
 
-            {/* Google Map container */}
+            {/* City filter */}
+            <div style={{ position:'absolute', top:52, left:14, zIndex:10, display:'flex', gap:6, flexWrap:'wrap' }}>
+              {cities.map(c => (
+                <button key={c} onClick={()=>setFilterCity(c)}
+                  style={{ padding:'4px 10px', background:filterCity===c?hex2rgba(G2,0.45):'rgba(12,10,7,0.85)', border:`1px solid ${filterCity===c?G2:'rgba(212,136,10,0.18)'}`, color:filterCity===c?GL:W55, fontFamily:FD, fontSize:9, cursor:'pointer', letterSpacing:'0.06em', borderRadius:3 }}>
+                  {c === 'all' ? 'All Cities' : c}
+                </button>
+              ))}
+            </div>
+
             <div ref={mapRef} style={{ width:'100%', height:'100%', minHeight:520 }} />
 
-            {/* Error state */}
             {mapError && (
               <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:D2, gap:12 }}>
                 <div style={{ fontSize:28 }}>🗺️</div>
                 <div style={{ fontSize:13, color:W55, fontFamily:FD, textAlign:'center', maxWidth:300, lineHeight:1.6 }}>{mapError}</div>
-                <div style={{ fontSize:10, color:W28, fontFamily:FD }}>Add VITE_GOOGLE_MAPS_KEY to frontend/.env</div>
-              </div>
-            )}
-
-            {/* No promoters */}
-            {!mapError && mapReady && promoters.length === 0 && (
-              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none', gap:8 }}>
-                <div style={{ fontSize:22, color:W28, fontFamily:FD }}>No active shifts today</div>
-                <div style={{ fontSize:12, color:W28, fontFamily:FD }}>Promoters who check in will appear as pins on the map</div>
+                <div style={{ fontSize:10, color:W28, fontFamily:FD }}>Add VITE_GOOGLE_MAPS_KEY to your frontend .env and restart the dev server</div>
               </div>
             )}
 
@@ -403,8 +422,7 @@ export default function ViewLiveMap() {
                     setSelected(selected?.id===p.id ? null : p)
                     if (mapReady && mapInstance.current && p.lat && p.lng) {
                       mapInstance.current.panTo({ lat: p.lat, lng: p.lng })
-                      mapInstance.current.setZoom(13)
-                      markersRef.current.get(p.id)?.animateIdle?.()
+                      mapInstance.current.setZoom(14)
                       window.google?.maps?.event?.trigger(markersRef.current.get(p.id), 'click')
                     }
                   }}
@@ -416,6 +434,7 @@ export default function ViewLiveMap() {
                       <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{p.name}</div>
                       <div style={{ fontSize:11, color:W55, marginTop:2, fontFamily:FD }}>{p.venue}</div>
                       <div style={{ fontSize:10, color:W28, marginTop:2, fontFamily:FD }}>{p.job}</div>
+                      <div style={{ fontSize:9, color:W28, marginTop:2, fontFamily:FD, letterSpacing:'0.1em' }}>{p.city.toUpperCase()}</div>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0, marginLeft:8 }}>
                       <StatusBadge status={p.status} />
@@ -426,7 +445,7 @@ export default function ViewLiveMap() {
               ))}
               {filtered.length === 0 && (
                 <div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>
-                  {promoters.length === 0 ? 'No active shifts today.' : 'No promoters match this filter.'}
+                  No promoters match this filter.
                 </div>
               )}
             </div>

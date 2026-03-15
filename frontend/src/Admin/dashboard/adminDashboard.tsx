@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AdminLayout } from '../AdminLayout'
 import { AdminChatTab } from '../ChatSystem'
+import { getAllJobsWithAdminJobs, getActiveJobs } from '../../shared/jobs/JobsPage'
 
 // ─── Warm palette ─────────────────────────────────────────────────────────────
 const G   = '#D4880A'
@@ -24,6 +25,7 @@ const W   = '#FAF3E8'
 const W85 = 'rgba(250,243,232,0.85)'
 const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
+const WM  = 'rgba(250,243,232,0.75)'
 
 const C_ACTIVE   = '#C07818'
 const C_PENDING  = '#E8A820'
@@ -75,7 +77,7 @@ const CATEGORY_SPECS: Record<string, SpecField[]> = {
     { key: 'gender',     label: 'Gender Preference',           type: 'select',  options: ['Any Gender', 'Female', 'Male', 'Non-binary Inclusive'] },
     { key: 'lookReq',    label: 'Appearance Standard',         type: 'select',  options: ['Smart Casual', 'Formal', 'High Fashion', 'Brand Specific'] },
     { key: 'beautyExp',  label: 'Makeup/Beauty Experience',    type: 'select',  options: ['Not Required', 'Preferred', 'Required'] },
-    { key: 'portfolio',  label: 'Portfolio Required',           type: 'select',  options: ['No', 'Optional', 'Required'] },
+    { key: 'portfolio',  label: 'Portfolio Required',          type: 'select',  options: ['No', 'Optional', 'Required'] },
     { key: 'skinNote',   label: 'Skin Tone Spec (if any)',     type: 'text',    placeholder: 'Only if required by brief', hint: 'Must be legally justified' },
   ],
   'Financial Services': [
@@ -141,7 +143,7 @@ const CATEGORY_REGS: Record<string, string[]> = {
     'Promoters may NOT provide financial advice under any circumstances — FAIS Act compliance required.',
     'All scripted product information must be pre-approved by the client compliance team before the shift.',
     'Any promoter who provides financial advice does so at their own legal liability — not Honey Group.',
-    'Background checks may be required at the client\'s discretion and with promoter consent under POPIA.',
+    "Background checks may be required at the client's discretion and with promoter consent under POPIA.",
   ],
   'Healthcare / Pharma': [
     'Promoters may NOT provide medical advice — Medicines and Related Substances Act compliance mandatory.',
@@ -235,14 +237,14 @@ const MOCK_REGISTRATIONS = [
 ]
 
 const INITIAL_MOCK_CLIENTS = [
-  { id:'C001', name:'RedBull South Africa',  contact:'James Mokoena',  email:'rb@redbull.co.za',     phone:'+27 11 555 0001', industry:'FMCG / Beverages',      city:'Johannesburg', registeredDate:'2024-01-12', activeSince:'2024-01', jobsRun:14, totalHours:312, status:'active',   budget:'R 48,000',  website:'redbull.com/za',     regNumber:'2005/098765/07', description:'Energy drink brand activation & sampling campaigns across Gauteng.' },
-  { id:'C002', name:'Acme Corp',             contact:'Priya Nair',     email:'acme@corp.co.za',      phone:'+27 21 555 0002', industry:'Retail',                 city:'Cape Town',    registeredDate:'2023-06-03', activeSince:'2023-06', jobsRun:9,  totalHours:204, status:'active',   budget:'R 32,000',  website:'acmecorp.co.za',     regNumber:'2010/112233/07', description:'Multi-category retail promotions and in-store activations.' },
-  { id:'C003', name:'FreshBrands Ltd',       contact:'Jane Dlamini',   email:'fresh@brands.co.za',   phone:'+27 31 555 6666', industry:'FMCG / Food',           city:'Durban',       registeredDate:'2025-11-20', activeSince:'2025-11', jobsRun:3,  totalHours:48,  status:'new',      budget:'R 8,400',   website:'freshbrands.co.za',  regNumber:'2022/123456/07', description:'New FMCG client specialising in health and wellness product launches.' },
-  { id:'C004', name:'Castle Lager SA',       contact:'Sipho Mahlangu', email:'castle@sab.co.za',     phone:'+27 11 555 0004', industry:'FMCG / Beverages',      city:'Johannesburg', registeredDate:'2022-03-08', activeSince:'2022-03', jobsRun:28, totalHours:680, status:'active',   budget:'R 112,000', website:'castlelager.co.za',  regNumber:'1998/003344/07', description:'Beer brand activations, stadium events, and trade promotions nationwide.' },
-  { id:'C005', name:'PromoNation',           contact:'Bob Smith',      email:'promo@nation.co.za',   phone:'+27 11 999 0000', industry:'Events & Entertainment', city:'Johannesburg', registeredDate:'2024-08-15', activeSince:'2024-08', jobsRun:2,  totalHours:16,  status:'inactive', budget:'R 2,800',   website:'promonation.co.za',  regNumber:'2019/654321/07', description:'Event production company with limited recent activity.' },
-  { id:'C006', name:'Standard Bank Promos', contact:'Lerato Sithole', email:'promos@stdbank.co.za', phone:'+27 11 555 0006', industry:'Financial Services',     city:'Pretoria',     registeredDate:'2023-09-01', activeSince:'2023-09', jobsRun:7,  totalHours:168, status:'active',   budget:'R 29,400',  website:'standardbank.co.za', regNumber:'1969/017128/06', description:'Consumer banking product promotions and financial literacy activations.' },
-  { id:'C007', name:"Nando's Marketing",    contact:'Thandi Khumalo', email:'mktg@nandos.co.za',    phone:'+27 11 555 0007', industry:'Quick Service Restaurant', city:'Johannesburg', registeredDate:'2025-02-10', activeSince:'2025-02', jobsRun:5, totalHours:88,  status:'active',   budget:'R 15,600',  website:'nandos.co.za',       regNumber:'1990/004499/07', description:'Brand activation and loyalty campaign promoters for restaurant launches.' },
-  { id:'C008', name:'Vodacom Business',     contact:'Amahle Ndaba',   email:'biz@vodacom.co.za',    phone:'+27 11 555 0008', industry:'Telecoms',               city:'Midrand',      registeredDate:'2023-03-15', activeSince:'2023-03', jobsRun:11, totalHours:256, status:'active',   budget:'R 44,800',  website:'vodacom.co.za',       regNumber:'1993/003367/07', description:'Telco product launches, bundle promotions, and retail point-of-sale activations.' },
+  { id:'C001', name:'RedBull South Africa',  contact:'James Mokoena',  email:'rb@redbull.co.za',     phone:'+27 11 555 0001', industry:'FMCG / Beverages',        city:'Johannesburg', registeredDate:'2024-01-12', activeSince:'2024-01', jobsRun:14, totalHours:312, status:'active',   budget:'R 48,000',  website:'redbull.com/za',     regNumber:'2005/098765/07', description:'Energy drink brand activation & sampling campaigns across Gauteng.' },
+  { id:'C002', name:'Acme Corp',             contact:'Priya Nair',     email:'acme@corp.co.za',      phone:'+27 21 555 0002', industry:'Retail',                   city:'Cape Town',    registeredDate:'2023-06-03', activeSince:'2023-06', jobsRun:9,  totalHours:204, status:'active',   budget:'R 32,000',  website:'acmecorp.co.za',     regNumber:'2010/112233/07', description:'Multi-category retail promotions and in-store activations.' },
+  { id:'C003', name:'FreshBrands Ltd',       contact:'Jane Dlamini',   email:'fresh@brands.co.za',   phone:'+27 31 555 6666', industry:'FMCG / Food',             city:'Durban',       registeredDate:'2025-11-20', activeSince:'2025-11', jobsRun:3,  totalHours:48,  status:'new',      budget:'R 8,400',   website:'freshbrands.co.za',  regNumber:'2022/123456/07', description:'New FMCG client specialising in health and wellness product launches.' },
+  { id:'C004', name:'Castle Lager SA',       contact:'Sipho Mahlangu', email:'castle@sab.co.za',     phone:'+27 11 555 0004', industry:'FMCG / Beverages',        city:'Johannesburg', registeredDate:'2022-03-08', activeSince:'2022-03', jobsRun:28, totalHours:680, status:'active',   budget:'R 112,000', website:'castlelager.co.za',  regNumber:'1998/003344/07', description:'Beer brand activations, stadium events, and trade promotions nationwide.' },
+  { id:'C005', name:'PromoNation',           contact:'Bob Smith',      email:'promo@nation.co.za',   phone:'+27 11 999 0000', industry:'Events & Entertainment',   city:'Johannesburg', registeredDate:'2024-08-15', activeSince:'2024-08', jobsRun:2,  totalHours:16,  status:'inactive', budget:'R 2,800',   website:'promonation.co.za',  regNumber:'2019/654321/07', description:'Event production company with limited recent activity.' },
+  { id:'C006', name:'Standard Bank Promos',  contact:'Lerato Sithole', email:'promos@stdbank.co.za', phone:'+27 11 555 0006', industry:'Financial Services',       city:'Pretoria',     registeredDate:'2023-09-01', activeSince:'2023-09', jobsRun:7,  totalHours:168, status:'active',   budget:'R 29,400',  website:'standardbank.co.za', regNumber:'1969/017128/06', description:'Consumer banking product promotions and financial literacy activations.' },
+  { id:'C007', name:"Nando's Marketing",     contact:'Thandi Khumalo', email:'mktg@nandos.co.za',    phone:'+27 11 555 0007', industry:'Quick Service Restaurant', city:'Johannesburg', registeredDate:'2025-02-10', activeSince:'2025-02', jobsRun:5,  totalHours:88,  status:'active',   budget:'R 15,600',  website:'nandos.co.za',       regNumber:'1990/004499/07', description:'Brand activation and loyalty campaign promoters for restaurant launches.' },
+  { id:'C008', name:'Vodacom Business',      contact:'Amahle Ndaba',   email:'biz@vodacom.co.za',    phone:'+27 11 555 0008', industry:'Telecoms',                 city:'Midrand',      registeredDate:'2023-03-15', activeSince:'2023-03', jobsRun:11, totalHours:256, status:'active',   budget:'R 44,800',  website:'vodacom.co.za',       regNumber:'1993/003367/07', description:'Telco product launches, bundle promotions, and retail point-of-sale activations.' },
 ]
 
 const INIT_MESSAGES = [
@@ -266,7 +268,11 @@ const TYPE_CLR: Record<string,string> = { checkin:GL, apply:G3, job:G4, doc:G2, 
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 function Badge({ label, color, bg, border }: { label:string; color:string; bg?:string; border?:string }) {
-  return <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color, background:bg??statusBg(label), border:`1px solid ${border??statusBorder(label)}`, padding:'3px 10px', borderRadius:3 }}>{label}</span>
+  return (
+    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color, background:bg??statusBg(label), border:`1px solid ${border??statusBorder(label)}`, padding:'3px 10px', borderRadius:3 }}>
+      {label}
+    </span>
+  )
 }
 
 function Btn({ children, onClick, outline=false, small=false, color=G, disabled=false }: any) {
@@ -299,9 +305,11 @@ function FilterBtn({ label, active, color, onClick }: { label:string; active:boo
   )
 }
 
-function StatCard({ label, value, sub, color }: { label:string; value:any; sub?:string; color:string }) {
+function StatCard({ label, value, sub, color, onClick }: { label:string; value:any; sub?:string; color:string; onClick?:()=>void }) {
   return (
-    <div style={{ background:'rgba(20,16,5,0.6)', padding:'24px 22px', position:'relative', overflow:'hidden', borderRadius:2, backdropFilter:'blur(4px)' }}>
+    <div onClick={onClick} style={{ background:'rgba(20,16,5,0.6)', padding:'24px 22px', position:'relative', overflow:'hidden', borderRadius:2, backdropFilter:'blur(4px)', cursor:onClick?'pointer':'default', transition:'background 0.2s' }}
+      onMouseEnter={e=>{ if(onClick) e.currentTarget.style.background='rgba(30,22,8,0.8)' }}
+      onMouseLeave={e=>{ if(onClick) e.currentTarget.style.background='rgba(20,16,5,0.6)' }}>
       <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${color},${hex2rgba(color,0.4)})` }} />
       <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:W55, marginBottom:10, fontFamily:FD }}>{label}</div>
       <div style={{ fontFamily:FD, fontSize:38, fontWeight:700, color:W, lineHeight:1 }}>{value}</div>
@@ -318,12 +326,12 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
   const [agreed, setAgreed] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const cat       = form.category === 'Other' ? (form.customCategory || 'Other') : form.category
+  const cat        = form.category === 'Other' ? (form.customCategory || 'Other') : form.category
   const specFields = CATEGORY_SPECS[cat] || DEFAULT_SPECS
   const regs       = CATEGORY_REGS[cat]  || CATEGORY_REGS['default']
 
-  const F  = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
-  const S  = (k: string, v: string) => setSpecs(p => ({ ...p, [k]: v }))
+  const F = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
+  const S = (k: string, v: string) => setSpecs(p => ({ ...p, [k]: v }))
 
   const canProceedInfo = form.name && form.contact && form.email && form.phone && form.category
 
@@ -348,7 +356,6 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
 
   const inp: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'11px 16px', color:W, fontFamily:FD, fontSize:13, outline:'none', borderRadius:3 }
   const lbl: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
-
   const steps = [['info','01 · Business Info'],['specs','02 · Category Specs'],['regs','03 · Regulations']]
 
   return (
@@ -357,13 +364,9 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
       <div style={{ background:D2, border:`1px solid ${BB}`, width:'100%', maxWidth:620, maxHeight:'92vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G5},${GL},${G})` }} />
         <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-
-        {/* Header */}
         <div style={{ padding:'32px 36px 20px' }}>
           <div style={{ fontSize:9, letterSpacing:'0.32em', textTransform:'uppercase', color:GL, marginBottom:6, fontWeight:700, fontFamily:FD }}>Client Onboarding</div>
           <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:20 }}>Add New Client</h2>
-
-          {/* Step tabs */}
           <div style={{ display:'flex', gap:0, border:`1px solid ${BB}`, borderRadius:3, overflow:'hidden' }}>
             {steps.map(([id,label],i) => (
               <button key={id} onClick={() => step !== 'info' || id === 'info' ? setStep(id as any) : null}
@@ -376,19 +379,18 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
 
         <div style={{ padding:'0 36px 36px', display:'flex', flexDirection:'column', gap:16 }}>
 
-          {/* ── STEP 1: Business Info ── */}
           {step === 'info' && (
             <>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 {[
-                  {k:'name',      l:'Company Name *',           ph:'Acme Promotions (Pty) Ltd'},
-                  {k:'contact',   l:'Contact Person *',         ph:'Jane Smith'},
-                  {k:'email',     l:'Business Email *',         ph:'jane@acme.co.za'},
-                  {k:'phone',     l:'Business Phone *',         ph:'+27 11 000 0000'},
-                  {k:'city',      l:'City',                     ph:'Johannesburg'},
-                  {k:'website',   l:'Website',                  ph:'acme.co.za'},
-                  {k:'regNumber', l:'CIPC Reg Number',          ph:'2024/000000/07'},
-                  {k:'vatNumber', l:'VAT Number (optional)',    ph:'4410000000'},
+                  {k:'name',      l:'Company Name *',        ph:'Acme Promotions (Pty) Ltd'},
+                  {k:'contact',   l:'Contact Person *',      ph:'Jane Smith'},
+                  {k:'email',     l:'Business Email *',      ph:'jane@acme.co.za'},
+                  {k:'phone',     l:'Business Phone *',      ph:'+27 11 000 0000'},
+                  {k:'city',      l:'City',                  ph:'Johannesburg'},
+                  {k:'website',   l:'Website',               ph:'acme.co.za'},
+                  {k:'regNumber', l:'CIPC Reg Number',       ph:'2024/000000/07'},
+                  {k:'vatNumber', l:'VAT Number (optional)', ph:'4410000000'},
                 ].map(({k,l,ph}) => (
                   <div key={k}>
                     <label style={lbl}>{l}</label>
@@ -397,7 +399,6 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
                   </div>
                 ))}
               </div>
-
               <div>
                 <label style={lbl}>Industry Category *</label>
                 <select value={form.category} onChange={e => { F('category', e.target.value); setSpecs({}) }}
@@ -406,7 +407,6 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
                   {CLIENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-
               {form.category === 'Other' && (
                 <div>
                   <label style={lbl}>Specify Category</label>
@@ -415,7 +415,6 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
                     style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                 </div>
               )}
-
               <div>
                 <label style={lbl}>Brief Company Description</label>
                 <textarea value={form.description} onChange={e => F('description', e.target.value)} rows={3}
@@ -423,45 +422,33 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
                   style={{ ...inp, resize:'vertical' as const }}
                   onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
               </div>
-
               <Btn onClick={() => setStep('specs')} color={GL} disabled={!canProceedInfo}>
                 {canProceedInfo ? 'Continue to Promoter Specs →' : 'Fill required fields to continue'}
               </Btn>
             </>
           )}
 
-          {/* ── STEP 2: Category Specs ── */}
           {step === 'specs' && (
             <>
               <div style={{ padding:'12px 16px', background:hex2rgba(GL,0.06), border:`1px solid ${hex2rgba(GL,0.28)}`, borderRadius:3 }}>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:GL, marginBottom:4, fontFamily:FD }}>
-                  {cat} — Promoter Requirements
-                </div>
-                <p style={{ fontSize:12, color:W55, fontFamily:FD, lineHeight:1.6 }}>
-                  These specs will be used for smart promoter matching and displayed on all job listings for this client.
-                </p>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:GL, marginBottom:4, fontFamily:FD }}>{cat} — Promoter Requirements</div>
+                <p style={{ fontSize:12, color:W55, fontFamily:FD, lineHeight:1.6 }}>These specs will be used for smart promoter matching.</p>
               </div>
-
               {specFields.map((f) => (
                 <div key={f.key}>
-                  <label style={lbl}>
-                    {f.label}
-                    {f.hint && <span style={{ color:W28, fontWeight:400, marginLeft:6, fontSize:9 }}>— {f.hint}</span>}
-                  </label>
+                  <label style={lbl}>{f.label}{f.hint && <span style={{ color:W28, fontWeight:400, marginLeft:6, fontSize:9 }}>— {f.hint}</span>}</label>
                   {f.type === 'select' ? (
-                    <select value={specs[f.key] || ''} onChange={e => S(f.key, e.target.value)}
-                      style={{ ...inp, background:D3, cursor:'pointer' }}>
+                    <select value={specs[f.key] || ''} onChange={e => S(f.key, e.target.value)} style={{ ...inp, background:D3, cursor:'pointer' }}>
                       <option value="">Select...</option>
                       {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : (
                     <input type={f.type === 'number' ? 'number' : 'text'} value={specs[f.key] || ''} onChange={e => S(f.key, e.target.value)}
-                      placeholder={f.placeholder || ''}
-                      style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                      placeholder={f.placeholder || ''} style={inp}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                   )}
                 </div>
               ))}
-
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={()=>setStep('info')} style={{ flex:1, padding:'11px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:11, cursor:'pointer', borderRadius:3 }}>← Back</button>
                 <Btn onClick={()=>setStep('regs')} color={GL}>Continue to Regulations →</Btn>
@@ -469,13 +456,10 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
             </>
           )}
 
-          {/* ── STEP 3: Regulations ── */}
           {step === 'regs' && (
             <>
               <div style={{ padding:'16px 20px', background:hex2rgba(G2,0.12), border:`1px solid ${hex2rgba(G2,0.4)}`, borderRadius:3 }}>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:GL, marginBottom:14, fontFamily:FD }}>
-                  Platform Regulations & Compliance — {cat}
-                </div>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:GL, marginBottom:14, fontFamily:FD }}>Platform Regulations & Compliance — {cat}</div>
                 {regs.map((r, i) => (
                   <div key={i} style={{ display:'flex', gap:10, marginBottom:12 }}>
                     <div style={{ width:5, height:5, borderRadius:'50%', background:GL, marginTop:5, flexShrink:0 }} />
@@ -483,21 +467,13 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
                   </div>
                 ))}
               </div>
-
               <div style={{ padding:'14px 18px', background:hex2rgba(GL,0.05), border:`1px solid ${hex2rgba(GL,0.22)}`, borderRadius:3 }}>
-                <p style={{ fontSize:12, color:W55, lineHeight:1.75, fontFamily:FD }}>
-                  By registering this client, Honey Group confirms that all promoter engagements for this account will comply with the Labour Relations Act, Basic Conditions of Employment Act, POPIA, and all category-specific legislation listed above.
-                </p>
+                <p style={{ fontSize:12, color:W55, lineHeight:1.75, fontFamily:FD }}>By registering this client, Honey Group confirms all promoter engagements will comply with applicable legislation.</p>
               </div>
-
               <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', padding:'14px 16px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>
-                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
-                  style={{ marginTop:2, accentColor:GL, width:16, height:16, flexShrink:0 }} />
-                <span style={{ fontSize:12, color:WM, lineHeight:1.6, fontFamily:FD }}>
-                  I confirm that this client account complies with all regulations above, that the business details provided are accurate, and that I have authority to onboard this client onto the Honey Group platform.
-                </span>
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop:2, accentColor:GL, width:16, height:16, flexShrink:0 }} />
+                <span style={{ fontSize:12, color:WM, lineHeight:1.6, fontFamily:FD }}>I confirm that this client account complies with all regulations above and that the business details provided are accurate.</span>
               </label>
-
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={()=>setStep('specs')} style={{ flex:1, padding:'11px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:11, cursor:'pointer', borderRadius:3 }}>← Back</button>
                 <button onClick={handleSave} disabled={!agreed||saving}
@@ -605,7 +581,6 @@ function ClientModal({ client, onClose }: { client:any; onClose:()=>void }) {
             <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{r.value}</span>
           </div>
         ))}
-        {/* Category Specs */}
         {client.categorySpecs && Object.keys(client.categorySpecs).length > 0 && (
           <>
             <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:20, marginBottom:12, fontWeight:700, fontFamily:FD }}>Promoter Specs</div>
@@ -631,17 +606,29 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
   const h = time.getHours()
   const greeting = h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night'
   const unread = msgs.filter(m=>!m.read).length
+
+  // Live jobs count from the merged jobs source
+  const activeJobs = getActiveJobs(getAllJobsWithAdminJobs())
+
   const stats = [
-    { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3, sub:'registered' },
-    { label:'Pending Approvals', value:regs.filter(r=>isPending(r.status)).length,                        color:GL, sub:'need review' },
-    { label:'Unread Messages',   value:unread,                                                             color:G2, sub:'complaints & reviews' },
-    { label:'Active Clients',    value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length,        color:G4, sub:'business clients' },
+    { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3,  sub:'registered',          id:'registrations' },
+    { label:'Active Jobs',       value:activeJobs.length,                                                 color:GL,  sub:'live on jobs board',   id:'jobs'          },
+    { label:'Pending Approvals', value:regs.filter(r=>isPending(r.status)).length,                        color:G3,  sub:'need review',          id:'registrations' },
+    { label:'Unread Messages',   value:unread,                                                             color:G2,  sub:'complaints & reviews', id:'messages'      },
+    { label:'Active Clients',    value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length,        color:G4,  sub:'business clients',     id:'clients'       },
   ]
+
   const quickActions = [
-    {label:'Registrations',icon:'▣',id:'registrations',color:GL},{label:'Messages',icon:'◆',id:'messages',color:G3},
-    {label:'Live Map',     icon:'⊙',id:'map',          color:G2},{label:'Clients', icon:'◉',id:'clients', color:GL},
-    {label:'Jobs',         icon:'◎',id:'jobs',          color:G4},{label:'Reports', icon:'▤',id:'reports', color:G3},
+    {label:'Registrations', icon:'▣', id:'registrations', color:GL},
+    {label:'Messages',      icon:'◆', id:'messages',      color:G3},
+    {label:'Live Map',      icon:'⊙', id:'map',           color:G2},
+    {label:'Clients',       icon:'◉', id:'clients',       color:GL},
+    {label:'Jobs',          icon:'◎', id:'jobs',          color:G4},
+    {label:'Reviews',       icon:'★', id:'reviews',       color:GL},
+    {label:'Reports',       icon:'▤', id:'reports',       color:G3},
+    {label:'Settings',      icon:'⚙', id:'settings',      color:G2},
   ]
+
   return (
     <div style={{ padding:'40px 48px' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:36 }}>
@@ -655,10 +642,16 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
           <div style={{ fontSize:11, color:W55, marginTop:4, fontFamily:FD }}>{time.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'})}</div>
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
-        {stats.map((s,i)=><StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
+
+      {/* Stats — 5 cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:32 }}>
+        {stats.map((s,i) => (
+          <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} onClick={()=>onRoute(s.id)} />
+        ))}
       </div>
+
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
+        {/* Quick Actions */}
         <div style={{ background:'rgba(20,16,5,0.6)', padding:28 }}>
           <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:18, fontWeight:700, fontFamily:FD }}>Quick Actions</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
@@ -673,6 +666,8 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
             ))}
           </div>
         </div>
+
+        {/* Live Activity */}
         <div style={{ background:'rgba(20,16,5,0.6)', padding:28 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
             <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>Live Activity</div>
@@ -789,10 +784,9 @@ function ClientsTab() {
   const [viewing,  setViewing ] = useState<any>(null)
   const [sortBy,   setSortBy  ] = useState<'name'|'jobsRun'|'totalHours'|'registeredDate'>('registeredDate')
   const [clients,  setClients ] = useState<any[]>(INITIAL_MOCK_CLIENTS)
-  const [addOpen,  setAddOpen ] = useState(false)   // ← ADD CLIENT STATE
+  const [addOpen,  setAddOpen ] = useState(false)
 
   const cities = ['all',...Array.from(new Set(clients.map(c=>c.city))).sort()]
-
   const filtered = clients.filter(c=>{
     const sm = statusF==='all'||c.status===statusF
     const cm = cityF==='all'||c.city===cityF
@@ -809,7 +803,6 @@ function ClientsTab() {
   const totalHours  = clients.reduce((a,c)=>a+c.totalHours,0)
   const activeCount = clients.filter(c=>c.status==='active').length
   const newCount    = clients.filter(c=>c.status==='new').length
-
   const avatarAccents = [GL,G3,G4,G2,C_NEW,G3,GL,G2]
   const COLS = '28fr 20fr 18fr 12fr 8fr 12fr 8fr'
 
@@ -821,19 +814,16 @@ function ClientsTab() {
           <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Client Accounts</h1>
           <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>Businesses registered on the platform who book promoters.</p>
         </div>
-        {/* ← WORKING ADD CLIENT BUTTON */}
         <Btn onClick={()=>setAddOpen(true)}>+ Add Client</Btn>
       </div>
-
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
         {[
           {label:'Active Clients',   value:activeCount,       color:GL,    sub:`of ${clients.length} total`},
           {label:'New This Quarter', value:newCount,           color:C_NEW, sub:'recently joined'},
-          {label:'Total Campaigns',  value:totalJobs,          color:G3,   sub:'across all clients'},
-          {label:'Total Hours',      value:`${totalHours}h`,  color:G2,   sub:'promoter hours booked'},
+          {label:'Total Campaigns',  value:totalJobs,          color:G3,    sub:'across all clients'},
+          {label:'Total Hours',      value:`${totalHours}h`,  color:G2,    sub:'promoter hours booked'},
         ].map((s,i)=><StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
       </div>
-
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, gap:12, flexWrap:'wrap' }}>
         <div style={{ display:'flex', gap:4 }}>
           {(['all','active','new','inactive'] as const).map(f=><FilterBtn key={f} label={f} active={statusF===f} color={f==='all'?GL:statusColor(f)} onClick={()=>setStatusF(f)} />)}
@@ -856,7 +846,6 @@ function ClientsTab() {
           </div>
         </div>
       </div>
-
       <div style={{ borderRadius:4, overflow:'hidden', border:`1px solid ${BB}` }}>
         <div style={{ display:'grid', gridTemplateColumns:COLS, background:D1, padding:'11px 24px', gap:0 }}>
           {['Business','Contact','Industry / City','Registered','Jobs','Status',''].map(h=>(
@@ -906,9 +895,7 @@ function ClientsTab() {
       <div style={{ marginTop:12, fontSize:11, color:W28, fontFamily:FD }}>
         Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{clients.length}</strong> clients
       </div>
-
       {viewing  && <ClientModal client={viewing} onClose={()=>setViewing(null)} />}
-      {/* ← WORKING ADD CLIENT MODAL */}
       {addOpen  && <AddClientModal onClose={()=>setAddOpen(false)} onSave={c=>setClients(prev=>[c,...prev])} />}
     </div>
   )
@@ -1046,6 +1033,7 @@ function ReportsTab({ regs }: { regs:any[] }) {
   const [numPromos,  setNumPromos ] = useState('6')
   const doExport = (t:string)=>{ setExportMsg(`${t} export initiated.`); setTimeout(()=>setExportMsg(''),3000) }
   const calcTotal = parseFloat(hourlyRate||'0')*parseFloat(hours||'0')*parseFloat(numPromos||'0')
+  const activeJobs = getActiveJobs(getAllJobsWithAdminJobs())
   const cards = [
     {icon:'✦',color:G3,title:'Campaign Reports',   desc:'Automated PDF reports on campaign attendance for client delivery.',           btns:[['PDF','Campaign PDF'],['CSV','Campaign CSV']]},
     {icon:'▤',color:G2,title:'Promoter Roster',    desc:'Export of all active promoters with contact details and performance scores.', btns:[['CSV','Roster CSV'],['Excel','Roster Excel']]},
@@ -1053,12 +1041,13 @@ function ReportsTab({ regs }: { regs:any[] }) {
     {icon:'◉',color:G4,title:'Promoter Payout',    desc:'Calculated payout amounts per promoter per campaign — for promoters only.',   btns:[['CSV','Payout CSV'],['Excel','Payout Excel']]},
   ]
   const summary = [
-    {label:'Registered Promoters',       value:regs.filter(r=>r.role==='promoter').length},
-    {label:'Active Promoters',           value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length},
-    {label:'Active Clients',             value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length},
-    {label:'Pending Approvals',          value:regs.filter(r=>isPending(r.status)).length},
-    {label:'Shifts This Month',          value:42},
-    {label:'Est. Promoter Payout (Month)', value:'R 84,200'},
+    {label:'Registered Promoters',          value:regs.filter(r=>r.role==='promoter').length},
+    {label:'Active Promoters',              value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length},
+    {label:'Active Clients',                value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length},
+    {label:'Active Jobs on Board',          value:activeJobs.length},
+    {label:'Pending Approvals',             value:regs.filter(r=>isPending(r.status)).length},
+    {label:'Shifts This Month',             value:42},
+    {label:'Est. Promoter Payout (Month)',  value:'R 84,200'},
   ]
   const inputStyle:React.CSSProperties={ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'10px 14px', color:W, fontFamily:FD, fontSize:13, outline:'none', borderRadius:3 }
   return (
@@ -1225,7 +1214,14 @@ export default function AdminDashboard() {
   },[])
 
   const handleRoute = (id:string)=>{
-    const external:Record<string,string> = {users:'/admin/users',jobs:'/admin/jobs',map:'/admin/map',payments:'/admin/payments',onboarding:'/admin/onboarding'}
+    const external:Record<string,string> = {
+      users:     '/admin/users',
+      jobs:      '/admin/jobs',
+      map:       '/admin/map',
+      payments:  '/admin/payments',
+      onboarding:'/admin/onboarding',
+      reviews:   '/admin/reviews',
+    }
     if(external[id]){ navigate(external[id]); return }
     navigate('/admin?tab='+id)
   }

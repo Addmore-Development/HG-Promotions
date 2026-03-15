@@ -2,7 +2,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
-// ─── Warm-only palette ────────────────────────────────────────────────────────
 const G   = '#D4880A'
 const GL  = '#E8A820'
 const G2  = '#8B5A1A'
@@ -16,30 +15,30 @@ const W  = '#FAF3E8'
 const WM = 'rgba(250,243,232,0.65)'
 const WD = 'rgba(250,243,232,0.28)'
 
-// Playfair Display everywhere — matches logo font
 const FD = "'Playfair Display', Georgia, serif"
 
 const NAV_GROUPS = [
   { label: 'Overview', items: [
-    { label: 'Dashboard',     icon: '◈', path: '/admin',            tab: 'dashboard',     external: false },
+    { label: 'Dashboard',          icon: '◈', path: '/admin',             tab: 'dashboard',     external: false },
   ]},
   { label: 'People', items: [
-    { label: 'Users',         icon: '⬡', path: '/admin/users',      tab: 'users',         external: true  },
-    { label: 'Clients',       icon: '◉', path: '/admin',            tab: 'clients',       external: false },
-    { label: 'Registrations', icon: '▣', path: '/admin',            tab: 'registrations', external: false },
-    { label: 'Onboarding',    icon: '✧', path: '/admin/onboarding', tab: 'onboarding',    external: true  },
+    { label: 'Users',              icon: '⬡', path: '/admin/users',       tab: 'users',         external: true  },
+    { label: 'Clients',            icon: '◉', path: '/admin',             tab: 'clients',       external: false },
+    { label: 'Registrations',      icon: '▣', path: '/admin',             tab: 'registrations', external: false },
+    { label: 'Onboarding',         icon: '✧', path: '/admin/onboarding',  tab: 'onboarding',    external: true  },
   ]},
   { label: 'Operations', items: [
-    { label: 'Jobs',          icon: '◎', path: '/admin/jobs',       tab: 'jobs',          external: true  },
-    { label: 'Live Map',      icon: '⊙', path: '/admin/map',        tab: 'map',           external: true  },
+    { label: 'Jobs',               icon: '◎', path: '/admin/jobs',        tab: 'jobs',          external: true  },
+    { label: 'Live Map',           icon: '⊙', path: '/admin/map',         tab: 'map',           external: true  },
   ]},
   { label: 'Comms', items: [
-    { label: 'Messages',      icon: '◆', path: '/admin',            tab: 'messages',      external: false },
-    { label: 'Login Activity',icon: '◉', path: '/admin',            tab: 'logins',        external: false },
+    { label: 'Messages',           icon: '◆', path: '/admin',             tab: 'messages',      external: false },
+    { label: 'Reviews & Complaints', icon: '★', path: '/admin/reviews',   tab: 'reviews',       external: true  },
+    { label: 'Login Activity',     icon: '◉', path: '/admin',             tab: 'logins',        external: false },
   ]},
   { label: 'System', items: [
-    { label: 'Reports',       icon: '▤', path: '/admin',            tab: 'reports',       external: false },
-    { label: 'Settings',      icon: '⚙', path: '/admin',            tab: 'settings',      external: false },
+    { label: 'Reports',            icon: '▤', path: '/admin',             tab: 'reports',       external: false },
+    { label: 'Settings',           icon: '⚙', path: '/admin',             tab: 'settings',      external: false },
   ]},
 ]
 
@@ -83,7 +82,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   const isActive = (item: NavItem) => {
     if (item.external) {
-      if (item.path === '/admin/users') return location.pathname === '/admin/users'
+      if (item.path === '/admin/users')   return location.pathname === '/admin/users'
+      if (item.path === '/admin/reviews') return location.pathname === '/admin/reviews'
       return location.pathname === item.path || location.pathname.startsWith(item.path + '/')
     }
     if (location.pathname !== '/admin') return false
