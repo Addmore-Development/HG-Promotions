@@ -398,12 +398,12 @@ export default function ViewLiveMap() {
               </div>
             )}
 
-            {/* Legend */}
-            <div style={{ position:'absolute', bottom:14, right:14, background:'rgba(10,8,4,0.92)', border:`1px solid ${BB}`, padding:'12px 16px', display:'flex', flexDirection:'column', gap:7, borderRadius:3, zIndex:5 }}>
+            {/* Legend — bottom-left to avoid Google Maps controls on the right */}
+            <div style={{ position:'absolute', bottom:32, left:14, background:'rgba(10,8,4,0.92)', border:`1px solid ${BB}`, padding:'10px 14px', display:'flex', flexDirection:'row', gap:14, borderRadius:3, zIndex:5 }}>
               {(Object.keys(STATUS_COLOR) as CheckStatus[]).map(s => (
-                <div key={s} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div key={s} style={{ display:'flex', alignItems:'center', gap:6 }}>
                   <div style={{ width:8, height:8, borderRadius:'50%', background:STATUS_COLOR[s], flexShrink:0 }} />
-                  <span style={{ fontSize:10, color:W55, letterSpacing:'0.05em', fontFamily:FD }}>{STATUS_LABEL[s]}</span>
+                  <span style={{ fontSize:10, color:W55, letterSpacing:'0.05em', fontFamily:FD, whiteSpace:'nowrap' }}>{STATUS_LABEL[s]}</span>
                 </div>
               ))}
             </div>
