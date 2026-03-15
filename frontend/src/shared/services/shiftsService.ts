@@ -1,52 +1,64 @@
-// shared/services/shiftsService.ts
-// Persists shifts in localStorage (hg_shifts).
+// src/shared/services/shiftsService.ts
+// API shim — exact same signatures as original localStorage version.
+// Returns Shift objects with the nested `attendance` shape the promoter
+// dashboard uses: s.attendance.checkInTime, s.attendance.issues, etc.
 
-import type { Shift } from '../types/shift.types';
-import { MOCK_SHIFTS } from './mockData';
+import { apiFetch, apiUpload } from './api'
+import type { Shift } from '../types/shift.types'
 
-const STORAGE_KEY = 'hg_shifts';
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-function initializeShifts(): void {
-  try {
-    const existing = localStorage.getItem(STORAGE_KEY);
-    if (!existing) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_SHIFTS));
-    }
-  } catch (e) {
-    console.warn('Failed to initialize shifts', e);
+// ── Shape adapter: API flat response → original nested Shift shape ────────────
+function apiToShift(s: any): Shift {
+  const issues = Array.isArray(s.issues) ? s.issues : []
+
+  return {
+    id:          s.id,
+    jobId:       s.jobId,
+    promoterId:  s.promoterId,
+    status:      (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
+
+    // Nested attendance object — this is what promoter components access
+    attendance: {
+      shiftId:    s.id,
+      promoterId: s.promoterId,
+      jobId:      s.jobId,
+      status:     (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
+      checkInTime:     s.checkInTime     || undefined,
+      checkOutTime:    s.checkOutTime    || undefined,
+      checkInSelfie:   s.checkInSelfieUrl  || undefined,
+      checkOutSelfie:  s.checkOutSelfieUrl || undefined,
+      totalHours:      s.totalHours || undefined,
+      supervisorRating: s.supervisorRating || undefined,
+      issues: issues.map((iss: any) => ({
+        id:       iss.id || String(Date.now()),
+        type:     iss.type || 'other',
+        note:     iss.note || '',
+        loggedBy: iss.reportedBy || iss.loggedBy || '',
+        loggedAt: iss.reportedAt || iss.loggedAt || new Date().toISOString(),
+      })),
+    },
+
+    // Also expose flat fields for any component that uses them directly
+    checkInTime:    s.checkInTime     || undefined,
+    checkOutTime:   s.checkOutTime    || undefined,
+    totalHours:     s.totalHours      || undefined,
+    supervisorRating: s.supervisorRating || undefined,
   }
 }
-initializeShifts();
-
-function getShifts(): Shift[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveShifts(shifts: Shift[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(shifts));
-  } catch (e) {
-    console.warn('Failed to save shifts', e);
-  }
-}
-
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export const shiftsService = {
-  async getShiftsByPromoter(promoterId: string): Promise<Shift[]> {
-    await delay(300);
-    const all = getShifts();
-    return all.filter(s => s.promoterId === promoterId);
+
+  async getShiftsByPromoter(_promoterId: string): Promise<Shift[]> {
+    await delay(300)
+    const shifts = await apiFetch<any[]>('/shifts/my')
+    return shifts.map(apiToShift)
   },
 
   async getAllShifts(): Promise<Shift[]> {
-    await delay(300);
-    return getShifts();
+    await delay(300)
+    const shifts = await apiFetch<any[]>('/shifts/all')
+    return shifts.map(apiToShift)
   },
 
   async checkIn(
@@ -54,18 +66,28 @@ export const shiftsService = {
     selfieUrl: string,
     location: { lat: number; lng: number },
   ): Promise<Shift> {
-    await delay(600);
-    const shifts = getShifts();
-    const shift = shifts.find(s => s.id === shiftId);
-    if (!shift) throw new Error('Shift not found');
-    const now = new Date().toISOString();
-    shift.attendance.checkInTime = now;
-    shift.attendance.checkInSelfie = selfieUrl;
-    shift.attendance.checkInLocation = { ...location, accuracy: 10, timestamp: now };
-    shift.attendance.status = 'checked_in';
-    shift.status = 'checked_in';
-    saveShifts(shifts);
-    return { ...shift };
+    await delay(600)
+
+    // Convert base64 data URL → File for multipart upload
+    let selfieFile: File | undefined
+    if (selfieUrl && selfieUrl.startsWith('data:')) {
+      try {
+        const [header, data] = selfieUrl.split(',')
+        const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg'
+        const bytes = atob(data)
+        const arr = new Uint8Array(bytes.length)
+        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+        selfieFile = new File([arr], 'checkin.jpg', { type: mime })
+      } catch { /* skip selfie if conversion fails */ }
+    }
+
+    const formData = new FormData()
+    if (location?.lat != null) formData.append('lat', String(location.lat))
+    if (location?.lng != null) formData.append('lng', String(location.lng))
+    if (selfieFile) formData.append('selfie', selfieFile)
+
+    const result = await apiUpload(`/shifts/${shiftId}/checkin`, formData)
+    return apiToShift(result)
   },
 
   async checkOut(
@@ -73,23 +95,30 @@ export const shiftsService = {
     selfieUrl: string,
     location: { lat: number; lng: number },
   ): Promise<Shift> {
-    await delay(600);
-    const shifts = getShifts();
-    const shift = shifts.find(s => s.id === shiftId);
-    if (!shift) throw new Error('Shift not found');
-    const now = new Date().toISOString();
-    shift.attendance.checkOutTime = now;
-    shift.attendance.checkOutSelfie = selfieUrl;
-    shift.attendance.checkOutLocation = { ...location, accuracy: 10, timestamp: now };
-    // Calculate total hours
-    if (shift.attendance.checkInTime) {
-      const checkIn = new Date(shift.attendance.checkInTime).getTime();
-      const checkOut = new Date(now).getTime();
-      shift.attendance.totalHours = (checkOut - checkIn) / (1000 * 60 * 60);
+    await delay(600)
+
+    let selfieFile: File | undefined
+    if (selfieUrl && selfieUrl.startsWith('data:')) {
+      try {
+        const [header, data] = selfieUrl.split(',')
+        const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg'
+        const bytes = atob(data)
+        const arr = new Uint8Array(bytes.length)
+        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+        selfieFile = new File([arr], 'checkout.jpg', { type: mime })
+      } catch { /* skip */ }
     }
-    shift.attendance.status = 'checked_out';
-    shift.status = 'checked_out';
-    saveShifts(shifts);
-    return { ...shift };
+
+    const formData = new FormData()
+    if (location?.lat != null) formData.append('lat', String(location.lat))
+    if (location?.lng != null) formData.append('lng', String(location.lng))
+    if (selfieFile) formData.append('selfie', selfieFile)
+
+    const result = await apiUpload(`/shifts/${shiftId}/checkout`, formData)
+    return apiToShift(result)
   },
-};
+
+  async getLiveLocations(): Promise<any[]> {
+    return apiFetch<any[]>('/shifts/live-locations')
+  },
+}

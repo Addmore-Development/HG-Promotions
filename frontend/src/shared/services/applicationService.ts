@@ -1,137 +1,76 @@
-// shared/services/applicationService.ts
-// Manages job applications with localStorage persistence.
-// Includes standby list logic and auto-allocation when slots open.
+// src/shared/services/applicationService.ts
+// API shim — exact same signatures as original localStorage version.
+// Components call applicationService.apply(job.id, user.id) etc. unchanged.
 
-import type { JobApplication } from '../types/job.types';
-import { jobsService } from './jobsService';
-import { showToast } from '../utils/toast';
+import { apiFetch } from './api'
+import type { JobApplication } from '../types/job.types'
 
-const STORAGE_KEY = 'hg_applications';
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-// Extend JobApplication to include optional notified flag
-interface ExtendedJobApplication extends JobApplication {
-  notified?: boolean;
-}
-
-function getApplications(): ExtendedJobApplication[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
+function apiToApp(a: any): JobApplication {
+  return {
+    id:          a.id,
+    jobId:       a.jobId,
+    promoterId:  a.promoterId,
+    status:      (a.status?.toLowerCase() || 'standby') as JobApplication['status'],
+    appliedAt:   a.appliedAt || new Date().toISOString(),
   }
-}
-
-function saveApplications(apps: ExtendedJobApplication[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
 }
 
 export const applicationService = {
-  async apply(jobId: string, promoterId: string): Promise<JobApplication> {
-    const apps = getApplications();
-    const existing = apps.find(a => a.jobId === jobId && a.promoterId === promoterId);
-    if (existing) return existing;
 
-    // Get current job to check available slots
-    const jobs = JSON.parse(localStorage.getItem('hg_jobs') || '[]');
-    const job = jobs.find((j: any) => j.id === jobId);
-    const allocated = job && job.filledSlots < job.totalSlots;
-
-    const newApp: ExtendedJobApplication = {
-      id: `app_${Date.now()}`,
-      jobId,
-      promoterId,
-      status: allocated ? 'allocated' : 'standby',
-      appliedAt: new Date().toISOString(),
-      notified: false,
-    };
-    apps.push(newApp);
-    saveApplications(apps);
-
-    // If allocated, update job filledSlots in the jobs store
-    if (allocated && job) {
-      job.filledSlots += 1;
-      if (job.filledSlots >= job.totalSlots) job.status = 'filled';
-      localStorage.setItem('hg_jobs', JSON.stringify(jobs));
-    }
-
-    return newApp;
+  async apply(jobId: string, _promoterId: string): Promise<JobApplication> {
+    await delay(400)
+    const app = await apiFetch<any>('/applications', {
+      method: 'POST',
+      body: JSON.stringify({ jobId }),
+    })
+    return apiToApp(app)
   },
 
-  async getApplications(promoterId: string): Promise<JobApplication[]> {
-    return getApplications().filter(a => a.promoterId === promoterId);
+  async getApplications(_promoterId: string): Promise<JobApplication[]> {
+    await delay(200)
+    const apps = await apiFetch<any[]>('/applications/my')
+    return apps.map(apiToApp)
   },
 
-  async updateApplicationStatus(id: string, status: JobApplication['status']) {
-    const apps = getApplications();
-    const idx = apps.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      apps[idx].status = status;
-      saveApplications(apps);
-    }
+  async updateApplicationStatus(id: string, status: JobApplication['status']): Promise<void> {
+    await delay(300)
+    await apiFetch(`/applications/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: status.toUpperCase() }),
+    })
   },
 
-  // Allocate the earliest standby applicant for a job
   async allocateFromStandby(jobId: string): Promise<JobApplication | null> {
-    const apps = getApplications();
-    const standbyApps = apps.filter(a => a.jobId === jobId && a.status === 'standby');
-    if (standbyApps.length === 0) return null;
-
-    // Sort by appliedAt (oldest first)
-    standbyApps.sort((a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime());
-    const toAllocate = standbyApps[0];
-
-    // Update job filledSlots in the jobs store
-    const jobs = JSON.parse(localStorage.getItem('hg_jobs') || '[]');
-    const jobIdx = jobs.findIndex((j: any) => j.id === jobId);
-    if (jobIdx !== -1) {
-      const job = jobs[jobIdx];
-      if (job.filledSlots < job.totalSlots) {
-        job.filledSlots += 1;
-        if (job.filledSlots >= job.totalSlots) job.status = 'filled';
-        localStorage.setItem('hg_jobs', JSON.stringify(jobs));
-      } else {
-        return null; // no slot actually open
-      }
-    } else {
-      return null;
+    await delay(300)
+    try {
+      const apps = await apiFetch<any[]>(`/applications/job/${jobId}`)
+      const standby = apps.find((a: any) => a.status?.toLowerCase() === 'standby')
+      if (!standby) return null
+      await apiFetch(`/applications/${standby.id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'ALLOCATED' }),
+      })
+      return apiToApp({ ...standby, status: 'ALLOCATED' })
+    } catch {
+      return null
     }
-
-    // Update application status
-    const appIdx = apps.findIndex(a => a.id === toAllocate.id);
-    apps[appIdx].status = 'allocated';
-    saveApplications(apps);
-    return { ...apps[appIdx] };
   },
 
-  // Check for open slots and notify/allocate
-  async checkForOpenSlots(promoterId: string): Promise<{ allocated: JobApplication[], notified: JobApplication[] }> {
-    const apps = getApplications();
-    const standbyApps = apps.filter(a => a.promoterId === promoterId && a.status === 'standby' && !a.notified);
-    const jobs = JSON.parse(localStorage.getItem('hg_jobs') || '[]');
-    
-    const allocated: JobApplication[] = [];
-    const notified: JobApplication[] = [];
-
-    for (const app of standbyApps) {
-      const job = jobs.find((j: any) => j.id === app.jobId);
-      if (job && job.filledSlots < job.totalSlots) {
-        // Try to allocate this user (but only one per slot)
-        const allocatedApp = await this.allocateFromStandby(app.jobId);
-        if (allocatedApp && allocatedApp.promoterId === promoterId) {
-          allocated.push(allocatedApp);
-          // Mark as notified so we don't notify again
-          const idx = apps.findIndex(a => a.id === app.id);
-          if (idx !== -1) apps[idx].notified = true;
-        } else {
-          // Not allocated (maybe someone else got it first), but still notify
-          notified.push(app);
-          const idx = apps.findIndex(a => a.id === app.id);
-          if (idx !== -1) apps[idx].notified = true;
-        }
-      }
+  // Returns same shape as original: { allocated: JobApplication[], notified: JobApplication[] }
+  async checkForOpenSlots(_promoterId: string): Promise<{ allocated: JobApplication[]; notified: JobApplication[] }> {
+    await delay(200)
+    // The API handles allocation automatically on apply.
+    // Just return the current state of the promoter's applications.
+    try {
+      const apps = await apiFetch<any[]>('/applications/my')
+      const allocated = apps
+        .filter((a: any) => a.status?.toLowerCase() === 'allocated')
+        .map(apiToApp)
+      return { allocated, notified: [] }
+    } catch {
+      return { allocated: [], notified: [] }
     }
-    
-    saveApplications(apps);
-    return { allocated, notified };
-  }
-};
+  },
+}

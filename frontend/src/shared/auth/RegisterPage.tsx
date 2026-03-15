@@ -407,35 +407,50 @@ export default function RegisterPage() {
   const handleSubmit = async () => {
     if (!validateStep()) return
     setSubmitting(true)
-    const toB64 = async (f: File | null) => f ? await fileToBase64(f) : null
-    const baseRecord = { role, status: 'pending_review', createdAt: new Date().toISOString() }
-    const record = isPromoter ? {
-      ...baseRecord, fullName: `${firstName} ${lastName}`, firstName, lastName,
-      phone: phone.replace(/\s/g, ''), idNumber, address, bankName, accountNo,
-      email: email.toLowerCase(), password,
-      idFront: await toB64(idFrontFile), idBack: await toB64(idBackFile), bankProof: await toB64(bankProof),
-    } : {
-      ...baseRecord, companyName, contactName, phone: bizPhone.replace(/\s/g, ''),
-      regNumber, vatNumber: vatNumber || null, address: bizAddress,
-      email: bizEmail.toLowerCase(), password: bizPassword,
-      cipcDoc: await toB64(cipcDoc), taxPin: await toB64(taxPin), bankProof: await toB64(bizBankProof),
-    }
-    const existing: Record<string, unknown>[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
-    const emailKey = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
-    if (existing.some(u => u.email === emailKey)) {
-      setErrors({ [isPromoter ? 'email' : 'bizEmail']: 'An account with this email already exists.' })
+    try {
+      const { authService } = await import('../services/authService')
+
+      if (isPromoter) {
+        await authService.register({
+          name:         `${firstName} ${lastName}`,
+          email:        email.toLowerCase(),
+          password,
+          role:         'PROMOTER',
+          phone:        phone.replace(/\s/g, ''),
+          consentPopia: true,
+          idNumber,
+          city:         address,
+        })
+        // Upload documents after registration (login already done inside register)
+        if (idFrontFile || idBackFile || bankProof) {
+          const { usersService } = await import('../services/usersService')
+          const formData = new FormData()
+          if (idFrontFile) formData.append('idFront', idFrontFile)
+          if (idBackFile)  formData.append('idBack',  idBackFile)
+          if (bankProof)   formData.append('cv',      bankProof)
+          await usersService.uploadDocuments(email.toLowerCase(), formData)
+        }
+      } else {
+        await authService.register({
+          name:         contactName,
+          email:        bizEmail.toLowerCase(),
+          password:     bizPassword,
+          role:         'BUSINESS',
+          phone:        bizPhone.replace(/\s/g, ''),
+          consentPopia: true,
+          companyName,
+          companyReg:   regNumber,
+        })
+      }
+
+      setDone(true)
+      setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 1400)
+    } catch (err: any) {
+      const emailKey = isPromoter ? 'email' : 'bizEmail'
+      setErrors({ [emailKey]: err.message || 'Registration failed. Please try again.' })
+    } finally {
       setSubmitting(false)
-      return
     }
-    existing.push(record)
-    localStorage.setItem('hg_users', JSON.stringify(existing))
-    const sessionName  = isPromoter ? `${firstName} ${lastName}` : companyName
-    const sessionEmail = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
-    localStorage.setItem('hg_session', JSON.stringify({ role, email: sessionEmail, name: sessionName, loggedIn: true, status: 'pending_review' }))
-    await new Promise(r => setTimeout(r, 800))
-    setSubmitting(false)
-    setDone(true)
-    setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 1400)
   }
 
   const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}) }

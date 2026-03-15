@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { getProfile, updateProfile, uploadDocuments, uploadMiddleware, getAllUsers, getUserById } from "../controllers/user.controller";
+import { protect, adminOnly } from "../middleware/auth";
+const router = Router();
+router.get("/me/profile", protect, getProfile);
+router.put("/me/profile", protect, updateProfile);
+router.post("/me/documents", protect, uploadMiddleware, uploadDocuments);
+router.get("/", protect, adminOnly, getAllUsers);
+router.get("/:id", protect, adminOnly, getUserById);
+export default router;

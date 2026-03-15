@@ -1,0 +1,12 @@
+import { Router } from "express";
+import { getMyShifts, getAllShifts, checkIn, checkOut, reportIssue, getLiveLocations, approveShift, selfieUpload } from "../controllers/shift.controller";
+import { protect, adminOnly } from "../middleware/auth";
+const router = Router();
+router.get("/my", protect, getMyShifts);
+router.get("/live-locations", protect, adminOnly, getLiveLocations);
+router.get("/all", protect, adminOnly, getAllShifts);
+router.post("/:id/checkin", protect, selfieUpload, checkIn);
+router.post("/:id/checkout", protect, selfieUpload, checkOut);
+router.post("/:id/issue", protect, reportIssue);
+router.put("/:id/approve", protect, adminOnly, approveShift);
+export default router;

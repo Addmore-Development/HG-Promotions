@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { getMyPayments, getAllPayments, approvePayment, batchPay, getPaymentSummary } from "../controllers/payment.controller";
+import { protect, adminOnly } from "../middleware/auth";
+const router = Router();
+router.get("/my", protect, getMyPayments);
+router.get("/", protect, adminOnly, getAllPayments);
+router.get("/summary", protect, adminOnly, getPaymentSummary);
+router.put("/:id/approve", protect, adminOnly, approvePayment);
+router.post("/batch-pay", protect, adminOnly, batchPay);
+export default router;

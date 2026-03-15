@@ -51,11 +51,6 @@ const DASHBOARD_ROUTE: Record<Role, string> = {
   admin:    '/admin',
 }
 
-const ADMIN_CREDENTIALS = {
-  email:    'admin@honeygroup.co.za',
-  password: 'Admin@HG2026!',
-}
-
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -121,35 +116,56 @@ export default function LoginPage() {
   const [success, setSuccess]      = useState(false)
   const [focusedField, setFocused] = useState<string | null>(null)
 
+  // ── Change-password panel (admin only) ──────────────────────────────────────
+  const [showChangePw, setShowChangePw] = useState(false)
+  const [cpCurrent,    setCpCurrent]    = useState('')
+  const [cpNew,        setCpNew]        = useState('')
+  const [cpConfirm,    setCpConfirm]    = useState('')
+  const [cpError,      setCpError]      = useState<string | null>(null)
+  const [cpSuccess,    setCpSuccess]    = useState(false)
+  const [cpLoading,    setCpLoading]    = useState(false)
+  const [cpFocused,    setCpFocused]    = useState<string | null>(null)
+
+  const handleChangePassword = async () => {
+    setCpError(null)
+    if (!cpCurrent || !cpNew || !cpConfirm) { setCpError('All fields are required.'); return }
+    if (cpNew.length < 8)                   { setCpError('New password must be at least 8 characters.'); return }
+    if (cpNew !== cpConfirm)                { setCpError('New passwords do not match.'); return }
+    setCpLoading(true)
+    try {
+      const token = localStorage.getItem('hg_token')
+      if (!token) throw new Error('Not logged in — please log in first.')
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/change-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword: cpCurrent, newPassword: cpNew }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' }))
+        throw new Error(err.error || 'Password change failed.')
+      }
+      setCpSuccess(true)
+      setCpCurrent(''); setCpNew(''); setCpConfirm('')
+      setTimeout(() => { setCpSuccess(false); setShowChangePw(false) }, 2200)
+    } catch (err: any) {
+      setCpError(err.message || 'Password change failed.')
+    } finally {
+      setCpLoading(false)
+    }
+  }
+
   const cfg = ROLE_CONFIG[role]
 
   const handleLogin = async () => {
     setError(null)
     if (!email || !password) { setError('Please enter your email and password.'); return }
     setLoading(true)
-
-    if (role === 'admin') {
-      if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        localStorage.setItem('hg_session', JSON.stringify({
-          role: 'admin', email, name: 'Administrator', loggedIn: true,
-        }))
-        setSuccess(true)
-        setTimeout(() => navigate(DASHBOARD_ROUTE.admin), 900)
-        setLoading(false)
-        return
-      } else {
-        setError('Invalid admin credentials.')
-        setLoading(false)
-        return
-      }
-    }
-
     try {
       await login(email, password)
       setSuccess(true)
       setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      setError(err.message || 'Login failed. Check your credentials.')
     } finally {
       setLoading(false)
     }
@@ -334,11 +350,86 @@ export default function LoginPage() {
             )}
             {role === 'admin' && (
               <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.1em' }}>
-                Admin accounts are created by invitation only
+                Admin accounts are created by invitation only{'  '}
+                <button
+                  onClick={() => { setShowChangePw(v => !v); setCpError(null); setCpSuccess(false) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: AMBER, padding: 0, textDecoration: 'underline' }}
+                >
+                  {showChangePw ? 'Cancel' : 'Change Password'}
+                </button>
               </p>
             )}
           </div>
         </div>
+
+        {/* ── Change-password panel (admin only) ── */}
+        {role === 'admin' && showChangePw && (
+          <div style={{
+            background: BLACK_CARD, border: `1px solid rgba(184,130,10,0.22)`,
+            padding: '32px 40px', marginTop: 12, position: 'relative',
+          }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+              background: `linear-gradient(90deg, ${BROWN}, ${AMBER}, ${GOLD_LIGHT})` }} />
+            <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.28em',
+              textTransform: 'uppercase', color: AMBER, marginBottom: 20 }}>
+              Change Admin Password
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {(['cpCurrent','cpNew','cpConfirm'] as const).map((field, i) => {
+                const labels   = ['Current Password', 'New Password', 'Confirm New Password']
+                const values   = [cpCurrent, cpNew, cpConfirm]
+                const setters  = [setCpCurrent, setCpNew, setCpConfirm]
+                return (
+                  <div key={field}>
+                    <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
+                      letterSpacing: '0.18em', textTransform: 'uppercase',
+                      color: cpFocused === field ? AMBER : GOLD_DIM, marginBottom: 8, transition: 'color 0.2s' }}>
+                      {labels[i]}
+                    </label>
+                    <input
+                      type="password" placeholder="••••••••" value={values[i]}
+                      onChange={e => setters[i](e.target.value)}
+                      onFocus={() => setCpFocused(field)} onBlur={() => setCpFocused(null)}
+                      style={{ width: '100%', background: 'rgba(184,130,10,0.03)',
+                        border: `1px solid ${cpFocused === field ? AMBER : 'rgba(184,130,10,0.15)'}`,
+                        padding: '12px 16px', fontFamily: FB, fontSize: 14, color: WHITE,
+                        outline: 'none', transition: 'border-color 0.2s',
+                        boxShadow: cpFocused === field ? `0 0 0 3px ${AMBER}18` : 'none' }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+
+            {cpError && (
+              <div style={{ marginTop: 14, padding: '9px 14px',
+                background: 'rgba(184,130,10,0.08)', border: `1px solid ${AMBER}40`,
+                fontFamily: FB, fontSize: 12, color: AMBER }}>
+                {cpError}
+              </div>
+            )}
+            {cpSuccess && (
+              <div style={{ marginTop: 14, padding: '9px 14px',
+                background: 'rgba(192,120,24,0.10)', border: `1px solid ${GOLD}50`,
+                fontFamily: FB, fontSize: 12, color: GOLD }}>
+                ✓ Password changed successfully
+              </div>
+            )}
+
+            <button
+              onClick={handleChangePassword} disabled={cpLoading || cpSuccess}
+              style={{ marginTop: 20, width: '100%', padding: '13px 0',
+                background: `linear-gradient(90deg, ${BROWN}, ${AMBER}, ${GOLD_LIGHT})`,
+                border: 'none', fontFamily: FB, fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: BLACK, cursor: cpLoading ? 'wait' : 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { if (!cpLoading) e.currentTarget.style.opacity = '0.88' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+            >
+              {cpSuccess ? '✓ Updated' : cpLoading ? 'Updating…' : 'Update Password'}
+            </button>
+          </div>
+        )}
 
         {/* Back to home */}
         <div style={{ textAlign: 'center', marginTop: 28 }}>
