@@ -1,50 +1,56 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth' // 👈 import useAuth
+import { useAuth } from '../hooks/useAuth'
 
-/* ─── DESIGN TOKENS ──────────────────────────────────────────── */
+/* ─── DESIGN TOKENS — all gold/amber/brown palette ──────────── */
 const BLACK        = '#080808'
 const BLACK_CARD   = '#161616'
 const BLACK_BORDER = 'rgba(255,255,255,0.07)'
 const GOLD         = '#C4973A'
+const GOLD_LIGHT   = '#DDB55A'
+const GOLD_DIM     = 'rgba(196,151,58,0.55)'
+const GOLD_PALE    = 'rgba(196,151,58,0.28)'
+const AMBER        = '#B8820A'
+const BROWN        = '#7A5C1E'
 const WHITE        = '#F4EFE6'
 const WHITE_MUTED  = 'rgba(244,239,230,0.55)'
 const WHITE_DIM    = 'rgba(244,239,230,0.22)'
 const FD           = "'Playfair Display', Georgia, serif"
 const FB           = "'DM Sans', system-ui, sans-serif"
 
-/* ─── ROLE CONFIG ────────────────────────────────────────────── */
+/* ─── ROLE CONFIG — all gold shades ─────────────────────────── */
 type Role = 'promoter' | 'business' | 'admin'
 
-const ROLE_CONFIG: Record<Role, { label: string; icon: string; accentColor: string; description: string }> = {
+const ROLE_CONFIG: Record<Role, { label: string; icon: string; accentColor: string; borderColor: string; description: string }> = {
   promoter: {
     label:       'Promoter',
     icon:        '◉',
-    accentColor: '#3A7BD5',
+    accentColor: GOLD,
+    borderColor: `rgba(196,151,58,0.55)`,
     description: 'Access your shifts, geo check-in, and earnings dashboard.',
   },
   business: {
     label:       'Business',
     icon:        '◈',
-    accentColor: GOLD,
+    accentColor: GOLD_LIGHT,
+    borderColor: `rgba(221,181,90,0.55)`,
     description: 'Manage your promoter teams, monitor attendance, and view reports.',
   },
   admin: {
     label:       'Admin',
     icon:        '◆',
-    accentColor: '#8B5CF6',
+    accentColor: AMBER,
+    borderColor: `rgba(184,130,10,0.55)`,
     description: 'Full platform access — users, jobs, payroll, and operations.',
   },
 }
 
-/* ─── ROLE → DASHBOARD MAP ───────────────────────────────────── */
 const DASHBOARD_ROUTE: Record<Role, string> = {
   promoter: '/promoter/',
   business: '/business/dashboard',
   admin:    '/admin',
 }
 
-/* ─── HARDCODED ADMIN CREDENTIALS ───────────────────────────── */
 const ADMIN_CREDENTIALS = {
   email:    'admin@honeygroup.co.za',
   password: 'Admin@HG2026!',
@@ -59,7 +65,7 @@ const GLOBAL_CSS = `
     to   { opacity: 1; transform: translateY(0); }
   }
   .hg-form-wrap { animation: hg-fade-up 0.55s ease both; }
-  input::placeholder { color: rgba(244,239,230,0.15); }
+  input::placeholder { color: rgba(196,151,58,0.2); }
   input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 30px #0e0e0e inset !important;
     -webkit-text-fill-color: ${WHITE} !important;
@@ -78,7 +84,7 @@ function FloatingInput({
       <label style={{
         display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
         letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: focused ? accentColor : WHITE_MUTED,
+        color: focused ? accentColor : GOLD_DIM,
         marginBottom: 8, transition: 'color 0.2s',
       }}>
         {label}
@@ -92,8 +98,8 @@ function FloatingInput({
         onBlur={onBlur}
         style={{
           width: '100%',
-          background: 'rgba(255,255,255,0.03)',
-          border: `1px solid ${focused ? accentColor : BLACK_BORDER}`,
+          background: 'rgba(196,151,58,0.03)',
+          border: `1px solid ${focused ? accentColor : 'rgba(196,151,58,0.15)'}`,
           padding: '14px 16px',
           fontFamily: FB, fontSize: 14, color: WHITE,
           outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -106,7 +112,7 @@ function FloatingInput({
 
 export default function LoginPage() {
   const navigate                   = useNavigate()
-  const { login } = useAuth() // 👈 get login from context
+  const { login }                  = useAuth()
   const [role, setRole]            = useState<Role>('promoter')
   const [email, setEmail]          = useState('')
   const [password, setPassword]    = useState('')
@@ -120,10 +126,8 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setError(null)
     if (!email || !password) { setError('Please enter your email and password.'); return }
-
     setLoading(true)
 
-    /* ── Admin hard-coded credentials ── */
     if (role === 'admin') {
       if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
         localStorage.setItem('hg_session', JSON.stringify({
@@ -140,10 +144,8 @@ export default function LoginPage() {
       }
     }
 
-    /* ── Promoter / Business — use context login ── */
     try {
       await login(email, password)
-      // login() updates context and sets session via authService
       setSuccess(true)
       setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
     } catch (err: any) {
@@ -153,7 +155,6 @@ export default function LoginPage() {
     }
   }
 
-  /* Allow Enter key to submit */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleLogin()
   }
@@ -169,18 +170,18 @@ export default function LoginPage() {
     >
       <style>{GLOBAL_CSS}</style>
 
-      {/* Grid background */}
+      {/* Grid background — amber tint */}
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.025,
+        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.03,
         backgroundImage: `linear-gradient(${GOLD} 1px,transparent 1px),linear-gradient(90deg,${GOLD} 1px,transparent 1px)`,
         backgroundSize: '72px 72px',
       }} />
 
-      {/* Radial glow */}
+      {/* Radial glow — shifts with role accent */}
       <div style={{
         position: 'fixed', top: '-10%', left: '50%', transform: 'translateX(-50%)',
         width: 700, height: 400, borderRadius: '50%', zIndex: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse, ${cfg.accentColor}12 0%, transparent 70%)`,
+        background: `radial-gradient(ellipse, ${cfg.accentColor}14 0%, transparent 70%)`,
         transition: 'background 0.6s ease',
       }} />
 
@@ -188,9 +189,9 @@ export default function LoginPage() {
       <div style={{
         position: 'fixed', right: -240, top: '50%', transform: 'translateY(-50%)',
         width: 600, height: 600, borderRadius: '50%',
-        border: '1px solid rgba(196,151,58,0.06)', pointerEvents: 'none', zIndex: 0,
+        border: `1px solid rgba(196,151,58,0.07)`, pointerEvents: 'none', zIndex: 0,
       }}>
-        <div style={{ position: 'absolute', inset: 80, borderRadius: '50%', border: '1px solid rgba(196,151,58,0.04)' }} />
+        <div style={{ position: 'absolute', inset: 80, borderRadius: '50%', border: `1px solid rgba(196,151,58,0.04)` }} />
       </div>
 
       <div className="hg-form-wrap" style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 460 }}>
@@ -202,7 +203,7 @@ export default function LoginPage() {
             <span style={{ color: WHITE }}> GROUP</span>
           </div>
           <div style={{ width: 32, height: 1, background: GOLD, margin: '0 auto 18px' }} />
-          <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: WHITE_MUTED }}>
+          <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD_DIM }}>
             Platform Login
           </p>
         </div>
@@ -210,7 +211,7 @@ export default function LoginPage() {
         {/* Role tabs */}
         <div style={{
           display: 'flex', background: '#0d0d0d',
-          border: `1px solid ${BLACK_BORDER}`, padding: 4, marginBottom: 28, gap: 4,
+          border: `1px solid rgba(196,151,58,0.12)`, padding: 4, marginBottom: 28, gap: 4,
         }}>
           {(Object.keys(ROLE_CONFIG) as Role[]).map(r => {
             const c = ROLE_CONFIG[r]
@@ -221,14 +222,14 @@ export default function LoginPage() {
                   flex: 1, padding: '11px 8px',
                   background: active ? `${c.accentColor}14` : 'transparent',
                   border: active ? `1px solid ${c.accentColor}55` : '1px solid transparent',
-                  color: active ? c.accentColor : WHITE_DIM,
+                  color: active ? c.accentColor : GOLD_PALE,
                   fontFamily: FB, fontSize: 11, fontWeight: 600,
                   letterSpacing: '0.14em', textTransform: 'uppercase',
                   cursor: 'pointer', transition: 'all 0.3s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = WHITE_MUTED }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = WHITE_DIM }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = GOLD_DIM }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = GOLD_PALE }}
               >
                 <span style={{ fontSize: 13 }}>{c.icon}</span>
                 {c.label}
@@ -239,17 +240,22 @@ export default function LoginPage() {
 
         {/* Card */}
         <div style={{
-          background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`,
+          background: BLACK_CARD, border: `1px solid rgba(196,151,58,0.12)`,
           padding: '44px 40px', position: 'relative',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+          boxShadow: `0 40px 100px rgba(0,0,0,0.6), 0 0 60px ${cfg.accentColor}08`,
+          transition: 'box-shadow 0.5s',
         }}>
-          {/* Top accent bar */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: cfg.accentColor, transition: 'background 0.4s' }} />
-
-          {/* Role description */}
+          {/* Top accent bar — gold gradient */}
           <div style={{
-            background: `${cfg.accentColor}0f`,
-            border: `1px solid ${cfg.accentColor}30`,
+            position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+            background: `linear-gradient(90deg, ${BROWN}, ${cfg.accentColor}, ${GOLD_LIGHT}, ${cfg.accentColor}, ${BROWN})`,
+            transition: 'background 0.4s',
+          }} />
+
+          {/* Role description — amber tinted */}
+          <div style={{
+            background: `${cfg.accentColor}0c`,
+            border: `1px solid ${cfg.accentColor}28`,
             padding: '10px 14px', marginBottom: 32, transition: 'all 0.4s',
           }}>
             <p style={{ fontFamily: FB, fontSize: 12, color: cfg.accentColor, margin: 0, lineHeight: 1.5, transition: 'color 0.4s' }}>
@@ -277,8 +283,8 @@ export default function LoginPage() {
           {error && (
             <div style={{
               marginTop: 18, padding: '10px 14px',
-              background: 'rgba(255,70,70,0.08)', border: '1px solid rgba(255,70,70,0.25)',
-              fontFamily: FB, fontSize: 12, color: '#ff6b6b',
+              background: 'rgba(184,130,10,0.10)', border: `1px solid ${AMBER}44`,
+              fontFamily: FB, fontSize: 12, color: AMBER,
             }}>
               {error}
             </div>
@@ -299,7 +305,7 @@ export default function LoginPage() {
             disabled={loading || success}
             style={{
               marginTop: 28, width: '100%', padding: '16px 0',
-              background: success ? `${cfg.accentColor}15` : cfg.accentColor,
+              background: success ? `${cfg.accentColor}18` : `linear-gradient(90deg, ${AMBER}, ${cfg.accentColor}, ${GOLD_LIGHT})`,
               border: success ? `1px solid ${cfg.accentColor}50` : 'none',
               fontFamily: FB, fontSize: 11, fontWeight: 600,
               letterSpacing: '0.22em', textTransform: 'uppercase',
@@ -316,7 +322,7 @@ export default function LoginPage() {
           {/* Footer links */}
           <div style={{ marginTop: 24, textAlign: 'center' }}>
             {role !== 'admin' && (
-              <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, marginBottom: 0 }}>
+              <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM, marginBottom: 0 }}>
                 Don't have an account?{' '}
                 <button
                   onClick={() => navigate('/register')}
@@ -327,7 +333,7 @@ export default function LoginPage() {
               </p>
             )}
             {role === 'admin' && (
-              <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_DIM, letterSpacing: '0.1em' }}>
+              <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.1em' }}>
                 Admin accounts are created by invitation only
               </p>
             )}
@@ -338,9 +344,9 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginTop: 28 }}>
           <button
             onClick={() => navigate('/')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: WHITE_DIM, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}
             onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
-            onMouseLeave={e => (e.currentTarget.style.color = WHITE_DIM)}
+            onMouseLeave={e => (e.currentTarget.style.color = GOLD_PALE)}
           >
             ← Back to Home
           </button>

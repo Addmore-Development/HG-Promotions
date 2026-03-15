@@ -1,13 +1,18 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-/* ─── DESIGN TOKENS ──────────────────────────────────────────── */
+/* ─── DESIGN TOKENS — all gold/amber/brown palette ──────────── */
 const BLACK        = '#080808'
 const BLACK_SOFT   = '#0e0e0e'
 const BLACK_CARD   = '#161616'
-const BLACK_BORDER = 'rgba(255,255,255,0.07)'
+const BLACK_BORDER = 'rgba(196,151,58,0.15)'
 const GOLD         = '#C4973A'
 const GOLD_LIGHT   = '#DDB55A'
+const GOLD_DIM     = 'rgba(196,151,58,0.55)'
+const GOLD_PALE    = 'rgba(196,151,58,0.28)'
+const GOLD_FAINT   = 'rgba(196,151,58,0.12)'
+const AMBER        = '#B8820A'
+const BROWN        = '#7A5C1E'
 const WHITE        = '#F4EFE6'
 const WHITE_MUTED  = 'rgba(244,239,230,0.55)'
 const WHITE_DIM    = 'rgba(244,239,230,0.22)'
@@ -16,7 +21,6 @@ const FB           = "'DM Sans', system-ui, sans-serif"
 
 type Role = 'promoter' | 'business'
 
-/* ─── ROLE → DASHBOARD MAP ───────────────────────────────────── */
 const DASHBOARD_ROUTE: Record<Role, string> = {
   promoter: '/promoter/dashboard',
   business: '/business/dashboard',
@@ -88,7 +92,7 @@ function Field({
       <label style={{
         display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
         letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: focused ? GOLD : WHITE_MUTED,
+        color: focused ? GOLD : GOLD_DIM,
         marginBottom: 8, transition: 'color 0.2s',
       }}>
         {label}
@@ -102,16 +106,16 @@ function Field({
         onBlur={onBlur}
         style={{
           width: '100%',
-          background: 'rgba(255,255,255,0.03)',
-          border: `1px solid ${error ? '#ff6b6b66' : focused ? GOLD : BLACK_BORDER}`,
+          background: 'rgba(196,151,58,0.03)',
+          border: `1px solid ${error ? `${AMBER}66` : focused ? GOLD : BLACK_BORDER}`,
           padding: '13px 16px',
           fontFamily: FB, fontSize: 14, color: WHITE,
           outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
           boxShadow: focused ? `0 0 0 3px ${GOLD}10` : 'none',
         }}
       />
-      {error && <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b', marginTop: 5 }}>{error}</p>}
-      {hint && !error && <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_DIM, marginTop: 5 }}>{hint}</p>}
+      {error && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: 5 }}>{error}</p>}
+      {hint && !error && <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, marginTop: 5 }}>{hint}</p>}
     </div>
   )
 }
@@ -138,7 +142,7 @@ function FileUploadZone({
         display: 'flex', alignItems: 'center', gap: 6,
         fontFamily: FB, fontSize: 10, fontWeight: 600,
         letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: WHITE_MUTED, marginBottom: 8,
+        color: GOLD_DIM, marginBottom: 8,
       }}>
         {label}
         {required && <span style={{ color: GOLD, fontSize: 12 }}>*</span>}
@@ -151,7 +155,7 @@ function FileUploadZone({
         onDrop={handleDrop}
         style={{
           border: `1px dashed ${dragging ? GOLD : file ? `${GOLD}55` : BLACK_BORDER}`,
-          background: dragging ? 'rgba(196,151,58,0.06)' : file ? 'rgba(196,151,58,0.04)' : 'rgba(255,255,255,0.02)',
+          background: dragging ? GOLD_FAINT : file ? 'rgba(196,151,58,0.04)' : 'rgba(196,151,58,0.02)',
           padding: '22px 20px',
           cursor: 'pointer', transition: 'all 0.25s', textAlign: 'center',
         }}
@@ -166,20 +170,16 @@ function FileUploadZone({
             <div style={{ fontSize: 20, marginBottom: 6 }}>
               {file.type.startsWith('image/') ? '🖼️' : '📄'}
             </div>
-            <p style={{ fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, marginBottom: 2 }}>
-              {file.name}
-            </p>
-            <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_DIM }}>
-              {(file.size / 1024).toFixed(0)} KB · Click to replace
-            </p>
+            <p style={{ fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, marginBottom: 2 }}>{file.name}</p>
+            <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE }}>{(file.size / 1024).toFixed(0)} KB · Click to replace</p>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize: 22, marginBottom: 8, color: WHITE_DIM }}>↑</div>
-            <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, marginBottom: 4 }}>
+            <div style={{ fontSize: 22, marginBottom: 8, color: GOLD_PALE }}>↑</div>
+            <p style={{ fontFamily: FB, fontSize: 13, color: GOLD_DIM, marginBottom: 4 }}>
               Drop file here or <span style={{ color: GOLD }}>browse</span>
             </p>
-            {hint && <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_DIM }}>{hint}</p>}
+            {hint && <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE }}>{hint}</p>}
           </div>
         )}
       </div>
@@ -188,11 +188,7 @@ function FileUploadZone({
 }
 
 /* ─── ID PHOTO UPLOAD ────────────────────────────────────────── */
-function IDPhotoUpload({
-  label, file, onChange,
-}: {
-  label: string; file: File | null; onChange: (f: File) => void
-}) {
+function IDPhotoUpload({ label, file, onChange }: { label: string; file: File | null; onChange: (f: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
 
@@ -209,7 +205,7 @@ function IDPhotoUpload({
         display: 'flex', alignItems: 'center', gap: 6,
         fontFamily: FB, fontSize: 10, fontWeight: 600,
         letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: WHITE_MUTED, marginBottom: 8,
+        color: GOLD_DIM, marginBottom: 8,
       }}>
         {label} <span style={{ color: GOLD, fontSize: 12 }}>*</span>
       </label>
@@ -217,33 +213,30 @@ function IDPhotoUpload({
         onClick={() => inputRef.current?.click()}
         style={{
           border: `1px dashed ${file ? `${GOLD}55` : BLACK_BORDER}`,
-          background: file ? 'rgba(196,151,58,0.04)' : 'rgba(255,255,255,0.02)',
+          background: file ? 'rgba(196,151,58,0.04)' : 'rgba(196,151,58,0.02)',
           cursor: 'pointer', transition: 'all 0.25s',
           overflow: 'hidden', position: 'relative',
           height: preview ? 'auto' : 110,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <input
-          ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp"
-          style={{ display: 'none' }}
-          onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }}
-        />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+          onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }} />
         {preview ? (
           <div style={{ width: '100%' }}>
             <img src={preview} alt={label} style={{ width: '100%', display: 'block', maxHeight: 160, objectFit: 'cover' }} />
-            <div style={{ padding: '8px 12px', background: 'rgba(196,151,58,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '8px 12px', background: GOLD_FAINT, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: FB, fontSize: 11, color: GOLD }}>✓ {file?.name}</span>
-              <span style={{ fontFamily: FB, fontSize: 10, color: WHITE_DIM }}>Click to replace</span>
+              <span style={{ fontFamily: FB, fontSize: 10, color: GOLD_PALE }}>Click to replace</span>
             </div>
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '0 20px' }}>
             <div style={{ fontSize: 24, marginBottom: 6 }}>📷</div>
-            <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, marginBottom: 2 }}>
+            <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM, marginBottom: 2 }}>
               Upload <span style={{ color: GOLD }}>photo</span>
             </p>
-            <p style={{ fontFamily: FB, fontSize: 10, color: WHITE_DIM }}>JPG, PNG or WEBP · Max 5 MB</p>
+            <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_PALE }}>JPG, PNG or WEBP · Max 5 MB</p>
           </div>
         )}
       </div>
@@ -263,7 +256,7 @@ function PasswordStrength({ password }: { password: string }) {
   ]
   if (!password) return null
   const score = Object.values(rules).filter(Boolean).length
-  const barColor = score <= 2 ? '#ff6b6b' : score <= 3 ? '#f0a500' : GOLD
+  const barColor = score <= 2 ? AMBER : score <= 3 ? GOLD_LIGHT : GOLD
 
   return (
     <div style={{ marginTop: 8 }}>
@@ -271,7 +264,7 @@ function PasswordStrength({ password }: { password: string }) {
         {[1,2,3,4,5].map(i => (
           <div key={i} style={{
             flex: 1, height: 3,
-            background: i <= score ? barColor : 'rgba(255,255,255,0.08)',
+            background: i <= score ? barColor : 'rgba(196,151,58,0.1)',
             transition: 'background 0.3s',
           }} />
         ))}
@@ -280,7 +273,7 @@ function PasswordStrength({ password }: { password: string }) {
         {items.map(item => (
           <span key={item.key} style={{
             fontFamily: FB, fontSize: 10,
-            color: rules[item.key as keyof typeof rules] ? GOLD : WHITE_DIM,
+            color: rules[item.key as keyof typeof rules] ? GOLD : GOLD_PALE,
             transition: 'color 0.2s',
           }}>
             {rules[item.key as keyof typeof rules] ? '✓' : '○'} {item.label}
@@ -311,7 +304,9 @@ function StepBar({ current, total }: { current: number; total: number }) {
       {Array.from({ length: total }).map((_, i) => (
         <div key={i} style={{
           height: 3, flex: 1,
-          background: i < current ? GOLD : i === current ? `${GOLD}60` : 'rgba(255,255,255,0.08)',
+          background: i < current ? GOLD : i === current
+            ? `linear-gradient(90deg, ${GOLD}, ${AMBER})`
+            : 'rgba(196,151,58,0.1)',
           transition: 'background 0.4s',
         }} />
       ))}
@@ -329,7 +324,6 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]       = useState(false)
 
-  /* ── Promoter fields ── */
   const [firstName,  setFirstName]  = useState('')
   const [lastName,   setLastName]   = useState('')
   const [phone,      setPhone]      = useState('')
@@ -341,7 +335,6 @@ export default function RegisterPage() {
   const [password,   setPassword]   = useState('')
   const [confirmPw,  setConfirmPw]  = useState('')
 
-  /* ── Business fields ── */
   const [companyName,  setCompanyName]  = useState('')
   const [contactName,  setContactName]  = useState('')
   const [bizPhone,     setBizPhone]     = useState('')
@@ -352,7 +345,6 @@ export default function RegisterPage() {
   const [bizPassword,  setBizPassword]  = useState('')
   const [bizConfirmPw, setBizConfirmPw] = useState('')
 
-  /* ── Files ── */
   const [idFrontFile,  setIdFrontFile]  = useState<File | null>(null)
   const [idBackFile,   setIdBackFile]   = useState<File | null>(null)
   const [bankProof,    setBankProof]    = useState<File | null>(null)
@@ -363,10 +355,8 @@ export default function RegisterPage() {
   const isPromoter  = role === 'promoter'
   const TOTAL_STEPS = 3
 
-  /* ── Validation per step ── */
   const validateStep = (): boolean => {
     const errs: Record<string, string> = {}
-
     if (isPromoter) {
       if (step === 0) {
         if (!firstName.trim()) errs.firstName = 'Required'
@@ -407,63 +397,29 @@ export default function RegisterPage() {
         if (bizPassword !== bizConfirmPw) errs.bizConfirmPw = 'Passwords do not match'
       }
     }
-
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  const nextStep = () => {
-    if (validateStep()) setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
-  }
-
-  const prevStep = () => {
-    setErrors({})
-    setStep(s => Math.max(s - 1, 0))
-  }
+  const nextStep = () => { if (validateStep()) setStep(s => Math.min(s + 1, TOTAL_STEPS - 1)) }
+  const prevStep = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)) }
 
   const handleSubmit = async () => {
     if (!validateStep()) return
     setSubmitting(true)
-
     const toB64 = async (f: File | null) => f ? await fileToBase64(f) : null
-
-    const baseRecord = {
-      role,
-      status: 'pending_review',
-      createdAt: new Date().toISOString(),
-    }
-
+    const baseRecord = { role, status: 'pending_review', createdAt: new Date().toISOString() }
     const record = isPromoter ? {
-      ...baseRecord,
-      fullName:  `${firstName} ${lastName}`,
-      firstName,
-      lastName,
-      phone:     phone.replace(/\s/g, ''),
-      idNumber,
-      address,
-      bankName,
-      accountNo,
-      email:     email.toLowerCase(),
-      password,
-      idFront:   await toB64(idFrontFile),
-      idBack:    await toB64(idBackFile),
-      bankProof: await toB64(bankProof),
+      ...baseRecord, fullName: `${firstName} ${lastName}`, firstName, lastName,
+      phone: phone.replace(/\s/g, ''), idNumber, address, bankName, accountNo,
+      email: email.toLowerCase(), password,
+      idFront: await toB64(idFrontFile), idBack: await toB64(idBackFile), bankProof: await toB64(bankProof),
     } : {
-      ...baseRecord,
-      companyName,
-      contactName,
-      phone:     bizPhone.replace(/\s/g, ''),
-      regNumber,
-      vatNumber: vatNumber || null,
-      address:   bizAddress,
-      email:     bizEmail.toLowerCase(),
-      password:  bizPassword,
-      cipcDoc:   await toB64(cipcDoc),
-      taxPin:    await toB64(taxPin),
-      bankProof: await toB64(bizBankProof),
+      ...baseRecord, companyName, contactName, phone: bizPhone.replace(/\s/g, ''),
+      regNumber, vatNumber: vatNumber || null, address: bizAddress,
+      email: bizEmail.toLowerCase(), password: bizPassword,
+      cipcDoc: await toB64(cipcDoc), taxPin: await toB64(taxPin), bankProof: await toB64(bizBankProof),
     }
-
-    /* ── Check for duplicate email ── */
     const existing: Record<string, unknown>[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
     const emailKey = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
     if (existing.some(u => u.email === emailKey)) {
@@ -471,35 +427,18 @@ export default function RegisterPage() {
       setSubmitting(false)
       return
     }
-
     existing.push(record)
     localStorage.setItem('hg_users', JSON.stringify(existing))
-
-    /* ── Save session immediately ── */
     const sessionName  = isPromoter ? `${firstName} ${lastName}` : companyName
     const sessionEmail = isPromoter ? email.toLowerCase() : bizEmail.toLowerCase()
-    localStorage.setItem('hg_session', JSON.stringify({
-      role,
-      email:    sessionEmail,
-      name:     sessionName,
-      loggedIn: true,
-      status:   'pending_review',
-    }))
-
+    localStorage.setItem('hg_session', JSON.stringify({ role, email: sessionEmail, name: sessionName, loggedIn: true, status: 'pending_review' }))
     await new Promise(r => setTimeout(r, 800))
     setSubmitting(false)
     setDone(true)
-
-    /* ── Redirect immediately after success state renders ── */
-    // Business → dashboard right away
-    // Promoter → /promoter/dashboard (they land on pending banner there)
     setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 1400)
   }
 
-  const switchRole = (r: Role) => {
-    setRole(r); setStep(0); setErrors({})
-  }
-
+  const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}) }
   const stepLabels = ['Personal Info', 'Documents', 'Account Setup']
 
   return (
@@ -512,7 +451,7 @@ export default function RegisterPage() {
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { -webkit-font-smoothing: antialiased; background: ${BLACK}; }
-        input::placeholder { color: rgba(244,239,230,0.15); }
+        input::placeholder { color: rgba(196,151,58,0.2); }
         input:-webkit-autofill {
           -webkit-box-shadow: 0 0 0 30px #0e0e0e inset !important;
           -webkit-text-fill-color: ${WHITE} !important;
@@ -525,16 +464,16 @@ export default function RegisterPage() {
         select option { background: #161616; color: ${WHITE}; }
       `}</style>
 
-      {/* Grid bg */}
+      {/* Gold grid bg */}
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.022,
+        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.025,
         backgroundImage: `linear-gradient(${GOLD} 1px,transparent 1px),linear-gradient(90deg,${GOLD} 1px,transparent 1px)`,
         backgroundSize: '72px 72px',
       }} />
       <div style={{
         position: 'fixed', top: '-15%', left: '50%', transform: 'translateX(-50%)',
         width: 800, height: 500, borderRadius: '50%', zIndex: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse, ${GOLD}0a 0%, transparent 70%)`,
+        background: `radial-gradient(ellipse, ${GOLD}0c 0%, transparent 70%)`,
       }} />
 
       <div className="hg-reg" style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 520 }}>
@@ -546,7 +485,7 @@ export default function RegisterPage() {
             <span style={{ color: WHITE }}> GROUP</span>
           </div>
           <div style={{ width: 32, height: 1, background: GOLD, margin: '0 auto 16px' }} />
-          <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: WHITE_MUTED }}>
+          <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD_DIM }}>
             Create Account
           </p>
         </div>
@@ -557,58 +496,33 @@ export default function RegisterPage() {
             background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`,
             padding: '52px 40px', textAlign: 'center', position: 'relative',
           }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
-
-            {isPromoter ? (
-              <>
-                <div style={{ fontSize: 40, marginBottom: 20 }}>⏳</div>
-                <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
-                  Application Submitted
-                </h2>
-                <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
-                  Your account is <span style={{ color: GOLD, fontWeight: 600 }}>pending review</span> by our admin team.
-                  Taking you to your dashboard…
-                </p>
-                <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_DIM, marginBottom: 36 }}>
-                  This typically takes 1–2 business days. You'll be notified once approved.
-                </p>
-                <button
-                  onClick={() => navigate(DASHBOARD_ROUTE.promoter)}
-                  style={{
-                    fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
-                    textTransform: 'uppercase', background: GOLD, color: BLACK,
-                    border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
-                >
-                  Go to Dashboard →
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 40, marginBottom: 20 }}>◈</div>
-                <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
-                  Welcome Aboard
-                </h2>
-                <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
-                  Your business account has been created. Your account is{' '}
-                  <span style={{ color: GOLD, fontWeight: 600 }}>pending admin approval</span> — taking you to your dashboard…
-                </p>
-                <button
-                  onClick={() => navigate(DASHBOARD_ROUTE.business)}
-                  style={{
-                    fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
-                    textTransform: 'uppercase', background: GOLD, color: BLACK,
-                    border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
-                >
-                  Go to Dashboard →
-                </button>
-              </>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${BROWN}, ${GOLD}, ${GOLD_LIGHT}, ${GOLD}, ${BROWN})` }} />
+            <div style={{ fontSize: 40, marginBottom: 20 }}>{isPromoter ? '⏳' : '◈'}</div>
+            <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 12 }}>
+              {isPromoter ? 'Application Submitted' : 'Welcome Aboard'}
+            </h2>
+            <p style={{ fontFamily: FB, fontSize: 14, color: WHITE_MUTED, lineHeight: 1.7, marginBottom: 8 }}>
+              Your account is <span style={{ color: GOLD, fontWeight: 600 }}>pending review</span> by our admin team.
+              Taking you to your dashboard…
+            </p>
+            {isPromoter && (
+              <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_PALE, marginBottom: 36 }}>
+                This typically takes 1–2 business days. You'll be notified once approved.
+              </p>
             )}
+            <button
+              onClick={() => navigate(DASHBOARD_ROUTE[role])}
+              style={{
+                fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                background: `linear-gradient(90deg, ${AMBER}, ${GOLD}, ${GOLD_LIGHT})`,
+                color: BLACK, border: 'none', padding: '16px 44px', cursor: 'pointer', transition: 'all 0.3s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
+            >
+              Go to Dashboard →
+            </button>
           </div>
         ) : (
           <>
@@ -623,13 +537,15 @@ export default function RegisterPage() {
                   <button key={r} onClick={() => switchRole(r)}
                     style={{
                       flex: 1, padding: '11px 8px',
-                      background: active ? 'rgba(196,151,58,0.1)' : 'transparent',
+                      background: active ? GOLD_FAINT : 'transparent',
                       border: active ? `1px solid ${GOLD}44` : '1px solid transparent',
-                      color: active ? GOLD : WHITE_DIM,
+                      color: active ? GOLD : GOLD_PALE,
                       fontFamily: FB, fontSize: 11, fontWeight: 600,
                       letterSpacing: '0.14em', textTransform: 'uppercase',
                       cursor: 'pointer', transition: 'all 0.3s',
                     }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.color = GOLD_DIM }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.color = GOLD_PALE }}
                   >
                     {r === 'promoter' ? '◉ Promoter' : '◈ Business'}
                   </button>
@@ -644,7 +560,7 @@ export default function RegisterPage() {
                   <span style={{
                     fontFamily: FB, fontSize: 9, fontWeight: 600,
                     letterSpacing: '0.16em', textTransform: 'uppercase',
-                    color: i === step ? GOLD : i < step ? `${GOLD}77` : WHITE_DIM,
+                    color: i === step ? GOLD : i < step ? GOLD_DIM : GOLD_PALE,
                     transition: 'color 0.3s',
                   }}>
                     {i + 1}. {label}
@@ -658,9 +574,12 @@ export default function RegisterPage() {
             <div style={{
               background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`,
               padding: '40px 40px 36px', position: 'relative',
-              boxShadow: '0 40px 100px rgba(0,0,0,0.6)',
+              boxShadow: `0 40px 100px rgba(0,0,0,0.6), 0 0 60px ${GOLD}06`,
             }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: GOLD }} />
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                background: `linear-gradient(90deg, ${BROWN}, ${GOLD}, ${GOLD_LIGHT}, ${GOLD}, ${BROWN})`,
+              }} />
 
               {/* ── PROMOTER STEP 0 ── */}
               {isPromoter && step === 0 && (
@@ -670,32 +589,24 @@ export default function RegisterPage() {
                     <Field label="First Name" placeholder="Ayanda" value={firstName}
                       onChange={setFirstName} focused={focused === 'firstName'}
                       onFocus={() => setFocused('firstName')} onBlur={() => setFocused(null)}
-                      error={errors.firstName}
-                    />
+                      error={errors.firstName} />
                     <Field label="Last Name" placeholder="Dlamini" value={lastName}
                       onChange={setLastName} focused={focused === 'lastName'}
                       onFocus={() => setFocused('lastName')} onBlur={() => setFocused(null)}
-                      error={errors.lastName}
-                    />
+                      error={errors.lastName} />
                   </div>
-                  <Field
-                    label="SA Phone Number" placeholder="+27 71 000 0000" value={phone}
+                  <Field label="SA Phone Number" placeholder="+27 71 000 0000" value={phone}
                     onChange={v => setPhone(formatSAPhone(v))}
                     focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
-                    error={errors.phone} hint="South African mobile number"
-                  />
-                  <Field
-                    label="SA ID Number" placeholder="8001015009087" value={idNumber}
+                    error={errors.phone} hint="South African mobile number" />
+                  <Field label="SA ID Number" placeholder="8001015009087" value={idNumber}
                     onChange={setIdNumber} focused={focused === 'idNumber'}
                     onFocus={() => setFocused('idNumber')} onBlur={() => setFocused(null)}
-                    error={errors.idNumber} hint="13-digit South African ID number"
-                  />
-                  <Field
-                    label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address}
+                    error={errors.idNumber} hint="13-digit South African ID number" />
+                  <Field label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address}
                     onChange={setAddress} focused={focused === 'address'}
                     onFocus={() => setFocused('address')} onBlur={() => setFocused(null)}
-                    error={errors.address}
-                  />
+                    error={errors.address} />
                 </div>
               )}
 
@@ -703,7 +614,7 @@ export default function RegisterPage() {
               {isPromoter && step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   <SectionDivider label="ID Verification" />
-                  <div style={{ background: 'rgba(196,151,58,0.05)', border: `1px solid ${GOLD}22`, padding: '12px 16px' }}>
+                  <div style={{ background: GOLD_FAINT, border: `1px solid ${GOLD}22`, padding: '12px 16px' }}>
                     <p style={{ fontFamily: FB, fontSize: 12, color: GOLD, lineHeight: 1.6 }}>
                       Your ID photos will be reviewed by our admin team before your account is approved.
                     </p>
@@ -713,9 +624,7 @@ export default function RegisterPage() {
                     <IDPhotoUpload label="SA ID — Back"  file={idBackFile}  onChange={setIdBackFile} />
                   </div>
                   {(errors.idFront || errors.idBack) && (
-                    <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b' }}>
-                      {errors.idFront || errors.idBack}
-                    </p>
+                    <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.idFront || errors.idBack}</p>
                   )}
                   <SectionDivider label="Banking Details" />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -723,43 +632,32 @@ export default function RegisterPage() {
                       <label style={{
                         display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
                         letterSpacing: '0.18em', textTransform: 'uppercase',
-                        color: focused === 'bankName' ? GOLD : WHITE_MUTED, marginBottom: 8, transition: 'color 0.2s',
-                      }}>
-                        Bank Name
-                      </label>
-                      <select
-                        value={bankName} onChange={e => setBankName(e.target.value)}
+                        color: focused === 'bankName' ? GOLD : GOLD_DIM, marginBottom: 8, transition: 'color 0.2s',
+                      }}>Bank Name</label>
+                      <select value={bankName} onChange={e => setBankName(e.target.value)}
                         onFocus={() => setFocused('bankName')} onBlur={() => setFocused(null)}
                         style={{
-                          width: '100%', background: 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${errors.bankName ? '#ff6b6b66' : focused === 'bankName' ? GOLD : BLACK_BORDER}`,
+                          width: '100%', background: 'rgba(196,151,58,0.03)',
+                          border: `1px solid ${errors.bankName ? `${AMBER}66` : focused === 'bankName' ? GOLD : BLACK_BORDER}`,
                           padding: '13px 16px', fontFamily: FB, fontSize: 14,
-                          color: bankName ? WHITE : 'rgba(244,239,230,0.25)',
+                          color: bankName ? WHITE : GOLD_PALE,
                           outline: 'none', transition: 'border-color 0.2s', appearance: 'none', cursor: 'pointer',
-                        }}
-                      >
+                        }}>
                         <option value="" disabled>Select bank</option>
                         {['ABSA', 'Standard Bank', 'FNB', 'Nedbank', 'Capitec', 'African Bank', 'TymeBank', 'Discovery Bank', 'Investec', 'Other'].map(b => (
                           <option key={b} value={b}>{b}</option>
                         ))}
                       </select>
-                      {errors.bankName && <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b', marginTop: 5 }}>{errors.bankName}</p>}
+                      {errors.bankName && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: 5 }}>{errors.bankName}</p>}
                     </div>
                     <Field label="Account Number" placeholder="000 000 0000" value={accountNo}
                       onChange={setAccountNo} focused={focused === 'accountNo'}
                       onFocus={() => setFocused('accountNo')} onBlur={() => setFocused(null)}
-                      error={errors.accountNo}
-                    />
+                      error={errors.accountNo} />
                   </div>
-                  <FileUploadZone
-                    label="Bank Statement / Proof of Account"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    file={bankProof}
-                    onChange={setBankProof}
-                    hint="PDF or image · Max 10 MB"
-                    required
-                  />
-                  {errors.bankProof && <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b', marginTop: -14 }}>{errors.bankProof}</p>}
+                  <FileUploadZone label="Bank Statement / Proof of Account" accept=".pdf,.jpg,.jpeg,.png"
+                    file={bankProof} onChange={setBankProof} hint="PDF or image · Max 10 MB" required />
+                  {errors.bankProof && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: -14 }}>{errors.bankProof}</p>}
                 </div>
               )}
 
@@ -770,24 +668,19 @@ export default function RegisterPage() {
                   <Field label="Email Address" type="email" placeholder="ayanda@email.com" value={email}
                     onChange={setEmail} focused={focused === 'email'}
                     onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-                    error={errors.email}
-                  />
+                    error={errors.email} />
                   <div>
                     <Field label="Password" type="password" placeholder="Min. 8 characters" value={password}
                       onChange={setPassword} focused={focused === 'password'}
                       onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
-                      error={errors.password}
-                    />
+                      error={errors.password} />
                     <PasswordStrength password={password} />
                   </div>
                   <Field label="Confirm Password" type="password" placeholder="••••••••" value={confirmPw}
                     onChange={setConfirmPw} focused={focused === 'confirmPw'}
                     onFocus={() => setFocused('confirmPw')} onBlur={() => setFocused(null)}
-                    error={errors.confirmPw}
-                  />
-                  <div style={{
-                    background: 'rgba(196,151,58,0.05)', border: `1px solid ${GOLD}22`, padding: '14px 16px',
-                  }}>
+                    error={errors.confirmPw} />
+                  <div style={{ background: GOLD_FAINT, border: `1px solid ${GOLD}22`, padding: '14px 16px' }}>
                     <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, lineHeight: 1.7 }}>
                       By creating an account you agree to Honey Group's Terms of Service and Privacy Policy.
                       Your account will be in <span style={{ color: GOLD }}>pending review</span> status until approved by an administrator.
@@ -803,34 +696,28 @@ export default function RegisterPage() {
                   <Field label="Company Name" placeholder="Acme Promotions (Pty) Ltd" value={companyName}
                     onChange={setCompanyName} focused={focused === 'companyName'}
                     onFocus={() => setFocused('companyName')} onBlur={() => setFocused(null)}
-                    error={errors.companyName}
-                  />
+                    error={errors.companyName} />
                   <Field label="Contact Person" placeholder="Jane Smith" value={contactName}
                     onChange={setContactName} focused={focused === 'contactName'}
                     onFocus={() => setFocused('contactName')} onBlur={() => setFocused(null)}
-                    error={errors.contactName}
-                  />
+                    error={errors.contactName} />
                   <Field label="Business Phone" placeholder="+27 11 000 0000" value={bizPhone}
                     onChange={v => setBizPhone(formatSAPhone(v))}
                     focused={focused === 'bizPhone'} onFocus={() => setFocused('bizPhone')} onBlur={() => setFocused(null)}
-                    error={errors.bizPhone} hint="SA landline or mobile"
-                  />
+                    error={errors.bizPhone} hint="SA landline or mobile" />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <Field label="CIPC Reg Number" placeholder="2024/000000/07" value={regNumber}
                       onChange={setRegNumber} focused={focused === 'regNumber'}
                       onFocus={() => setFocused('regNumber')} onBlur={() => setFocused(null)}
-                      error={errors.regNumber} hint="Format: YYYY/NNNNNN/NN"
-                    />
+                      error={errors.regNumber} hint="Format: YYYY/NNNNNN/NN" />
                     <Field label="VAT Number (Optional)" placeholder="4410000000" value={vatNumber}
                       onChange={setVatNumber} focused={focused === 'vatNumber'}
-                      onFocus={() => setFocused('vatNumber')} onBlur={() => setFocused(null)}
-                    />
+                      onFocus={() => setFocused('vatNumber')} onBlur={() => setFocused(null)} />
                   </div>
                   <Field label="Business Address" placeholder="1 Business Park, Sandton, 2196" value={bizAddress}
                     onChange={setBizAddress} focused={focused === 'bizAddress'}
                     onFocus={() => setFocused('bizAddress')} onBlur={() => setFocused(null)}
-                    error={errors.bizAddress}
-                  />
+                    error={errors.bizAddress} />
                 </div>
               )}
 
@@ -838,32 +725,15 @@ export default function RegisterPage() {
               {!isPromoter && step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
                   <SectionDivider label="Business Documents" />
-                  <FileUploadZone
-                    label="CIPC Registration Certificate"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    file={cipcDoc}
-                    onChange={setCipcDoc}
-                    hint="Official CIPC CoR14.3 or equivalent · PDF preferred"
-                    required
-                  />
-                  {errors.cipcDoc && <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b', marginTop: -14 }}>{errors.cipcDoc}</p>}
-                  <FileUploadZone
-                    label="Tax Clearance / Tax PIN (Optional)"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    file={taxPin}
-                    onChange={setTaxPin}
-                    hint="SARS Tax Clearance Certificate or Tax PIN letter"
-                  />
+                  <FileUploadZone label="CIPC Registration Certificate" accept=".pdf,.jpg,.jpeg,.png"
+                    file={cipcDoc} onChange={setCipcDoc} hint="Official CIPC CoR14.3 or equivalent · PDF preferred" required />
+                  {errors.cipcDoc && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: -14 }}>{errors.cipcDoc}</p>}
+                  <FileUploadZone label="Tax Clearance / Tax PIN (Optional)" accept=".pdf,.jpg,.jpeg,.png"
+                    file={taxPin} onChange={setTaxPin} hint="SARS Tax Clearance Certificate or Tax PIN letter" />
                   <SectionDivider label="Banking" />
-                  <FileUploadZone
-                    label="Bank Confirmation Letter"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    file={bizBankProof}
-                    onChange={setBizBankProof}
-                    hint="Official bank letter on letterhead · PDF preferred"
-                    required
-                  />
-                  {errors.bizBankProof && <p style={{ fontFamily: FB, fontSize: 11, color: '#ff6b6b', marginTop: -14 }}>{errors.bizBankProof}</p>}
+                  <FileUploadZone label="Bank Confirmation Letter" accept=".pdf,.jpg,.jpeg,.png"
+                    file={bizBankProof} onChange={setBizBankProof} hint="Official bank letter on letterhead · PDF preferred" required />
+                  {errors.bizBankProof && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: -14 }}>{errors.bizBankProof}</p>}
                 </div>
               )}
 
@@ -874,24 +744,19 @@ export default function RegisterPage() {
                   <Field label="Business Email" type="email" placeholder="contact@company.co.za" value={bizEmail}
                     onChange={setBizEmail} focused={focused === 'bizEmail'}
                     onFocus={() => setFocused('bizEmail')} onBlur={() => setFocused(null)}
-                    error={errors.bizEmail}
-                  />
+                    error={errors.bizEmail} />
                   <div>
                     <Field label="Password" type="password" placeholder="Min. 8 characters" value={bizPassword}
                       onChange={setBizPassword} focused={focused === 'bizPassword'}
                       onFocus={() => setFocused('bizPassword')} onBlur={() => setFocused(null)}
-                      error={errors.bizPassword}
-                    />
+                      error={errors.bizPassword} />
                     <PasswordStrength password={bizPassword} />
                   </div>
                   <Field label="Confirm Password" type="password" placeholder="••••••••" value={bizConfirmPw}
                     onChange={setBizConfirmPw} focused={focused === 'bizConfirmPw'}
                     onFocus={() => setFocused('bizConfirmPw')} onBlur={() => setFocused(null)}
-                    error={errors.bizConfirmPw}
-                  />
-                  <div style={{
-                    background: 'rgba(196,151,58,0.05)', border: `1px solid ${GOLD}22`, padding: '14px 16px',
-                  }}>
+                    error={errors.bizConfirmPw} />
+                  <div style={{ background: GOLD_FAINT, border: `1px solid ${GOLD}22`, padding: '14px 16px' }}>
                     <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, lineHeight: 1.7 }}>
                       Your business account will be in <span style={{ color: GOLD }}>pending review</span> status until verified by Honey Group administrators.
                     </p>
@@ -899,21 +764,19 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Navigation buttons */}
+              {/* Navigation */}
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
                 {step > 0 && (
-                  <button
-                    onClick={prevStep}
+                  <button onClick={prevStep}
                     style={{
                       flex: 1, padding: '15px 0',
                       background: 'transparent', border: `1px solid ${BLACK_BORDER}`,
                       fontFamily: FB, fontSize: 11, fontWeight: 600,
                       letterSpacing: '0.18em', textTransform: 'uppercase',
-                      color: WHITE_MUTED, cursor: 'pointer', transition: 'all 0.2s',
+                      color: GOLD_DIM, cursor: 'pointer', transition: 'all 0.2s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = WHITE_MUTED }}
-                  >
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = BLACK_BORDER; e.currentTarget.style.color = GOLD_DIM }}>
                     ← Back
                   </button>
                 )}
@@ -922,48 +785,38 @@ export default function RegisterPage() {
                   disabled={submitting}
                   style={{
                     flex: 2, padding: '15px 0',
-                    background: GOLD, border: 'none',
+                    background: `linear-gradient(90deg, ${AMBER}, ${GOLD}, ${GOLD_LIGHT})`,
+                    border: 'none',
                     fontFamily: FB, fontSize: 11, fontWeight: 600,
                     letterSpacing: '0.22em', textTransform: 'uppercase',
                     color: BLACK, cursor: submitting ? 'wait' : 'pointer', transition: 'all 0.3s',
                   }}
-                  onMouseEnter={e => { if (!submitting) { e.currentTarget.style.background = GOLD_LIGHT; e.currentTarget.style.transform = 'translateY(-1px)' } }}
-                  onMouseLeave={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.transform = 'translateY(0)' }}
-                >
-                  {submitting
-                    ? 'Submitting…'
-                    : step < TOTAL_STEPS - 1
-                      ? 'Continue →'
-                      : 'Submit Application'}
+                  onMouseEnter={e => { if (!submitting) { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                  {submitting ? 'Submitting…' : step < TOTAL_STEPS - 1 ? 'Continue →' : 'Submit Application'}
                 </button>
               </div>
             </div>
 
-            {/* Sign in link */}
             <div style={{ textAlign: 'center', marginTop: 24 }}>
-              <span style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED }}>Already have an account? </span>
-              <button
-                onClick={() => navigate('/login')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, padding: 0 }}
-              >
+              <span style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM }}>Already have an account? </span>
+              <button onClick={() => navigate('/login')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, padding: 0 }}>
                 Log In
               </button>
             </div>
-            <p style={{ textAlign: 'center', marginTop: 12, fontFamily: FB, fontSize: 10, color: WHITE_DIM, letterSpacing: '0.14em' }}>
+            <p style={{ textAlign: 'center', marginTop: 12, fontFamily: FB, fontSize: 10, color: GOLD_PALE, letterSpacing: '0.14em' }}>
               ADMIN ACCOUNTS ARE CREATED BY INVITATION ONLY
             </p>
           </>
         )}
 
-        {/* Back to home */}
         {!done && (
           <div style={{ textAlign: 'center', marginTop: 20 }}>
-            <button
-              onClick={() => navigate('/')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: WHITE_DIM, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}
+            <button onClick={() => navigate('/')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
-              onMouseLeave={e => (e.currentTarget.style.color = WHITE_DIM)}
-            >
+              onMouseLeave={e => (e.currentTarget.style.color = GOLD_PALE)}>
               ← Back to Home
             </button>
           </div>

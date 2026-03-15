@@ -3,6 +3,7 @@ import { AuthProvider }      from './shared/context/AuthContext'
 import LandingPage           from './shared/auth/LandingPage'
 import LoginPage             from './shared/auth/LoginPage'
 import RegisterPage          from './shared/auth/RegisterPage'
+import AboutPage             from './shared/auth/AboutPage'
 import AdminDashboard        from './Admin/dashboard/adminDashboard'
 import FullCRUDUsers         from './Admin/users/FullCRUDUsers'
 import CRUDJobsLogic         from './Admin/jobs/CRUDJobsLogic'
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/"         element={<LandingPage />}  />
           <Route path="/login"    element={<LoginPage />}    />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/about"    element={<AboutPage />}    />
 
           {/* ── Jobs (public browse with T&C + payment demo) ── */}
           <Route path="/jobs"        element={<JobsPage />}      />
@@ -34,7 +36,6 @@ export default function App() {
 
           {/* ── Promoter ── */}
           <Route path="/promoter/" element={<PromoterApp />} />
-
 
           {/* ── Admin ── */}
           <Route path="/admin"            element={<AdminDashboard />}    />

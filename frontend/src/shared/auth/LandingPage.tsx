@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ALL_JOBS, getActiveJobs } from '../jobs/JobsPage';
+import { ALL_JOBS, getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/JobsPage';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 const GL = '#E8A820'
@@ -16,6 +16,13 @@ const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
 const W12 = 'rgba(250,243,232,0.12)'
 const BB  = 'rgba(212,136,10,0.16)'
+
+// Jobs section dark overlays (text on gold bg)
+const JB  = 'rgba(12,10,7,0.82)'   // near-black text
+const JB6 = 'rgba(12,10,7,0.60)'
+const JB4 = 'rgba(12,10,7,0.40)'
+const JB2 = 'rgba(12,10,7,0.18)'
+const JBB = 'rgba(12,10,7,0.22)'   // border on gold
 
 const FD = "'Work Sans', 'worksans', sans-serif"
 
@@ -44,6 +51,10 @@ const GLOBAL_CSS = `
   @keyframes card-rise { 0%{opacity:0;transform:translateY(60px)} 100%{opacity:1;transform:translateY(0)} }
   @keyframes num-count { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
   @keyframes img-scale { 0%{transform:scale(1.08)} 100%{transform:scale(1)} }
+
+  .feat-card-0, .feat-card-1, .feat-card-2 {
+    transition: transform 0.55s cubic-bezier(0.22,1,0.36,1), box-shadow 0.55s ease, z-index 0s;
+  }
 
   .nav-link { color: ${W55}; background: none; border: none; cursor: pointer; font-family: ${FD}; font-size: 12px; font-weight: 400; letter-spacing: 0.12em; padding: 0; transition: color 0.25s; }
   .nav-link:hover { color: ${GL}; }
@@ -125,7 +136,6 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
   const [hovered, setHovered] = useState<number | null>(null)
   const preview = jobs.slice(0, 3)
 
-  // Card 0 = gold accent, 1 & 2 = standard dark
   const isGold = (i: number) => i === 0
 
   return (
@@ -339,128 +349,245 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: {
   )
 }
 
-// ── Feature Slideshow ─────────────────────────────────────────────────────────
+// ── Feature Cards ─────────────────────────────────────────────────────────────
 function FeatureSlideshow() {
-  const [active, setActive] = useState(0)
-  const [exiting, setExiting] = useState(false)
-  const [displayIdx, setDisplayIdx] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   const features = [
-    { tag: 'Smart Dispatch', icon: '◎', title: 'Right person, right place.', body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.', stat: '280+', statLabel: 'Active Promoters' },
-    { tag: 'Geo-Verified Shifts', icon: '⬡', title: 'Attendance you can trust.', body: 'Promoters check in only when within 200m of the venue. GPS verification plus mandatory selfie — no proxy clock-ins, ever.', stat: '98%', statLabel: 'Shift Attendance' },
-    { tag: 'Smart Payroll', icon: '◈', title: 'Calculate pay in minutes.', body: 'Hours × Rate calculations done instantly. View earnings per promoter and per campaign. Admin approves — no direct payments on-platform.', stat: '12', statLabel: 'Cities Covered' },
+    {
+      tag: 'Smart Dispatch',
+      icon: '◎',
+      title: 'Right person, right place.',
+      body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.',
+      stat: '280+', statLabel: 'Active Promoters',
+      bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
+      border: 'rgba(232,168,32,0.30)',
+      accent: GL,
+      rotate: '-3deg',
+      translateY: '12px',
+      zIndex: 1,
+    },
+    {
+      tag: 'Geo-Verified Shifts',
+      icon: '⬡',
+      title: 'Attendance you can trust.',
+      body: 'Promoters check in only when within 5m of the venue. GPS verification plus mandatory selfie — no proxy clock-ins, ever.',
+      stat: '98%', statLabel: 'Shift Attendance',
+      bg: `linear-gradient(160deg, #3D2E0A 0%, #2A1E05 100%)`,
+      border: '#AB8D3F',
+      accent: '#AB8D3F',
+      rotate: '0deg',
+      translateY: '0px',
+      zIndex: 3,
+    },
+    {
+      tag: 'Smart Payroll',
+      icon: '◈',
+      title: 'Calculate pay in minutes.',
+      body: 'Hours × Rate calculations done instantly. View earnings per promoter and per campaign. Admin approves — no direct payments on-platform.',
+      stat: '12', statLabel: 'Cities Covered',
+      bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
+      border: 'rgba(232,168,32,0.30)',
+      accent: GL,
+      rotate: '3deg',
+      translateY: '12px',
+      zIndex: 1,
+    },
   ]
 
-  const advance = (toIdx: number) => {
-    setExiting(true)
-    setTimeout(() => { setDisplayIdx(toIdx); setActive(toIdx); setExiting(false) }, 450)
-  }
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => { advance((active + 1) % features.length) }, 4000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [active])
-
-  const f = features[displayIdx]
-
   return (
-    <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 40, justifyContent: 'flex-end' }}>
-        {features.map((_, i) => (
-          <button key={i} onClick={() => { if (timerRef.current) clearInterval(timerRef.current); advance(i) }}
-            style={{ width: i === active ? 36 : 10, height: 4, border: 'none', cursor: 'pointer', background: i === active ? GL : `rgba(232,168,32,0.22)`, transition: 'all 0.4s cubic-bezier(0.22,1,0.36,1)', borderRadius: 2 }} />
-        ))}
-      </div>
-      <div key={displayIdx} className={exiting ? 'feat-slide-exit' : 'feat-slide-enter'}
-        style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 80, alignItems: 'center', background: `linear-gradient(135deg, ${D2} 0%, ${D1} 100%)`, border: `1px solid ${BB}`, padding: '64px 72px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, ${G5})` }} />
-        <div style={{ position: 'absolute', bottom: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, rgba(232,168,32,0.06) 0%, transparent 70%)`, pointerEvents: 'none' }} />
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-            <div style={{ width: 28, height: 1, background: GL }} />
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>{f.tag}</span>
-          </div>
-          <div style={{ fontFamily: FD, fontSize: 56, color: GL, marginBottom: 20, lineHeight: 1 }}>{f.icon}</div>
-          <h3 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.15, color: W, marginBottom: 22 }}>{f.title}</h3>
-          <p style={{ fontSize: 16, lineHeight: 1.85, color: W55, fontFamily: FD, fontWeight: 400, maxWidth: 500 }}>{f.body}</p>
-          <div style={{ marginTop: 32, display: 'flex', gap: 8 }}>
-            {features.map((_, i) => (
-              <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === active ? GL : W12, transition: 'all 0.3s' }} />
-            ))}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, alignItems: 'flex-start', perspective: '1200px' }}>
+      {features.map((f, i) => (
+        <div
+          key={i}
+          className={`feat-card-${i}`}
+          style={{
+            transform: `rotate(${f.rotate}) translateY(${f.translateY})`,
+            zIndex: f.zIndex,
+            transition: 'transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s ease',
+            transformStyle: 'preserve-3d',
+            cursor: 'default',
+            position: 'relative',
+          }}
+          onMouseEnter={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.transform = `rotate(0deg) translateY(-16px) rotateY(4deg)`
+            el.style.zIndex = '10'
+            el.style.boxShadow = `0 40px 80px rgba(0,0,0,0.7), 0 0 60px rgba(232,168,32,0.12)`
+          }}
+          onMouseLeave={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.transform = `rotate(${f.rotate}) translateY(${f.translateY})`
+            el.style.zIndex = String(f.zIndex)
+            el.style.boxShadow = 'none'
+          }}
+        >
+          <div style={{
+            background: f.bg,
+            border: `1px solid ${f.border}`,
+            position: 'relative', overflow: 'hidden',
+            boxShadow: i === 1
+              ? `0 16px 48px rgba(0,0,0,0.6), 0 0 40px rgba(171,141,63,0.15)`
+              : `0 8px 32px rgba(0,0,0,0.5)`,
+          }}>
+            {/* Top accent bar */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: i === 1 ? 4 : 2,
+              background: i === 1
+                ? `linear-gradient(90deg, #6B4F10, #AB8D3F, #D4B86A, #AB8D3F, #6B4F10)`
+                : `linear-gradient(90deg, ${G5}, ${GL}, ${G5})`,
+            }} />
+
+            {/* Page-fold corner */}
+            <div style={{
+              position: 'absolute', top: 0, right: 0, width: 0, height: 0,
+              borderStyle: 'solid',
+              borderWidth: '0 28px 28px 0',
+              borderColor: `transparent ${i === 1 ? 'rgba(171,141,63,0.25)' : 'rgba(232,168,32,0.15)'} transparent transparent`,
+            }} />
+
+            {/* Content — evenly distributed with flexbox column */}
+            <div style={{
+              padding: '48px 36px 44px',
+              display: 'flex', flexDirection: 'column',
+              gap: 0,
+              minHeight: 420,
+              justifyContent: 'space-between',
+            }}>
+              {/* Top: tag + icon */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+                  <div style={{ width: 20, height: 1, background: f.accent }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: f.accent, fontFamily: FD }}>{f.tag}</span>
+                </div>
+                <div style={{ fontSize: 48, color: f.accent, lineHeight: 1, marginBottom: 20 }}>{f.icon}</div>
+              </div>
+
+              {/* Middle: title + body */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '8px 0 24px' }}>
+                <h3 style={{
+                  fontFamily: FD, fontSize: 22, fontWeight: 800, lineHeight: 1.2,
+                  color: W, marginBottom: 16,
+                  letterSpacing: '-0.01em',
+                }}>{f.title}</h3>
+                <p style={{ fontSize: 13, lineHeight: 1.8, color: W55, fontFamily: FD }}>{f.body}</p>
+              </div>
+
+              {/* Bottom: stat */}
+              <div style={{
+                display: 'flex', alignItems: 'baseline', gap: 8,
+                paddingTop: 24,
+                borderTop: `1px solid ${i === 1 ? 'rgba(171,141,63,0.2)' : BB}`,
+              }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: f.accent, fontFamily: FD, lineHeight: 1 }}>{f.stat}</span>
+                <span style={{ fontSize: 11, color: W28, fontFamily: FD, letterSpacing: '0.06em' }}>{f.statLabel}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ))}
     </div>
   )
 }
 
-// ── About + Capabilities Combined Card ───────────────────────────────────────
+// ── About Section — Editorial Brutalist Luxury ────────────────────────────────
 function AboutCapabilities({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const [hoveredCap, setHoveredCap] = useState<number | null>(null)
+
   const caps = [
-    'Promoter Onboarding', 'Geo Check-In / Out', 'Live Operations Map', 'Smart Job Allocation',
-    'Payroll Calculations', 'Document Vault', 'Supervisor Monitoring', 'Client Reports',
-    'SMS Notifications', 'Reliability Scoring', 'Earnings Export', 'POPIA Compliance',
-  ]
-  const roles = [
-    { role: 'Promoter', icon: '◉', color: G3, desc: 'View jobs, geo check-in, track earnings, upload documents.' },
-    { role: 'Supervisor', icon: '◈', color: GL, desc: 'Monitor attendance live, flag issues, view team profiles.' },
-    { role: 'Admin', icon: '◆', color: GL, desc: 'Create jobs, manage users, calculate payroll, generate reports.' },
+    { label: 'Promoter Onboarding',   icon: '◉' },
+    { label: 'Geo Check-In / Out',    icon: '⬡' },
+    { label: 'Live Operations Map',   icon: '◎' },
+    { label: 'Smart Job Allocation',  icon: '◈' },
+    { label: 'Payroll Calculations',  icon: '◆' },
+    { label: 'Document Vault',        icon: '▣' },
+    { label: 'Supervisor Monitoring', icon: '◉' },
+    { label: 'Client Reports',        icon: '◎' },
+    { label: 'SMS Notifications',     icon: '⬡' },
+    { label: 'Reliability Scoring',   icon: '◈' },
+    { label: 'Earnings Export',       icon: '◆' },
+    { label: 'POPIA Compliance',      icon: '▣' },
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-      {/* Roles card */}
-      <div style={{ background: `linear-gradient(160deg, ${D2}, rgba(20,16,5,0.98))`, border: `1px solid ${BB}`, padding: '52px 48px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${G5}, ${GL}, ${G5})` }} />
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 16, fontFamily: FD }}>Who We Serve</div>
-        <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3vw,42px)', fontWeight: 900, lineHeight: 1.1, marginBottom: 36 }}>
-          Three roles.<br /><span style={{ color: GL, fontStyle: 'italic' }}>One platform.</span>
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {roles.map((r, i) => (
-            <div key={i} style={{ display: 'flex', gap: 18, padding: '20px 0', borderBottom: i < 2 ? `1px solid ${BB}` : 'none' }}>
-              <div style={{ fontSize: 22, color: r.color, flexShrink: 0, marginTop: 2 }}>{r.icon}</div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: W, marginBottom: 5, fontFamily: FD }}>{r.role}</div>
-                <div style={{ fontSize: 12, color: W55, lineHeight: 1.65, fontFamily: FD }}>{r.desc}</div>
-              </div>
-            </div>
-          ))}
+    <div>
+
+      {/* ── PART 1: Giant editorial headline row ── */}
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        borderBottom: `1px solid ${BB}`,
+      }}>
+        {/* Enormous background watermark */}
+        <div style={{
+          position: 'absolute', top: '-0.15em', left: '-0.05em',
+          fontSize: 'clamp(180px, 24vw, 300px)',
+          fontWeight: 900, fontFamily: FD,
+          color: 'transparent',
+          WebkitTextStroke: `1px rgba(232,168,32,0.06)`,
+          lineHeight: 1, pointerEvents: 'none', userSelect: 'none',
+          zIndex: 0,
+        }}>HG</div>
+
+        <div style={{ position: 'relative', zIndex: 1, padding: '64px 0 56px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+            <div style={{ width: 40, height: 1, background: GL }} />
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Est. 2018 · South Africa</span>
+          </div>
+          <h2 style={{
+            fontFamily: "'Bodoni Moda', Georgia, serif",
+            fontSize: 'clamp(42px, 5.5vw, 80px)',
+            fontWeight: 900, fontStyle: 'italic',
+            lineHeight: 0.92, letterSpacing: '-0.03em',
+            color: W,
+          }}>
+            One platform.<br />
+            <span style={{ color: 'transparent', WebkitTextStroke: `2px ${GL}` }}>Infinite scale.</span>
+          </h2>
         </div>
-        <button onClick={() => navigate('/register')}
-          style={{ marginTop: 36, fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', background: GL, color: B, border: 'none', padding: '14px 32px', cursor: 'pointer', transition: 'all 0.3s' }}
-          onMouseEnter={e => { e.currentTarget.style.background = G }}
-          onMouseLeave={e => { e.currentTarget.style.background = GL }}>
-          Get Started
-        </button>
       </div>
 
-      {/* Capabilities card */}
-      <div style={{ background: B, border: `1px solid ${BB}`, padding: '52px 48px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${G5}, rgba(232,168,32,0.4), ${G5})` }} />
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 16, fontFamily: FD }}>Full Suite</div>
-        <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3vw,42px)', fontWeight: 900, lineHeight: 1.1, marginBottom: 36 }}>
-          Platform<br /><span style={{ color: GL, fontStyle: 'italic' }}>Capabilities</span>
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, border: `1px solid ${BB}` }}>
-          {caps.map((cap, i) => (
-            <div key={i} style={{
-              padding: '14px 16px',
-              borderRight: i % 2 === 0 ? `1px solid ${BB}` : 'none',
-              borderBottom: i < 10 ? `1px solid ${BB}` : 'none',
-              display: 'flex', alignItems: 'center', gap: 10,
-              transition: 'background 0.25s',
-              cursor: 'default',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = D2 }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: GL, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: W55, fontFamily: FD }}>{cap}</span>
-            </div>
-          ))}
+      {/* ── PART 3: Capabilities ── */}
+      <div style={{ padding: '56px 0 72px', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 48 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Full Suite</div>
+          <div style={{ fontSize: 'clamp(22px,3vw,36px)', fontWeight: 900, color: W, fontFamily: FD, letterSpacing: '-0.02em' }}>
+            Platform <span style={{ color: GL, fontStyle: 'italic' }}>Capabilities</span>
+          </div>
+        </div>
+
+        {/* 4-column capability cells with alternating gold/dark highlight */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: `1px solid ${BB}` }}>
+          {caps.map((cap, i) => {
+            const isHighlight = i === 3 || i === 8
+            return (
+              <div key={i}
+                style={{
+                  padding: '22px 24px',
+                  borderRight: (i + 1) % 4 !== 0 ? `1px solid ${BB}` : 'none',
+                  borderBottom: i < 8 ? `1px solid ${BB}` : 'none',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  background: hoveredCap === i ? `rgba(171,141,63,0.08)` : isHighlight ? `rgba(232,168,32,0.04)` : 'transparent',
+                  transition: 'background 0.25s, transform 0.2s',
+                  cursor: 'default',
+                  transform: hoveredCap === i ? 'translateX(4px)' : 'translateX(0)',
+                  position: 'relative',
+                }}
+                onMouseEnter={() => setHoveredCap(i)}
+                onMouseLeave={() => setHoveredCap(null)}
+              >
+                {/* Animated left bar on hover */}
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: hoveredCap === i ? 3 : 0,
+                  background: GL,
+                  transition: 'width 0.2s ease',
+                }} />
+                <span style={{ fontSize: 14, color: hoveredCap === i ? GL : W28, transition: 'color 0.2s', flexShrink: 0 }}>{cap.icon}</span>
+                <span style={{ fontSize: 12, color: hoveredCap === i ? W : W55, fontFamily: FD, transition: 'color 0.2s', fontWeight: hoveredCap === i ? 600 : 400 }}>{cap.label}</span>
+              </div>
+            )
+          })}
         </div>
       </div>
+
     </div>
   )
 }
@@ -469,17 +596,6 @@ function AboutCapabilities({ navigate }: { navigate: ReturnType<typeof useNaviga
 function ImageTriptych() {
   return (
     <section style={{ position: 'relative', overflow: 'hidden', background: B, borderTop: `1px solid ${BB}` }}>
-      {/* Section label */}
-      <div style={{
-        position: 'absolute', top: 40, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 10, textAlign: 'center', pointerEvents: 'none',
-      }}>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, marginBottom: 10, fontFamily: FD }}>The Stage Awaits</div>
-        <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, color: W, lineHeight: 1, textShadow: '0 4px 40px rgba(0,0,0,0.8)' }}>
-          Be part of<br /><span style={{ color: GL, fontStyle: 'italic' }}>something electric.</span>
-        </h2>
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', height: 520 }}>
         {/* Left */}
         <div className="triptych-img" style={{ position: 'relative' }}>
@@ -502,11 +618,9 @@ function ImageTriptych() {
             onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }}
           />
-          {/* Gold frame on center image */}
           <div style={{ position: 'absolute', inset: 0, border: `2px solid ${GL}`, pointerEvents: 'none', opacity: 0.4 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12,10,7,0.7) 0%, transparent 50%)' }} />
         </div>
 
         {/* Right */}
@@ -519,34 +633,6 @@ function ImageTriptych() {
             onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }}
           />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to left, rgba(12,10,7,0.3), transparent)' }} />
-        </div>
-      </div>
-
-      {/* Bottom CTA strip over images */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
-        background: 'linear-gradient(to top, rgba(12,10,7,0.96) 0%, transparent 100%)',
-        padding: '48px 80px 40px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
-      }}>
-        <div>
-          <div style={{ fontFamily: FD, fontSize: 'clamp(18px,2.5vw,30px)', fontWeight: 900, color: W, lineHeight: 1.1 }}>
-            Join the platform<br /><span style={{ color: GL, fontStyle: 'italic' }}>powering SA promotions.</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', background: GL, color: B, border: 'none', padding: '14px 36px', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
-            Register Now — Free
-          </button>
-          <button
-            style={{ fontFamily: FD, fontSize: 10, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'transparent', color: W85, border: `1px solid ${BB}`, padding: '14px 28px', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W85 }}>
-            Browse Jobs
-          </button>
         </div>
       </div>
     </section>
@@ -586,8 +672,8 @@ export default function LandingPage() {
     if (s) { try { setSession(JSON.parse(s)) } catch {} }
   }, [])
 
-  const previewJobs = getActiveJobs(ALL_JOBS).slice(0, 3)
-  const totalActiveJobs = getActiveJobs(ALL_JOBS).length
+  const previewJobs = getActiveJobs(getAllJobsWithAdminJobs()).slice(0, 3)
+  const totalActiveJobs = getActiveJobs(getAllJobsWithAdminJobs()).length
 
   const handleLogout = () => { localStorage.removeItem('hg_session'); setSession(null) }
   const handleDashboard = () => {
@@ -625,7 +711,7 @@ export default function LandingPage() {
     <div style={{ fontFamily: FD, background: B, color: W, overflowX: 'hidden', width: '100%' }}>
       <style>{GLOBAL_CSS}</style>
 
-      {/* ── NAV — always solid black, no border ── */}
+      {/* ── NAV ── */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
         padding: '0 48px',
@@ -644,7 +730,6 @@ export default function LandingPage() {
           {[
             { label: 'Jobs',     ref: secJobs },
             { label: 'Features', ref: secFeatures },
-            { label: 'About',    ref: secAbout },
           ].map(({ label, ref }) => (
             <li key={label}>
               <button onClick={() => scrollTo(ref)} style={{
@@ -711,10 +796,9 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── HERO — full width with text overlaid on top of slideshow ── */}
+      {/* ── HERO ── */}
       <section style={{ height: '75vh', minHeight: 540, maxHeight: 820, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'stretch', background: '#000', marginTop: 68, padding: '28px 48px' }}>
 
-        {/* SLIDESHOW — starts at 48%, restored full size, quarter of PROMOTERS overlaps */}
         <div style={{ position: 'absolute', top: 28, left: '48%', right: 48, bottom: 28, borderRadius: 16, overflow: 'hidden', zIndex: 1 }}>
           {heroMedia.map((media, idx) => (
             <div key={idx} style={{
@@ -736,10 +820,8 @@ export default function LandingPage() {
             </div>
           ))}
           <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: '#111' }} />
-          {/* Dark overlay so text is readable */}
           <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.1) 100%)' }} />
 
-          {/* Slide dots — bottom left */}
           <div style={{ position: 'absolute', bottom: 20, left: 24, zIndex: 10, display: 'flex', gap: 6 }}>
             {heroMedia.map((_, idx) => (
               <button key={idx}
@@ -752,7 +834,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Pause button — bottom right */}
           <div style={{
             position: 'absolute', bottom: 16, right: 16, zIndex: 10,
             width: 34, height: 34, border: '1px solid rgba(255,255,255,0.5)',
@@ -763,7 +844,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* TEXT — positioned so only PROMOTERS bleeds into slideshow */}
         <div style={{
           position: 'absolute',
           top: 0, bottom: 0, left: 0,
@@ -826,94 +906,116 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── JOBS SECTION (now first, D1 background) ── */}
+      {/* ── JOBS SECTION — everything on gold background ── */}
       <section
         ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el }}
         className="reveal"
-        style={{ padding: '100px 80px', background: D1, borderBottom: `1px solid ${BB}`, position: 'relative', overflow: 'hidden' }}
+        style={{
+          padding: '48px 80px 52px',
+          background: '#AB8D3F',
+          borderBottom: `1px solid rgba(120,75,0,0.4)`,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
       >
+        {/* Depth texture on gold */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+          background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)',
+        }} />
+
+        {/* ✦ Top-left star band ✦ */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+          {[
+            { top:  12, left:  16, size: 28, opacity: 0.55, delay: '0s',   dur: '2.6s' },
+            { top:  10, left:  64, size: 16, opacity: 0.40, delay: '0.5s', dur: '3.2s' },
+            { top:  38, left:  36, size: 12, opacity: 0.35, delay: '1.0s', dur: '2.9s' },
+            { top:   8, left: 108, size: 10, opacity: 0.28, delay: '0.3s', dur: '3.7s' },
+            { top:  60, left:  14, size: 20, opacity: 0.45, delay: '1.4s', dur: '2.4s' },
+            { top:  52, left:  72, size:  8, opacity: 0.25, delay: '0.8s', dur: '4.0s' },
+            { top:  80, left:  44, size: 14, opacity: 0.32, delay: '2.0s', dur: '3.0s' },
+            { top:  28, left: 148, size:  7, opacity: 0.22, delay: '1.7s', dur: '3.5s' },
+            { top: 100, left:  20, size: 10, opacity: 0.28, delay: '0.6s', dur: '2.8s' },
+            { top:  70, left: 112, size:  6, opacity: 0.20, delay: '2.3s', dur: '3.3s' },
+            { top: 118, left:  62, size: 18, opacity: 0.38, delay: '1.1s', dur: '2.7s' },
+            { top:  18, left: 190, size:  8, opacity: 0.18, delay: '1.9s', dur: '4.2s' },
+            { top: 140, left:  30, size:  8, opacity: 0.22, delay: '0.4s', dur: '3.1s' },
+            { top:  92, left: 158, size:  5, opacity: 0.16, delay: '2.6s', dur: '3.8s' },
+            { top: 162, left:  84, size: 12, opacity: 0.28, delay: '1.3s', dur: '2.5s' },
+            { top:  46, left: 220, size:  6, opacity: 0.14, delay: '2.1s', dur: '3.6s' },
+            { top: 130, left: 130, size:  9, opacity: 0.20, delay: '0.9s', dur: '3.4s' },
+            { top: 180, left:  50, size:  7, opacity: 0.18, delay: '1.6s', dur: '2.9s' },
+          ].map((s, i) => (
+            <div key={`tl-${i}`} style={{
+              position: 'absolute', top: s.top, left: s.left,
+              fontSize: s.size, color: W, opacity: s.opacity,
+              animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
+              lineHeight: 1,
+            }}>✦</div>
+          ))}
+        </div>
+
+        {/* ✦ Bottom-right star band ✦ */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+          {[
+            { bottom:  12, right:  16, size: 28, opacity: 0.55, delay: '0.2s', dur: '2.6s' },
+            { bottom:  10, right:  64, size: 16, opacity: 0.40, delay: '0.7s', dur: '3.2s' },
+            { bottom:  38, right:  36, size: 12, opacity: 0.35, delay: '1.2s', dur: '2.9s' },
+            { bottom:   8, right: 108, size: 10, opacity: 0.28, delay: '0.4s', dur: '3.7s' },
+            { bottom:  60, right:  14, size: 20, opacity: 0.45, delay: '1.6s', dur: '2.4s' },
+            { bottom:  52, right:  72, size:  8, opacity: 0.25, delay: '0.9s', dur: '4.0s' },
+            { bottom:  80, right:  44, size: 14, opacity: 0.32, delay: '2.1s', dur: '3.0s' },
+            { bottom:  28, right: 148, size:  7, opacity: 0.22, delay: '1.8s', dur: '3.5s' },
+            { bottom: 100, right:  20, size: 10, opacity: 0.28, delay: '0.7s', dur: '2.8s' },
+            { bottom:  70, right: 112, size:  6, opacity: 0.20, delay: '2.4s', dur: '3.3s' },
+            { bottom: 118, right:  62, size: 18, opacity: 0.38, delay: '1.2s', dur: '2.7s' },
+            { bottom:  18, right: 190, size:  8, opacity: 0.18, delay: '2.0s', dur: '4.2s' },
+            { bottom: 140, right:  30, size:  8, opacity: 0.22, delay: '0.5s', dur: '3.1s' },
+            { bottom:  92, right: 158, size:  5, opacity: 0.16, delay: '2.7s', dur: '3.8s' },
+            { bottom: 162, right:  84, size: 12, opacity: 0.28, delay: '1.4s', dur: '2.5s' },
+            { bottom:  46, right: 220, size:  6, opacity: 0.14, delay: '2.2s', dur: '3.6s' },
+            { bottom: 130, right: 130, size:  9, opacity: 0.20, delay: '1.0s', dur: '3.4s' },
+            { bottom: 180, right:  50, size:  7, opacity: 0.18, delay: '1.7s', dur: '2.9s' },
+          ].map((s, i) => (
+            <div key={`br-${i}`} style={{
+              position: 'absolute', bottom: s.bottom, right: s.right,
+              fontSize: s.size, color: W, opacity: s.opacity,
+              animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
+              lineHeight: 1,
+            }}>✦</div>
+          ))}
+        </div>
+
         <div style={{ maxWidth: 1360, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* GOLD CARD WRAPPER */}
-          <div style={{
-            position: 'relative',
-            background: `linear-gradient(145deg, #2A1E06 0%, #1A1205 40%, #120D03 100%)`,
-            border: `1px solid rgba(232,168,32,0.35)`,
-            boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 80px rgba(232,168,32,0.07), inset 0 1px 0 rgba(232,168,32,0.2)`,
-            padding: '52px 56px 56px',
-            overflow: 'hidden',
-          }}>
-            {/* Gold top border accent */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})` }} />
-            {/* Ambient glow bottom-left */}
-            <div style={{ position: 'absolute', bottom: -80, left: -80, width: 400, height: 400, background: 'radial-gradient(ellipse, rgba(232,168,32,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
-            {/* ✦ STARS / GLITTER — top-right corner ✦ */}
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 240, height: 200, pointerEvents: 'none', overflow: 'hidden' }}>
-              {/* Large anchor stars */}
-              {[
-                { top: 22, right: 28, size: 22, opacity: 0.85, color: GL, delay: '0s', dur: '2.4s' },
-                { top: 14, right: 72, size: 14, opacity: 0.6, color: '#F5C842', delay: '0.7s', dur: '3.1s' },
-                { top: 44, right: 52, size: 10, opacity: 0.5, color: W, delay: '1.2s', dur: '2.8s' },
-                { top: 8,  right: 118, size: 8,  opacity: 0.45, color: GL, delay: '0.3s', dur: '3.5s' },
-                { top: 60, right: 22, size: 16, opacity: 0.55, color: G,  delay: '1.8s', dur: '2.2s' },
-                { top: 36, right: 100, size: 7, opacity: 0.4, color: W,  delay: '2.1s', dur: '4s' },
-                { top: 80, right: 68, size: 9,  opacity: 0.38, color: GL, delay: '0.9s', dur: '3.3s' },
-                { top: 18, right: 158, size: 6, opacity: 0.35, color: '#F5C842', delay: '1.5s', dur: '2.9s' },
-                { top: 70, right: 140, size: 5, opacity: 0.3, color: W,  delay: '2.5s', dur: '3.8s' },
-                { top: 100, right: 30, size: 7, opacity: 0.28, color: GL, delay: '0.5s', dur: '3.6s' },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  position: 'absolute', top: s.top, right: s.right,
-                  fontSize: s.size, color: s.color, opacity: s.opacity,
-                  animation: `twinkle ${s.dur} ${s.delay} ease-in-out infinite`,
-                  lineHeight: 1,
-                }}>✦</div>
-              ))}
-              {/* Glitter dots */}
-              {[
-                { top: 30, right: 42, size: 3 }, { top: 55, right: 88, size: 2 },
-                { top: 12, right: 95, size: 2.5 }, { top: 90, right: 55, size: 2 },
-                { top: 48, right: 130, size: 2 }, { top: 75, right: 110, size: 1.5 },
-              ].map((d, i) => (
-                <div key={`dot-${i}`} style={{
-                  position: 'absolute', top: d.top, right: d.right,
-                  width: d.size, height: d.size, borderRadius: '50%',
-                  background: i % 2 === 0 ? GL : W, opacity: 0.5,
-                  animation: `twinkle ${2.5 + i * 0.4}s ${i * 0.6}s ease-in-out infinite`,
-                }} />
-              ))}
-            </div>
-
-          {/* Section header — editorial typographic style */}
-          <div style={{ marginBottom: 64 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{ width: 1, height: 64, background: `linear-gradient(to bottom, transparent, ${GL})` }} />
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 32, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Current Opportunities</div>
-                <h2 style={{ fontFamily: FD, fontSize: 'clamp(36px,5vw,68px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em' }}>
-                  <span style={{ color: W }}>Live </span>
-                  <span style={{ color: GL, fontStyle: 'italic' }}>Jobs.</span>
+          {/* Section header — dark text on gold */}
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+              <div>
+                <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em', marginBottom: 10 }}>
+                  <span style={{ color: B }}>Live </span>
+                  <span style={{ color: B, fontStyle: 'italic' }}>Jobs.</span>
                 </h2>
-                <p style={{ fontSize: 14, color: W55, lineHeight: 1.75, fontFamily: FD }}>
+                <p style={{ fontSize: 13, color: JB6, lineHeight: 1.6, fontFamily: FD }}>
                   3 newest approved positions.
-                  {!session && <> <span style={{ color: GL }}>Login or register</span> to apply.</>}
+                  {!session && <> <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Login or register</span> to apply.</>}
                 </p>
               </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ flexShrink: 0 }}>
                 {!session ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(212,136,10,0.08)`, border: `1px solid ${BB}` }}>
-                    <span style={{ fontSize: 12, color: GL }}>⬡</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(12,10,7,0.10)`, border: `1px solid ${JBB}` }}>
+                    <span style={{ fontSize: 12, color: B }}>⬡</span>
                     <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Members Only</div>
-                      <div style={{ fontSize: 11, color: W28, marginTop: 1, fontFamily: FD }}>Login to apply</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Members Only</div>
+                      <div style={{ fontSize: 11, color: JB6, marginTop: 1, fontFamily: FD }}>Login to apply</div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(192,120,24,0.08)`, border: `1px solid ${BB}` }}>
-                    <span style={{ fontSize: 12, color: G3 }}>◉</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(12,10,7,0.10)`, border: `1px solid ${JBB}` }}>
+                    <span style={{ fontSize: 12, color: B }}>◉</span>
                     <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: G3, fontFamily: FD }}>Logged In</div>
-                      <div style={{ fontSize: 11, color: W28, marginTop: 1, fontFamily: FD }}>{session.name}</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Logged In</div>
+                      <div style={{ fontSize: 11, color: JB6, marginTop: 1, fontFamily: FD }}>{session.name}</div>
                     </div>
                   </div>
                 )}
@@ -921,6 +1023,7 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Job cards */}
           <JobsSection
             jobs={previewJobs}
             isLoggedIn={!!session}
@@ -928,99 +1031,207 @@ export default function LandingPage() {
             onView={(id) => navigate(`/jobs/${id}`)}
           />
 
-          <div style={{ marginTop: 52, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${GL}, transparent)` }} />
-            <p style={{ fontSize: 12, color: W28, fontFamily: FD }}>Showing 3 of <strong style={{ color: W55 }}>{totalActiveJobs} active jobs</strong></p>
+          {/* Footer row */}
+          <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
+            <p style={{ fontSize: 12, color: JB4, fontFamily: FD }}>Showing 3 of <strong style={{ color: JB6 }}>{totalActiveJobs} active jobs</strong></p>
             <button onClick={() => navigate('/jobs')}
-              style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: 'transparent', border: `1px solid rgba(232,168,32,0.35)`, color: GL, padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = `rgba(232,168,32,0.08)`; e.currentTarget.style.borderColor = GL }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `rgba(232,168,32,0.35)` }}>
+              style={{ fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', background: B, border: `1px solid ${B}`, color: GL, padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = G5; e.currentTarget.style.borderColor = G5 }}
+              onMouseLeave={e => { e.currentTarget.style.background = B; e.currentTarget.style.borderColor = B }}>
               View All {totalActiveJobs} Jobs →
             </button>
           </div>
 
-          </div>{/* end gold card */}
         </div>
       </section>
 
-      {/* ── FEATURES SLIDESHOW (now second, right after jobs) ── */}
+      {/* ── FEATURES ── */}
       <section
         ref={(el) => { (rFeatures as any).current = el; (secFeatures as any).current = el }}
         className="reveal"
-        style={{ padding: '120px 80px', background: B, borderBottom: `1px solid ${BB}` }}>
+        style={{ padding: '80px 80px 100px', background: B, borderBottom: `1px solid ${BB}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
-          <div style={{ marginBottom: 52 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 14, fontFamily: FD }}>Platform Capabilities</div>
-            <h2 style={{ fontFamily: FD, fontSize: 'clamp(32px,4.5vw,56px)', fontWeight: 900, lineHeight: 1.05 }}>
-              Built for<br /><span style={{ color: GL, fontStyle: 'italic' }}>precision.</span>
+          {/* Header row */}
+          <div style={{
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+            marginBottom: 56, borderBottom: `1px solid ${BB}`, paddingBottom: 32,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Platform Capabilities</div>
+            <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,48px)', fontWeight: 900, lineHeight: 1, textAlign: 'right' }}>
+              Built for <span style={{ color: GL, fontStyle: 'italic' }}>precision.</span>
             </h2>
           </div>
           <FeatureSlideshow />
-        </div>
-      </section>
-
-      {/* ── ABOUT + CAPABILITIES ── */}
-      <section
-        ref={(el) => { (rAbout as any).current = el; (secAbout as any).current = el }}
-        className="reveal"
-        style={{ padding: '0 80px', background: D1, borderBottom: `1px solid ${BB}` }}>
-        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '80px 0' }}>
-          <div style={{ marginBottom: 52 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 14, fontFamily: FD }}>About the Platform</div>
-            <h2 style={{ fontFamily: FD, fontSize: 'clamp(32px,4.5vw,56px)', fontWeight: 900, lineHeight: 1.05 }}>
-              One platform.<br /><span style={{ color: GL, fontStyle: 'italic' }}>Infinite scale.</span>
-            </h2>
+          {/* About Us button — below cards */}
+          <div style={{ marginTop: 48, display: 'flex', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/about')}
+              style={{
+                fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.22em',
+                textTransform: 'uppercase', background: 'transparent',
+                border: `1px solid rgba(232,168,32,0.4)`, color: GL,
+                padding: '14px 44px', cursor: 'pointer', transition: 'all 0.3s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `rgba(232,168,32,0.08)`; e.currentTarget.style.borderColor = GL }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = `rgba(232,168,32,0.4)` }}>
+              About Us →
+            </button>
           </div>
-          <AboutCapabilities navigate={navigate} />
         </div>
       </section>
 
-      {/* ── IMAGE TRIPTYCH (replaces CTA band) ── */}
+      {/* ── IMAGE TRIPTYCH ── */}
       <ImageTriptych />
 
+      {/* ── GOLD SEPARATOR LINE ── */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})` }} />
+
       {/* ── FOOTER ── */}
-      <footer style={{ background: D1, borderTop: `1px solid ${BB}` }}>
-        <div style={{ background: B, padding: '56px 80px', borderBottom: `1px solid ${BB}` }}>
-          <div style={{ maxWidth: 1360, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 60 }}>
+      <footer style={{ background: B }}>
+
+        {/* Main footer body */}
+        <div style={{ padding: '72px 80px 56px' }}>
+          <div style={{ maxWidth: 1360, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 1fr', gap: 80, alignItems: 'start' }}>
+
+            {/* LEFT — Newsletter sign-up */}
             <div>
-              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, marginBottom: 16 }}><span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span></div>
-              <p style={{ fontSize: 13, color: W55, lineHeight: 1.8, maxWidth: 280, marginBottom: 28, fontFamily: FD }}>South Africa's premier promoter management platform. Fully digital. Fully verified.</p>
-              <div style={{ display: 'flex', gap: 12 }}>
-                {['IG', 'LI', 'FB'].map(s => (
-                  <div key={s} style={{ width: 36, height: 36, border: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, fontWeight: 700, color: W28, letterSpacing: '0.05em', transition: 'all 0.25s', fontFamily: FD }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W28 }}>
-                    {s}
-                  </div>
-                ))}
+              <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, marginBottom: 32, letterSpacing: '0.01em' }}>
+                <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
+              </div>
+              <h3 style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: W, marginBottom: 12, lineHeight: 1.2 }}>Newsletter Sign-Up</h3>
+              <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, fontFamily: FD, marginBottom: 28, maxWidth: 300 }}>
+                Subscribe to receive our latest opportunities and platform updates directly to your inbox.
+              </p>
+              {/* Name field */}
+              <div style={{ marginBottom: 12 }}>
+                <input
+                  type="text"
+                  placeholder="YOUR NAME"
+                  style={{
+                    width: '100%', background: 'transparent',
+                    border: `1px solid ${BB}`, borderRadius: 0,
+                    padding: '14px 16px',
+                    fontFamily: FD, fontSize: 11, fontWeight: 500,
+                    letterSpacing: '0.12em', color: W55,
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`}
+                  onBlur={e => e.currentTarget.style.borderColor = BB}
+                />
+              </div>
+              {/* Email field */}
+              <div style={{ marginBottom: 20 }}>
+                <input
+                  type="email"
+                  placeholder="YOUR EMAIL"
+                  style={{
+                    width: '100%', background: 'transparent',
+                    border: `1px solid ${BB}`, borderRadius: 0,
+                    padding: '14px 16px',
+                    fontFamily: FD, fontSize: 11, fontWeight: 500,
+                    letterSpacing: '0.12em', color: W55,
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`}
+                  onBlur={e => e.currentTarget.style.borderColor = BB}
+                />
+              </div>
+              {/* Submit */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', paddingBottom: 6, borderBottom: `1px solid ${BB}`, width: 'fit-content' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = GL }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = BB }}>
+                <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: W }}>SUBMIT</span>
+                <span style={{ fontSize: 16, color: GL }}>↗</span>
               </div>
             </div>
-            {[
-              { label: 'Platform', links: ['Features', 'Jobs Board', 'Geo Check-In', 'Reports'] },
-              { label: 'Company',  links: ['About Us', 'Careers', 'Contact', 'Blog'] },
-              { label: 'Legal',    links: ['Privacy Policy', 'POPIA', 'Terms of Use', 'Cookie Policy'] },
-            ].map(col => (
-              <div key={col.label}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', color: GL, marginBottom: 22, fontFamily: FD }}>{col.label}</div>
-                {col.links.map(l => (
-                  <div key={l} style={{ fontSize: 13, color: W55, marginBottom: 12, cursor: 'pointer', transition: 'color 0.2s', fontFamily: FD }}
-                    onMouseEnter={e => e.currentTarget.style.color = W}
-                    onMouseLeave={e => e.currentTarget.style.color = W55}>
-                    {l}
+
+            {/* CENTRE — Nav links */}
+            <div style={{ paddingTop: 8 }}>
+              {[
+                { label: 'Jobs Board',    href: '/jobs' },
+                { label: 'Features',      href: '/#features' },
+                { label: 'About',         href: '/#about' },
+                { label: 'News & Updates',href: '#' },
+                { label: 'Contact',       href: '#' },
+              ].map(link => (
+                <div key={link.label}
+                  style={{
+                    padding: '14px 0',
+                    borderBottom: `1px solid ${BB}`,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => link.href !== '#' && navigate(link.href)}
+                  onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }}
+                  onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = W55 }}
+                >
+                  <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W55, transition: 'color 0.2s' }}>
+                    {link.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* RIGHT — Contact info + social */}
+            <div style={{ paddingTop: 8 }}>
+              {/* Partnership */}
+              <div style={{ marginBottom: 32 }}>
+                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Partnership Opportunities</h4>
+                <a href="mailto:partnerships@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  partnerships@honeygroup.co.za
+                </a>
+              </div>
+              {/* Career */}
+              <div style={{ marginBottom: 32 }}>
+                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Career Opportunities</h4>
+                <a href="mailto:careers@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  careers@honeygroup.co.za
+                </a>
+              </div>
+              {/* Press */}
+              <div style={{ marginBottom: 36 }}>
+                <h4 style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 6 }}>Press</h4>
+                <a href="mailto:press@honeygroup.co.za" style={{ fontFamily: FD, fontSize: 13, color: GL, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  press@honeygroup.co.za
+                </a>
+              </div>
+              {/* Social icons */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 40 }}>
+                {[
+                  { label: 'LI', title: 'LinkedIn' },
+                  { label: 'IG', title: 'Instagram' },
+                  { label: 'FB', title: 'Facebook' },
+                ].map(s => (
+                  <div key={s.label} title={s.title} style={{
+                    width: 38, height: 38,
+                    border: `1px solid ${BB}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', transition: 'all 0.25s',
+                    fontSize: 10, fontWeight: 700, color: W28, fontFamily: FD, letterSpacing: '0.04em',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL; e.currentTarget.style.background = `rgba(232,168,32,0.06)` }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W28; e.currentTarget.style.background = 'transparent' }}>
+                    {s.label}
                   </div>
                 ))}
               </div>
-            ))}
+              {/* Copyright tucked into right column */}
+              <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 24 }}>
+                <p style={{ fontSize: 11, color: W28, fontFamily: FD, marginBottom: 12 }}>©2026 Honey Group Promotions. All rights reserved.</p>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                  {['Privacy Policy', 'POPIA Compliant', 'Terms of Use'].map(t => (
+                    <span key={t} style={{ fontSize: 10, color: W28, letterSpacing: '0.06em', fontFamily: FD, cursor: 'pointer', transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = GL}
+                      onMouseLeave={e => e.currentTarget.style.color = W28}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-        <div style={{ padding: '22px 80px', maxWidth: 1360, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: W28, fontFamily: FD }}>© 2026 Honey Group Promotions. All rights reserved.</span>
-          <div style={{ display: 'flex', gap: 28 }}>
-            {['POPIA Compliant', 'South Africa', 'Est. 2018'].map(t => (
-              <span key={t} style={{ fontSize: 10, color: W28, letterSpacing: '0.08em', fontFamily: FD }}>{t}</span>
-            ))}
-          </div>
-        </div>
+
       </footer>
 
       {showLoginPrompt && <LoginPromptModal onClose={() => setLoginPrompt(false)} onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />}

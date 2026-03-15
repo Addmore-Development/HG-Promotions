@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AdminLayout } from '../AdminLayout'
 
 // ─── Warm palette ─────────────────────────────────────────────────────────────
@@ -26,29 +26,89 @@ const W28 = 'rgba(250,243,232,0.28)'
 const FD   = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
 
+// Warm accent palette — cycles per job index
+const WARM_ACCENTS = [GL, G3, '#AB8D3F', G, G4, GL, G3, '#AB8D3F', G, G4]
+
 function hex2rgba(hex: string, alpha: number): string {
-  const h = hex.replace('#','')
-  const r = parseInt(h.substring(0,2),16)
-  const g = parseInt(h.substring(2,4),16)
-  const b = parseInt(h.substring(4,6),16)
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
   return `rgba(${r},${g},${b},${alpha})`
 }
 
 type JobStatus = 'open' | 'filled' | 'completed' | 'cancelled'
 
 interface Job {
-  id:          string
-  title:       string
-  client:      string
-  venue:       string
-  date:        string
-  startTime:   string
-  endTime:     string
-  hourlyRate:  number
-  totalSlots:  number
-  filledSlots: number
-  status:      JobStatus
-  city:        string
+  id:           string
+  title:        string
+  client:       string
+  venue:        string
+  date:         string
+  startTime:    string
+  endTime:      string
+  hourlyRate:   number
+  totalSlots:   number
+  filledSlots:  number
+  status:       JobStatus
+  city:         string
+  // Public jobs page fields
+  company?:     string
+  location?:    string
+  type?:        string
+  pay?:         string
+  payPer?:      string
+  jobDate?:     string
+  approvedAt?:  string
+  slots?:       number
+  slotsLeft?:   number
+  duration?:    string
+  tags?:        string[]
+  accentLine?:  string
+  gradient?:    string
+  companyInitial?: string
+  companyColor?:   string
+  contactPerson?:  string
+  contactEmail?:   string
+  contactPhone?:   string
+}
+
+// ─── Persist admin jobs to localStorage ──────────────────────────────────────
+function saveAdminJobsToStorage(jobs: Job[]) {
+  // Only save 'open' jobs to the public board (not filled/completed/cancelled)
+  const publicJobs = jobs
+    .filter(j => j.status === 'open')
+    .map((j, idx) => ({
+      id:             j.id,
+      title:          j.title,
+      company:        j.client,
+      companyInitial: j.client.charAt(0),
+      companyColor:   WARM_ACCENTS[idx % WARM_ACCENTS.length],
+      location:       `${j.venue}, ${j.city}`,
+      type:           'Brand Activation',
+      pay:            `R ${j.hourlyRate.toLocaleString('en-ZA')}`,
+      payPer:         'per hour',
+      date:           j.date ? new Date(j.date).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short', year:'numeric' }) : '',
+      jobDate:        j.date,
+      approvedAt:     new Date().toISOString().slice(0, 10),
+      slots:          j.totalSlots,
+      slotsLeft:      j.totalSlots - j.filledSlots,
+      duration:       `${j.startTime}–${j.endTime}`,
+      tags:           ['Admin Posted'],
+      accentLine:     WARM_ACCENTS[idx % WARM_ACCENTS.length],
+      gradient:       `linear-gradient(135deg, rgba(232,168,32,0.10) 0%, rgba(196,151,58,0.04) 100%)`,
+      status:         'open',
+      contactPerson:  'Admin',
+      contactEmail:   'admin@honeygroup.co.za',
+      contactPhone:   '+27 11 000 0000',
+      companyReg:     'N/A',
+      vatNumber:      'N/A',
+      address:        `${j.venue}, ${j.city}`,
+      terms:          `This job was created by the Honey Group Admin team. Standard Honey Group Promoter Terms & Conditions apply.\n\nPayment: R ${j.hourlyRate}/hr for ${j.startTime}–${j.endTime}.\n\nPOPIA: All personal data processed in compliance with POPIA.`,
+    }))
+  localStorage.setItem('hg_admin_jobs', JSON.stringify(publicJobs))
+  // Trigger storage event for same-tab listeners
+  window.dispatchEvent(new Event('storage'))
 }
 
 const MOCK_JOBS: Job[] = [
@@ -60,13 +120,11 @@ const MOCK_JOBS: Job[] = [
   { id:'JB-206', title:'Promoter — Savanna',           client:'Distell',      venue:'Gateway Theatre', date:'2026-03-18', startTime:'14:00', endTime:'22:00', hourlyRate:115, totalSlots:3,  filledSlots:0,  status:'open',      city:'Durban'         },
 ]
 
-// Status colors — all warm, all clearly visible
-// open=gold  filled=amber  completed=pale-gold(bright)  cancelled=cream-on-brown
 const STATUS_COLOR: Record<JobStatus,string> = {
-  open:      GL,          // bright gold
-  filled:    G3,          // mid amber
-  completed: G4,          // pale gold — bright and readable
-  cancelled: '#E8D5A8',  // warm cream — visible on dark bg
+  open:      GL,
+  filled:    G3,
+  completed: G4,
+  cancelled: '#E8D5A8',
 }
 const STATUS_BG: Record<JobStatus,string> = {
   open:      hex2rgba(GL,0.12),
@@ -114,52 +172,66 @@ function Btn({ children, onClick, outline=false, small=false, color=G }: any) {
 
 function StatusBadge({ status }: { status: JobStatus }) {
   return (
-    <span style={{
-      fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase',
-      fontFamily:FD, color:STATUS_COLOR[status],
-      background:STATUS_BG[status], border:`1px solid ${STATUS_BORDER[status]}`,
-      padding:'3px 10px', borderRadius:3,
-    }}>{status}</span>
+    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:STATUS_COLOR[status], background:STATUS_BG[status], border:`1px solid ${STATUS_BORDER[status]}`, padding:'3px 10px', borderRadius:3 }}>{status}</span>
   )
 }
 
 export default function CRUDJobsLogic() {
-  const [jobs,     setJobs    ]=useState<Job[]>(MOCK_JOBS)
-  const [modal,    setModal   ]=useState<'create'|'edit'|null>(null)
-  const [editing,  setEditing ]=useState<Job|null>(null)
-  const [form,     setForm    ]=useState<Omit<Job,'id'>>(EMPTY_JOB)
-  const [filter,   setFilter  ]=useState<JobStatus|'all'>('all')
-  const [deleting, setDeleting]=useState<string|null>(null)
+  const [jobs,     setJobs    ] = useState<Job[]>(MOCK_JOBS)
+  const [modal,    setModal   ] = useState<'create'|'edit'|null>(null)
+  const [editing,  setEditing ] = useState<Job|null>(null)
+  const [form,     setForm    ] = useState<Omit<Job,'id'>>(EMPTY_JOB)
+  const [filter,   setFilter  ] = useState<JobStatus|'all'>('all')
+  const [deleting, setDeleting] = useState<string|null>(null)
 
-  const filtered=jobs.filter(j=>filter==='all'||j.status===filter)
-  const openCreate=()=>{ setForm(EMPTY_JOB); setEditing(null); setModal('create') }
-  const openEdit  =(job:Job)=>{ setForm({...job}); setEditing(job); setModal('edit') }
-  const closeModal=()=>{ setModal(null); setEditing(null) }
+  // Sync to localStorage whenever jobs change
+  useEffect(() => {
+    saveAdminJobsToStorage(jobs)
+  }, [jobs])
 
-  const save=()=>{
-    if(modal==='create'){ setJobs(prev=>[{...form,id:`JB-${Math.floor(Math.random()*900+100)}`},...prev]) }
-    else if(editing){ setJobs(prev=>prev.map(j=>j.id===editing.id?{...form,id:editing.id}:j)) }
+  const filtered = jobs.filter(j=>filter==='all'||j.status===filter)
+  const openCreate = () => { setForm(EMPTY_JOB); setEditing(null); setModal('create') }
+  const openEdit   = (job:Job)=>{ setForm({...job}); setEditing(job); setModal('edit') }
+  const closeModal = ()=>{ setModal(null); setEditing(null) }
+
+  const save = () => {
+    if (modal==='create') {
+      const newJob: Job = { ...form, id:`JB-${Math.floor(Math.random()*9000+1000)}` }
+      setJobs(prev=>[newJob,...prev])
+    } else if (editing) {
+      setJobs(prev=>prev.map(j=>j.id===editing.id?{...form,id:editing.id}:j))
+    }
     closeModal()
   }
 
-  const deleteJob=(id:string)=>{ setJobs(prev=>prev.filter(j=>j.id!==id)); setDeleting(null) }
-  const F=(key:keyof typeof form,value:string|number)=>setForm(prev=>({...prev,[key]:value}))
+  const deleteJob = (id:string)=>{ setJobs(prev=>prev.filter(j=>j.id!==id)); setDeleting(null) }
+  const F = (key:keyof typeof form, value:string|number)=>setForm(prev=>({...prev,[key]:value}))
 
-  const counts={ all:jobs.length, open:jobs.filter(j=>j.status==='open').length, filled:jobs.filter(j=>j.status==='filled').length, completed:jobs.filter(j=>j.status==='completed').length, cancelled:jobs.filter(j=>j.status==='cancelled').length }
+  // Load registered clients from localStorage + mock clients
+  const registeredClients: string[] = (() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('hg_admin_clients') || '[]')
+      const storedNames = stored.map((c: any) => c.name).filter(Boolean)
+      const mockNames = ['Red Bull SA','AB InBev','Nike SA','Vodacom','Nedbank','Distell','SABMiller SA','Acme Events Corp','FreshBrands Ltd','Castle Lager SA','Standard Bank Promos',"Nando's Marketing",'Vodacom Business','MTN SA','Heineken SA','Woolworths SA','Tiger Brands','Pernod Ricard SA','Shoprite Holdings','Coca-Cola SA','Johnson & Johnson SA','KFC South Africa','Hyundai Automotive SA','Old Mutual SA','Unilever SA','Standard Bank SA','SAB South Africa','Pick n Pay SA','Distell Group']
+      return Array.from(new Set([...storedNames, ...mockNames])).sort()
+    } catch { return [] }
+  })()
 
-  const inputStyle:React.CSSProperties={ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
-  const labelStyle:React.CSSProperties={ fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:W55, display:'block', marginBottom:7, fontFamily:FD }
+  const counts = { all:jobs.length, open:jobs.filter(j=>j.status==='open').length, filled:jobs.filter(j=>j.status==='filled').length, completed:jobs.filter(j=>j.status==='completed').length, cancelled:jobs.filter(j=>j.status==='cancelled').length }
+
+  const inputStyle:React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
+  const labelStyle:React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
 
   return (
     <AdminLayout>
       <div style={{ padding:'40px 48px' }}>
 
         {/* HEADER */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:24 }}>
           <div>
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Operations · Jobs</div>
             <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Manage Jobs</h1>
-            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>{jobs.length} total jobs across all cities.</p>
+            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>{jobs.length} total jobs</p>
           </div>
           <Btn onClick={openCreate}>+ New Job</Btn>
         </div>
@@ -183,8 +255,7 @@ export default function CRUDJobsLogic() {
             </thead>
             <tbody>
               {filtered.map((job,i)=>(
-                <tr key={job.id}
-                  style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s' }}
+                <tr key={job.id} style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s' }}
                   onMouseEnter={e=>e.currentTarget.style.background=BB2}
                   onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                   <td style={{ padding:'14px 18px', fontSize:11, color:W28, fontFamily:MONO }}>{job.id}</td>
@@ -197,7 +268,7 @@ export default function CRUDJobsLogic() {
                     <div style={{ fontSize:11, color:W28, fontFamily:FD }}>{job.venue}</div>
                   </td>
                   <td style={{ padding:'14px 18px', whiteSpace:'nowrap' }}>
-                    <div style={{ fontSize:12, color:W55, fontFamily:FD }}>{new Date(job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}</div>
+                    <div style={{ fontSize:12, color:W55, fontFamily:FD }}>{job.date ? new Date(job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) : '—'}</div>
                     <div style={{ fontSize:10, color:W28, fontFamily:FD }}>{job.startTime}–{job.endTime}</div>
                   </td>
                   <td style={{ padding:'14px 18px', fontSize:13, color:GL, fontWeight:700, fontFamily:FD }}>R{job.hourlyRate}/hr</td>
@@ -224,11 +295,12 @@ export default function CRUDJobsLogic() {
 
         {/* DELETE CONFIRM */}
         {deleting&&(
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}>
-            <div style={{ background:D2, border:`1px solid ${hex2rgba(G2,0.7)}`, padding:'36px 40px', maxWidth:380, width:'100%', borderRadius:4 }}>
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }}
+            onClick={e=>e.target===e.currentTarget&&setDeleting(null)}>
+            <div style={{ background:D2, border:`1px solid ${hex2rgba(G2,0.7)}`, padding:'36px 40px', maxWidth:380, width:'100%', position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:G2, borderRadius:'4px 4px 0 0' }} />
               <h3 style={{ fontFamily:FD, fontSize:22, color:W, marginBottom:12 }}>Delete Job?</h3>
-              <p style={{ fontSize:13, color:W55, marginBottom:28, lineHeight:1.7, fontFamily:FD }}>This action cannot be undone. The job and all associated shifts will be permanently removed.</p>
+              <p style={{ fontSize:13, color:W55, marginBottom:28, lineHeight:1.7, fontFamily:FD }}>This job will be permanently removed from the platform.</p>
               <div style={{ display:'flex', gap:12 }}>
                 <button onClick={()=>setDeleting(null)} style={{ flex:1, padding:'12px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:12, cursor:'pointer', borderRadius:3 }}>Cancel</button>
                 <button onClick={()=>deleteJob(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#E8D5A8', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>Delete</button>
@@ -237,45 +309,70 @@ export default function CRUDJobsLogic() {
           </div>
         )}
 
-        {/* CREATE/EDIT MODAL */}
+        {/* CREATE / EDIT MODAL */}
         {modal&&(
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }}
             onClick={e=>e.target===e.currentTarget&&closeModal()}>
-            <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:560, maxHeight:'90vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
+            <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:580, maxHeight:'90vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${GL},${G5})`, borderRadius:'4px 4px 0 0' }} />
               <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
               <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontFamily:FD, fontWeight:700 }}>{modal==='create'?'New Job':'Edit Job'}</div>
-              <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:28 }}>{modal==='create'?'Create a New Job':`Editing ${editing?.id}`}</h2>
+              <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:20 }}>{modal==='create'?'Create a New Job':`Editing ${editing?.id}`}</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+
+                {/* Job Title */}
+                <div>
+                  <label style={labelStyle}>Job Title</label>
+                  <input type="text" placeholder="Brand Ambassador — Red Bull" value={form.title} onChange={e=>F('title',e.target.value)}
+                    style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+
+                {/* Client — dropdown of registered clients */}
+                <div>
+                  <label style={labelStyle}>Client</label>
+                  <select value={form.client} onChange={e=>F('client',e.target.value)}
+                    style={{ ...inputStyle, background:D3, cursor:'pointer', color: form.client ? W : W55 }}>
+                    <option value="">— Select registered client —</option>
+                    {registeredClients.map(c=><option key={c} value={c}>{c}</option>)}
+                    <option value="__other__">Other (type below)</option>
+                  </select>
+                  {form.client==='__other__' && (
+                    <input type="text" placeholder="Enter client name" onChange={e=>F('client',e.target.value)}
+                      style={{ ...inputStyle, marginTop:8 }}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  )}
+                </div>
+
+                {/* Venue, City, Date */}
                 {([
-                  {label:'Job Title', key:'title',  type:'text',   placeholder:'Brand Ambassador — Red Bull'},
-                  {label:'Client',    key:'client',  type:'text',   placeholder:'Red Bull SA'},
-                  {label:'Venue',     key:'venue',   type:'text',   placeholder:'Sandton City'},
-                  {label:'City',      key:'city',    type:'text',   placeholder:'Johannesburg'},
-                  {label:'Date',      key:'date',    type:'date',   placeholder:''},
+                  {label:'Venue', key:'venue', type:'text',  placeholder:'Sandton City'},
+                  {label:'City',  key:'city',  type:'text',  placeholder:'Johannesburg'},
+                  {label:'Date',  key:'date',  type:'date',  placeholder:''},
                 ] as const).map(({label,key,type,placeholder})=>(
                   <div key={key}>
                     <label style={labelStyle}>{label}</label>
                     <input type={type} placeholder={placeholder} value={(form as any)[key]} onChange={e=>F(key,e.target.value)}
-                      style={inputStyle}
-                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                      style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                   </div>
                 ))}
+
+                {/* Time & Rate grid */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   {[
-                    {label:'Start Time',       key:'startTime',   type:'time'},
-                    {label:'End Time',         key:'endTime',     type:'time'},
-                    {label:'Hourly Rate (R)',   key:'hourlyRate',  type:'number'},
-                    {label:'Total Slots',       key:'totalSlots',  type:'number'},
+                    {label:'Start Time',      key:'startTime',  type:'time'  },
+                    {label:'End Time',        key:'endTime',    type:'time'  },
+                    {label:'Hourly Rate (R)', key:'hourlyRate', type:'number'},
+                    {label:'Total Slots',     key:'totalSlots', type:'number'},
                   ].map(({label,key,type})=>(
                     <div key={key}>
                       <label style={labelStyle}>{label}</label>
                       <input type={type} value={(form as any)[key]} onChange={e=>F(key as any,type==='number'?+e.target.value:e.target.value)}
-                        style={inputStyle}
-                        onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                        style={inputStyle} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                     </div>
                   ))}
                 </div>
+
+                {/* Status */}
                 <div>
                   <label style={labelStyle}>Status</label>
                   <select value={form.status} onChange={e=>F('status',e.target.value)}
@@ -283,6 +380,7 @@ export default function CRUDJobsLogic() {
                     {(['open','filled','completed','cancelled'] as JobStatus[]).map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
                   </select>
                 </div>
+
                 <Btn onClick={save}>{modal==='create'?'Create Job':'Save Changes'}</Btn>
               </div>
             </div>
