@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { showToast } from '../../shared/utils/toast';
+import { jobsService } from '../../shared/services/jobsService'; // <-- import the service
 
 const G   = '#D4880A';
 const GL  = '#E8A820';
@@ -56,29 +57,6 @@ function jobMatchesPromoterCity(job: any, promoterCityRaw: string): boolean {
   return tokens.some(token => jobText.includes(token));
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface Job {
-  id: string;
-  title: string;
-  client: string;
-  brand?: string;
-  venue: string;
-  address: string;
-  city?: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  hourlyRate: number;
-  filledSlots: number;
-  totalSlots: number;
-  status: string;
-  filters?: {
-    gender?: string;
-    minHeight?: string | number;
-  };
-  termsAndConditions?: string;
-}
-
 export const ViewAcceptJobs: React.FC = () => {
   const { user } = useAuth();
   const [jobs, setJobs]                 = useState<any[]>([]);
@@ -88,66 +66,37 @@ export const ViewAcceptJobs: React.FC = () => {
   const [applying, setApplying]         = useState<string | null>(null);
   const [selectedJob, setSelectedJob]   = useState<any>(null);
   const [filter, setFilter]             = useState<'myCity' | 'all' | 'matched'>('myCity');
-
-  // T&C acceptance state
-  const [tcJob,      setTcJob     ] = useState<Job | null>(null);
-  const [tcAccepted, setTcAccepted] = useState(false);
-  const [tcScrolled, setTcScrolled] = useState(false);
-
-  // Search state
-  const [search, setSearch] = useState('');
-
-  // Sort state: field + direction
-  const [sortField, setSortField] = useState<'date' | 'pay' | 'distance'>('date');
-  const [sortDir, setSortDir]     = useState<'asc' | 'desc'>('desc');
-
-  // Location state
-  const [userLocation, setUserLocation]     = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError]   = useState<string | null>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-
-  // Get user location
-  const getUserLocation = () => {
-    setLocationLoading(true);
-    setLocationError(null);
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported');
-      setLocationLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationLoading(false);
-      },
-      () => {
-        setLocationError('');
-        setLocationLoading(false);
-        setUserLocation({ lat: -26.1076, lng: 28.0560 }); // fallback Sandton
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
-  useEffect(() => { loadData(); }, [user]);
+  const [search, setSearch]             = useState('');
+  const [sortField, setSortField]       = useState<'date' | 'pay'>('date');
 
   const loadData = async () => {
     if (!user) return;
-    setLoading(true);
-    try {
-      const [jobsRes, profileRes, appsRes] = await Promise.all([
-        fetch(`${API}/jobs`, { headers: authHdr() }),
-        fetch(`${API}/promoters/me`, { headers: authHdr() }),
-        fetch(`${API}/applications/mine`, { headers: authHdr() }),
-      ]);
-      if (jobsRes.ok)    setJobs(await jobsRes.json());
-      if (profileRes.ok) setProfile(await profileRes.json());
-      if (appsRes.ok)    setApplications(await appsRes.json());
-    } catch {
-      showToast('Failed to load jobs', 'error');
+
+    // Use jobsService to fetch available jobs – it already handles transformation & auth
+    const [jobsData, meRes, appsRes] = await Promise.all([
+      jobsService.getAvailableJobs(),                         // ✅ now using the service
+      fetch(`${API}/auth/me`, { headers: authHdr() as any }),
+      fetch(`${API}/applications/my`, { headers: authHdr() as any }),
+    ]);
+
+    setJobs(jobsData); // jobsService returns the already transformed Job[] (with nested coordinates)
+
+    if (meRes.ok) {
+      const profileData = await meRes.json();
+      console.log('Profile data:', profileData);
+      setProfile(profileData);
     }
+
+    if (appsRes.ok) {
+      const appsData = await appsRes.json();
+      console.log('Applications data:', appsData);
+      setApplications(appsData);
+    }
+
     setLoading(false);
   };
+
+  useEffect(() => { loadData(); }, [user]);
 
   const promoterCityRaw = profile?.city || '';
 
@@ -183,45 +132,35 @@ export const ViewAcceptJobs: React.FC = () => {
     );
   }, [filteredJobs, sortField]);
 
-  const handleConfirmedApply = async (job: Job) => {
-    if (!user) return;
-    setApplying(job.id);
-    try {
-      const res = await fetch(`${API}/applications`, {
-        method: 'POST',
-        headers: authHdr(),
-        body: JSON.stringify({ jobId: job.id }),
-      });
-      if (res.ok) {
-        showToast('Interest expressed successfully!', 'success');
-        setTcJob(null);
-        setTcAccepted(false);
-        setTcScrolled(false);
-        loadData();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast(err.message || 'Failed to apply', 'error');
-      }
-    } catch {
-      showToast('Failed to apply', 'error');
-    }
-    setApplying(null);
-  };
-
   const handleApply = async (job: any) => {
     if (!user) return;
     if (!jobMatchesPromoterCity(job, promoterCityRaw)) {
-      showToast('You can only apply for jobs in your city.', 'error');
+      showToast(`You can only apply for jobs in your city.`, 'error');
       return;
     }
     if (profile?.status !== 'approved') {
       showToast('Your account must be approved before applying for jobs.', 'error');
       return;
     }
-    // Open T&C modal
-    setTcJob(job);
-    setTcAccepted(false);
-    setTcScrolled(false);
+    setApplying(job.id);
+    try {
+      const res = await fetch(`${API}/applications`, {
+        method: 'POST',
+        headers: authHdr() as any,
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setApplications(prev => [...prev, data]);
+        showToast('✅ Your interest has been registered! The admin and business will be notified.', 'info');
+        setSelectedJob(null);
+      } else {
+        showToast(data.error || 'Failed to apply', 'error');
+      }
+    } catch {
+      showToast('Failed to apply', 'error');
+    }
+    setApplying(null);
   };
 
   const getAppForJob = (jobId: string) => applications.find(a => a.jobId === jobId);
@@ -285,15 +224,10 @@ export const ViewAcceptJobs: React.FC = () => {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search jobs…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search jobs…" value={search} onChange={e => setSearch(e.target.value)}
             style={{ background: BC, border: `1px solid ${BB}`, padding: '8px 14px', color: W, fontFamily: FB, fontSize: 12, outline: 'none', borderRadius: 20, width: 200 }}
             onFocus={e => e.currentTarget.style.borderColor = GL}
-            onBlur={e => e.currentTarget.style.borderColor = BB}
-          />
+            onBlur={e => e.currentTarget.style.borderColor = BB} />
           <div style={{ display: 'flex', gap: 4 }}>
             {[{ key: 'date', label: 'Date' }, { key: 'pay', label: 'Pay' }].map(s => (
               <button key={s.key} onClick={() => setSortField(s.key as any)}
@@ -350,12 +284,10 @@ export const ViewAcceptJobs: React.FC = () => {
                   </td>
                   <td style={{ padding: '14px 18px' }}>
                     {app ? (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 2,
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 2,
                         color:      app.status === 'ALLOCATED' ? TEAL  : AMBER,
                         background: app.status === 'ALLOCATED' ? 'rgba(74,171,184,0.1)' : 'rgba(232,168,32,0.1)',
-                        border:    `1px solid ${app.status === 'ALLOCATED' ? 'rgba(74,171,184,0.4)' : 'rgba(232,168,32,0.4)'}`,
-                      }}>
+                        border:    `1px solid ${app.status === 'ALLOCATED' ? 'rgba(74,171,184,0.4)' : 'rgba(232,168,32,0.4)'}` }}>
                         {app.status === 'ALLOCATED' ? '✓ Confirmed' : '⏳ Interested'}
                       </span>
                     ) : (
@@ -370,9 +302,7 @@ export const ViewAcceptJobs: React.FC = () => {
                     ) : profile?.status !== 'approved' ? (
                       <span style={{ fontSize: 10, color: WD }}>Pending approval</span>
                     ) : (
-                      <button
-                        onClick={e => { e.stopPropagation(); handleApply(job); }}
-                        disabled={applying === job.id}
+                      <button onClick={e => { e.stopPropagation(); handleApply(job); }} disabled={applying === job.id}
                         style={{ fontSize: 11, color: G, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontWeight: 700, padding: 0 }}
                         onMouseEnter={e => e.currentTarget.style.color = GL}
                         onMouseLeave={e => e.currentTarget.style.color = G}>
@@ -394,97 +324,11 @@ export const ViewAcceptJobs: React.FC = () => {
         )}
       </div>
 
-      {/* ── TERMS & CONDITIONS MODAL ── */}
-      {tcJob && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 24 }}
-          onClick={e => e.target === e.currentTarget && setTcJob(null)}>
-          <div style={{ background: '#151209', border: '1px solid rgba(212,136,10,0.16)', width: '100%', maxWidth: 560, maxHeight: '88vh', display: 'flex', flexDirection: 'column', position: 'relative', borderRadius: 4 }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#6B3F10,#E8A820,#6B3F10)', borderRadius: '4px 4px 0 0' }} />
-            {/* Header */}
-            <div style={{ padding: '28px 32px 20px', borderBottom: '1px solid rgba(212,136,10,0.16)' }}>
-              <button onClick={() => setTcJob(null)} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(250,243,232,0.28)', fontSize: 18 }}>✕</button>
-              <div style={{ fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#E8A820', fontWeight: 700, fontFamily: FD, marginBottom: 6 }}>Before You Apply</div>
-              <h2 style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: '#FAF3E8', marginBottom: 4 }}>{tcJob.title}</h2>
-              <div style={{ fontSize: 12, color: 'rgba(250,243,232,0.55)', fontFamily: FB }}>
-                {tcJob.client} · {tcJob.venue}
-              </div>
-              <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(212,136,10,0.08)', border: '1px solid rgba(212,136,10,0.22)', borderRadius: 3, fontSize: 11, color: '#E8A820', fontFamily: FB }}>
-                ⚠ Please read the Terms &amp; Conditions below before applying. You must scroll to the bottom and accept them to proceed.
-              </div>
-            </div>
-
-            {/* Scrollable T&C body */}
-            <div
-              onScroll={e => {
-                const el = e.currentTarget;
-                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
-              }}
-              style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(250,243,232,0.55)', fontWeight: 700, fontFamily: FB, marginBottom: 12 }}>
-                Terms &amp; Conditions
-              </div>
-              <div style={{ fontSize: 13, color: 'rgba(250,243,232,0.85)', fontFamily: FB, lineHeight: 1.9, whiteSpace: 'pre-wrap', background: 'rgba(212,136,10,0.04)', border: '1px solid rgba(212,136,10,0.12)', padding: '18px 20px', borderRadius: 3 }}>
-                {tcJob.termsAndConditions || 'No specific terms provided for this job.'}
-              </div>
-              {!tcScrolled && (
-                <div style={{ marginTop: 16, textAlign: 'center', fontSize: 11, color: 'rgba(250,243,232,0.40)', fontFamily: FB }}>
-                  ↓ Scroll down to read all terms
-                </div>
-              )}
-            </div>
-
-            {/* Accept footer */}
-            <div style={{ padding: '20px 32px', borderTop: '1px solid rgba(212,136,10,0.16)', background: 'rgba(14,12,6,0.8)' }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: tcScrolled ? 'pointer' : 'not-allowed', marginBottom: 16 }}>
-                <input
-                  type="checkbox"
-                  checked={tcAccepted}
-                  onChange={e => { if (tcScrolled) setTcAccepted(e.target.checked); }}
-                  style={{ accentColor: '#E8A820', marginTop: 2, cursor: tcScrolled ? 'pointer' : 'not-allowed', width: 16, height: 16 }}
-                />
-                <span style={{ fontSize: 12, color: tcScrolled ? 'rgba(250,243,232,0.85)' : 'rgba(250,243,232,0.35)', fontFamily: FB, lineHeight: 1.6 }}>
-                  I have read, understood, and agree to the Terms &amp; Conditions for <strong style={{ color: '#E8A820' }}>{tcJob.title}</strong>. I confirm I meet all requirements and will comply throughout the shift.
-                </span>
-              </label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  onClick={() => setTcJob(null)}
-                  style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(212,136,10,0.16)', color: 'rgba(250,243,232,0.55)', fontFamily: FB, fontSize: 11, cursor: 'pointer', borderRadius: 3 }}>
-                  Cancel
-                </button>
-                <button
-                  onClick={() => { if (tcAccepted && tcScrolled) handleConfirmedApply(tcJob); }}
-                  disabled={!tcAccepted || !tcScrolled}
-                  style={{
-                    flex: 2, padding: '12px',
-                    background: tcAccepted && tcScrolled ? 'linear-gradient(135deg,#E8A820,#D4880A)' : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${tcAccepted && tcScrolled ? '#E8A820' : 'rgba(212,136,10,0.16)'}`,
-                    color: tcAccepted && tcScrolled ? '#0C0A07' : 'rgba(250,243,232,0.28)',
-                    fontFamily: FB, fontSize: 11, fontWeight: 700,
-                    cursor: tcAccepted && tcScrolled ? 'pointer' : 'not-allowed',
-                    borderRadius: 3, letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'all 0.2s',
-                  }}>
-                  {applying === tcJob?.id ? 'Applying…' : 'Accept T&C & Apply Now →'}
-                </button>
-              </div>
-              {!tcScrolled && (
-                <div style={{ marginTop: 10, textAlign: 'center', fontSize: 11, color: 'rgba(212,136,10,0.55)', fontFamily: FB }}>
-                  Scroll through the full terms to enable the accept button
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Job Detail Modal */}
+      {/* Job detail modal */}
       {selectedJob && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}
           onClick={() => setSelectedJob(null)}>
-          <div
-            style={{ background: BC, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderRadius: 4 }}
+          <div style={{ background: BC, border: `1px solid ${BB}`, padding: '44px', width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderRadius: 4 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${GL}, ${G2})` }} />
             <button onClick={() => setSelectedJob(null)} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: WD, fontSize: 18 }}>✕</button>
@@ -512,15 +356,12 @@ export const ViewAcceptJobs: React.FC = () => {
             ))}
 
             <div style={{ marginTop: 28, display: 'flex', gap: 12 }}>
-              <button
-                onClick={() => setSelectedJob(null)}
+              <button onClick={() => setSelectedJob(null)}
                 style={{ flex: 1, padding: 12, background: 'transparent', border: `1px solid ${BB}`, color: WM, fontFamily: FB, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 Close
               </button>
               {!getAppForJob(selectedJob.id) && jobMatchesPromoterCity(selectedJob, promoterCityRaw) && profile?.status === 'approved' && (
-                <button
-                  onClick={() => handleApply(selectedJob)}
-                  disabled={applying === selectedJob.id}
+                <button onClick={() => handleApply(selectedJob)} disabled={applying === selectedJob.id}
                   style={{ flex: 2, padding: 12, background: G, border: 'none', color: B, fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = GL}
                   onMouseLeave={e => e.currentTarget.style.background = G}>
