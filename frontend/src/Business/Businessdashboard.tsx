@@ -55,14 +55,12 @@ export default function BusinessDashboard() {
     if (s) {
       const parsed = JSON.parse(s)
       setSession(parsed)
-      // Try to get company name from API profile
+      // Fetch profile from API to get the stored company name (fullName)
       const token = localStorage.getItem('hg_token')
       if (token) {
         fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
           .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (data?.fullName) setCompanyName(data.fullName)
-          })
+          .then(data => { if (data?.fullName) setCompanyName(data.fullName) })
           .catch(() => {})
       }
     }
@@ -73,7 +71,7 @@ export default function BusinessDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API}/jobs?status=all`, { headers: authHdr() as any })
+        const res = await fetch(`${API}/jobs`, { headers: authHdr() as any })
         if (res.ok) setJobs(await res.json())
       } catch {}
       setLoading(false)
