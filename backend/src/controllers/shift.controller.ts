@@ -9,7 +9,6 @@ import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 export const selfieUpload = upload.single('selfie');
 
-
 export const getMyShifts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const shifts = await prisma.shift.findMany({
@@ -22,7 +21,6 @@ export const getMyShifts = async (req: AuthRequest, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to fetch shifts' });
   }
 };
-
 
 export const getAllShifts = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -40,43 +38,96 @@ export const getAllShifts = async (_req: Request, res: Response): Promise<void> 
   }
 };
 
-
 export const checkIn = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { lat, lng } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
     const userId = req.user!.id;
 
+    // Mandatory checks
+    if (!file) {
+      res.status(400).json({ error: 'Selfie is required' });
+      return;
+    }
+    if (!lat || !lng) {
+      res.status(400).json({ error: 'Location coordinates are required' });
+      return;
+    }
+
     const shift = await prisma.shift.findUnique({
       where: { id: req.params.id },
       include: { job: true },
     });
 
-    if (!shift) { res.status(404).json({ error: 'Shift not found' }); return; }
-    if (shift.promoterId !== userId) { res.status(403).json({ error: 'Not your shift' }); return; }
-    if (shift.status !== 'SCHEDULED') { res.status(400).json({ error: 'Shift already checked in or completed' }); return; }
-
-    let selfieUrl: string | undefined;
-    if (file) {
-      const isDev = process.env.NODE_ENV !== 'production';
-      selfieUrl = isDev
-        ? mockS3Url(`shifts/${shift.id}`, `checkin-${Date.now()}.jpg`)
-        : await uploadToS3(`shifts/${shift.id}/checkin-${Date.now()}.jpg`, file.buffer, file.mimetype);
+    if (!shift) {
+      res.status(404).json({ error: 'Shift not found' });
+      return;
+    }
+    if (shift.promoterId !== userId) {
+      res.status(403).json({ error: 'Not your shift' });
+      return;
+    }
+    if (shift.status !== 'SCHEDULED') {
+      res.status(400).json({ error: 'Shift already checked in or completed' });
+      return;
     }
 
+    // --- Time window validation (shift must be within job start/end) ---
+    const job = shift.job;
+    const startDateTime = new Date(job.date);
+    const [startHour, startMinute] = job.startTime.split(':').map(Number);
+    startDateTime.setHours(startHour, startMinute, 0, 0);
+
+    const endDateTime = new Date(job.date);
+    const [endHour, endMinute] = job.endTime.split(':').map(Number);
+    endDateTime.setHours(endHour, endMinute, 0, 0);
+
+    // Handle overnight shifts
+    if (endDateTime < startDateTime) {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+    }
+
+    const now = new Date();
+    if (now < startDateTime) {
+      res.status(400).json({ error: 'Shift has not started yet' });
+      return;
+    }
+    if (now > endDateTime) {
+      res.status(400).json({ error: 'Shift has already ended' });
+      return;
+    }
+    // --- End of time window validation ---
+
+    // Upload selfie
+    const isDev = process.env.NODE_ENV !== 'production';
+    const selfieUrl = isDev
+      ? mockS3Url(`shifts/${shift.id}`, `checkin-${Date.now()}.jpg`)
+      : await uploadToS3(`shifts/${shift.id}/checkin-${Date.now()}.jpg`, file.buffer, file.mimetype);
+
+    // Atomically update shift
     const updated = await prisma.shift.update({
-      where: { id: req.params.id },
+      where: {
+        id: req.params.id,
+        status: 'SCHEDULED',
+      },
       data: {
         status: 'CHECKED_IN',
         checkInTime: new Date(),
-        ...(selfieUrl && { checkInSelfieUrl: selfieUrl }),
+        checkInSelfieUrl: selfieUrl,
       },
     });
 
-    // Store live location in Redis
-    if (lat && lng) {
-      const name = `${shift.job.title}  ${shift.job.venue}`;
+    if (!updated) {
+      res.status(409).json({ error: 'Shift was already modified' });
+      return;
+    }
+
+    // Store live location (Redis, non‑critical)
+    try {
+      const name = `${job.title}  ${job.venue}`;
       await setLiveLocation(userId, parseFloat(lat), parseFloat(lng), name);
+    } catch (redisErr) {
+      console.warn('[Redis] Failed to store live location:', redisErr);
     }
 
     await auditLog({ userId, action: 'CHECK_IN', entity: 'Shift', entityId: shift.id });
@@ -87,45 +138,74 @@ export const checkIn = async (req: AuthRequest, res: Response): Promise<void> =>
   }
 };
 
-
 export const checkOut = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const { lat, lng } = req.body; // Now expecting location for checkout too
     const file = (req as any).file as Express.Multer.File | undefined;
     const userId = req.user!.id;
+
+    // --- Epic 3 mandatory selfie and GPS ---
+    if (!file) {
+      res.status(400).json({ error: 'Selfie is required' });
+      return;
+    }
+    if (!lat || !lng) {
+      res.status(400).json({ error: 'Location coordinates are required for checkout' });
+      return;
+    }
 
     const shift = await prisma.shift.findUnique({
       where: { id: req.params.id },
       include: { job: true },
     });
 
-    if (!shift) { res.status(404).json({ error: 'Shift not found' }); return; }
-    if (shift.promoterId !== userId) { res.status(403).json({ error: 'Not your shift' }); return; }
-    if (shift.status !== 'CHECKED_IN') { res.status(400).json({ error: 'Must be checked in first' }); return; }
-
-    let selfieUrl: string | undefined;
-    if (file) {
-      const isDev = process.env.NODE_ENV !== 'production';
-      selfieUrl = isDev
-        ? mockS3Url(`shifts/${shift.id}`, `checkout-${Date.now()}.jpg`)
-        : await uploadToS3(`shifts/${shift.id}/checkout-${Date.now()}.jpg`, file.buffer, file.mimetype);
+    if (!shift) {
+      res.status(404).json({ error: 'Shift not found' });
+      return;
     }
+    if (shift.promoterId !== userId) {
+      res.status(403).json({ error: 'Not your shift' });
+      return;
+    }
+    if (shift.status !== 'CHECKED_IN') {
+      res.status(400).json({ error: 'Must be checked in first' });
+      return;
+    }
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    const selfieUrl = isDev
+      ? mockS3Url(`shifts/${shift.id}`, `checkout-${Date.now()}.jpg`)
+      : await uploadToS3(`shifts/${shift.id}/checkout-${Date.now()}.jpg`, file.buffer, file.mimetype);
 
     const checkOutTime = new Date();
     const checkInTime = shift.checkInTime!;
     const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
 
+    // Atomically update shift – ensure it's still CHECKED_IN
     const updated = await prisma.shift.update({
-      where: { id: req.params.id },
+      where: {
+        id: req.params.id,
+        status: 'CHECKED_IN',
+      },
       data: {
         status: 'PENDING_APPROVAL',
         checkOutTime,
         totalHours: Math.round(totalHours * 10) / 10,
-        ...(selfieUrl && { checkOutSelfieUrl: selfieUrl }),
+        checkOutSelfieUrl: selfieUrl,
       },
     });
 
-    // Remove from live map
-    await clearLiveLocation(userId);
+    if (!updated) {
+      res.status(409).json({ error: 'Shift was already modified' });
+      return;
+    }
+
+    // Remove from live map – Redis failure is not critical for checkout
+    try {
+      await clearLiveLocation(userId);
+    } catch (redisErr) {
+      console.warn('[Redis] Failed to clear live location:', redisErr);
+    }
 
     // Auto-create pending payment
     const grossAmount = Math.round(totalHours * shift.job.hourlyRate);
@@ -147,12 +227,14 @@ export const checkOut = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
-
 export const reportIssue = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { type, note } = req.body;
     const shift = await prisma.shift.findUnique({ where: { id: req.params.id } });
-    if (!shift) { res.status(404).json({ error: 'Shift not found' }); return; }
+    if (!shift) {
+      res.status(404).json({ error: 'Shift not found' });
+      return;
+    }
 
     const issues = [...(shift.issues as any[]), { type, note, reportedAt: new Date(), reportedBy: req.user!.id }];
     const updated = await prisma.shift.update({ where: { id: req.params.id }, data: { issues } });
@@ -164,7 +246,6 @@ export const reportIssue = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-
 export const getLiveLocations = async (_req: Request, res: Response): Promise<void> => {
   try {
     const locations = await getAllLiveLocations();
@@ -173,7 +254,6 @@ export const getLiveLocations = async (_req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'Failed to fetch live locations' });
   }
 };
-
 
 export const approveShift = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
