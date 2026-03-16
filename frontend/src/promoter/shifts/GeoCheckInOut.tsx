@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { showToast } from '../../shared/utils/toast';
 
@@ -153,6 +153,31 @@ export const GeoCheckInOut: React.FC = () => {
     );
   };
 
+  // Live location watch while shift is active
+  useEffect(() => {
+    if (selected && selected.status === 'checked_in' && navigator.geolocation) {
+      watchId.current = navigator.geolocation.watchPosition(
+        pos => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          setLoc({ lat, lng });
+          const job = jobs.get(selected.jobId);
+          if (job) {
+            const d = haversine(lat, lng, job.coordinates.lat, job.coordinates.lng);
+            setDistM(Math.round(d));
+            setGps(d <= GEO_THRESHOLD_M ? 'near' : 'far');
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      );
+    }
+    return () => {
+      if (watchId.current !== null) {
+        navigator.geolocation.clearWatch(watchId.current);
+      }
+    };
+  }, [selected, jobs]);
+
   const doCheckIn = async () => {
     if (!selected || !loc) return;
     setWorking(true);
@@ -231,6 +256,7 @@ export const GeoCheckInOut: React.FC = () => {
   );
 
   const active = selected ? shifts.find(s => s.id === selected.id) : null;
+  const activeJob = active ? jobs.get(active.jobId) : null;
 
   return (
     <div style={{ padding: '40px 48px' }}>

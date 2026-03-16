@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider }             from './shared/context/AuthContext'
 import LandingPage                  from './shared/auth/LandingPage'
@@ -11,7 +13,8 @@ import ViewLiveMap                  from './Admin/shifts/ViewLiveMap'
 import ApproveExport                from './Admin/payments/ApproveExport'
 import ReviewApproveDocs            from './Admin/onboarding/ReviewApproveDocs'
 import ReviewsAndComplaintsPage     from './Admin/reviews/ReviewsandComplaintsPage'
-import { PromoterApp }             from './promoter/index'
+import { PromoterApp }              from './promoter/index'
+import PendingApprovalPage          from './promoter/PendingApprovalPage'
 import JobDetailPage                from './shared/jobs/JobdetailPage'
 import BusinessLayout               from './Business/BusinessLayout'
 import BusinessDashboard            from './Business/Businessdashboard'
@@ -31,21 +34,25 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/about"    element={<AboutPage />}    />
 
-          {/* ── Jobs (public browse with T&C + payment demo) ── */}
+          {/* ── Jobs public browse ── */}
           <Route path="/jobs"        element={<JobsPage />}      />
           <Route path="/jobs/:jobId" element={<JobDetailPage />} />
 
-          {/* ── Promoter ── */}
+          {/* ── Promoter pending approval gate ── */}
+          <Route path="/promoter/pending" element={<PendingApprovalPage />} />
+
+          {/* ── Promoter portal (gate enforced inside PromoterApp) ── */}
           <Route path="/promoter/" element={<PromoterApp />} />
+          <Route path="/promoter"  element={<Navigate to="/promoter/" replace />} />
 
           {/* ── Admin ── */}
-          <Route path="/admin"             element={<AdminDashboard />}            />
-          <Route path="/admin/users"       element={<FullCRUDUsers />}             />
-          <Route path="/admin/jobs"        element={<CRUDJobsLogic />}             />
-          <Route path="/admin/map"         element={<ViewLiveMap />}               />
-          <Route path="/admin/payments"    element={<ApproveExport />}             />
-          <Route path="/admin/onboarding"  element={<ReviewApproveDocs />}         />
-          <Route path="/admin/reviews"     element={<ReviewsAndComplaintsPage />}  />
+          <Route path="/admin"             element={<AdminDashboard />}           />
+          <Route path="/admin/users"       element={<FullCRUDUsers />}            />
+          <Route path="/admin/jobs"        element={<CRUDJobsLogic />}            />
+          <Route path="/admin/map"         element={<ViewLiveMap />}              />
+          <Route path="/admin/payments"    element={<ApproveExport />}            />
+          <Route path="/admin/onboarding"  element={<ReviewApproveDocs />}        />
+          <Route path="/admin/reviews"     element={<ReviewsAndComplaintsPage />} />
 
           {/* ── Business ── */}
           <Route path="/business" element={<BusinessLayout />}>
