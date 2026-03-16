@@ -33,7 +33,7 @@ const NAV_GROUPS = [
   ]},
   { label: 'Comms', items: [
     { label: 'Messages',           icon: '◆', path: '/admin',             tab: 'messages',      external: false },
-    { label: 'Reviews & Complaints', icon: '★', path: '/admin/reviews',   tab: 'reviews',       external: true  },
+    { label: 'Complaints & Enquiries', icon: '⚑', path: '/admin/reviews',   tab: 'reviews',       external: true  },
     { label: 'Login Activity',     icon: '◉', path: '/admin',             tab: 'logins',        external: false },
   ]},
   { label: 'System', items: [

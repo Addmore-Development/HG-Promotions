@@ -1,28 +1,23 @@
 import { useState } from 'react'
 import { AdminLayout } from '../AdminLayout'
 
-// ─── Warm palette ─────────────────────────────────────────────────────────────
 const G   = '#D4880A'
 const GL  = '#E8A820'
 const G2  = '#8B5A1A'
 const G3  = '#C07818'
 const G4  = '#F0C050'
 const G5  = '#6B3F10'
-
-const B  = '#0C0A07'
-const D1 = '#0E0C06'
-const D2 = '#151209'
-const D3 = '#1C1709'
-
+const B   = '#0C0A07'
+const D1  = '#0E0C06'
+const D2  = '#151209'
+const D3  = '#1C1709'
 const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
-
 const W   = '#FAF3E8'
 const W85 = 'rgba(250,243,232,0.85)'
 const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
-
-const FD   = "'Playfair Display', Georgia, serif"
+const FD  = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
 
 function hex2rgba(hex: string, alpha: number): string {
@@ -37,36 +32,31 @@ type PayStatus = 'pending' | 'approved' | 'exported' | 'paid'
 
 interface PayRecord {
   id: string; promoter: string; email: string; bank: string; accountNo: string
-  job: string; date: string; hours: number; rate: number; deductions: number; status: PayStatus
+  job: string; client: string; date: string; hours: number; rate: number
+  deductions: number; status: PayStatus
 }
 
 const MOCK: PayRecord[] = [
-  { id:'PAY-001', promoter:'Ayanda Dlamini',  email:'ayanda@email.com',  bank:'FNB',      accountNo:'****4521', job:'Red Bull — Sandton',    date:'2026-03-08', hours:8, rate:120, deductions:0,   status:'pending'  },
-  { id:'PAY-002', promoter:'Thabo Nkosi',     email:'thabo@email.com',   bank:'Capitec',  accountNo:'****7832', job:'Red Bull — Sandton',    date:'2026-03-08', hours:8, rate:120, deductions:50,  status:'pending'  },
-  { id:'PAY-003', promoter:'Sipho Mhlongo',   email:'sipho@email.com',   bank:'ABSA',     accountNo:'****3301', job:'Nike — Mall of Africa', date:'2026-03-07', hours:8, rate:135, deductions:0,   status:'approved' },
-  { id:'PAY-004', promoter:'Zanele Motha',    email:'zanele@email.com',  bank:'Standard', accountNo:'****9914', job:'Nike — Mall of Africa', date:'2026-03-07', hours:8, rate:135, deductions:0,   status:'approved' },
-  { id:'PAY-005', promoter:'Bongani Khumalo', email:'bongani@email.com', bank:'Nedbank',  accountNo:'****5542', job:'Savanna — Gateway',     date:'2026-03-06', hours:8, rate:115, deductions:100, status:'exported' },
-  { id:'PAY-006', promoter:'Lerato Mokoena',  email:'lerato@email.com',  bank:'FNB',      accountNo:'****2278', job:'Nedbank Golf Day',      date:'2026-03-05', hours:8, rate:150, deductions:0,   status:'paid'     },
+  { id:'PAY-001', promoter:'Ayanda Dlamini',  email:'ayanda@email.com',  bank:'FNB',      accountNo:'****4521', job:'Red Bull — Sandton',         client:'Red Bull SA',   date:'2026-03-08', hours:8, rate:120, deductions:0,   status:'pending'  },
+  { id:'PAY-002', promoter:'Thabo Nkosi',     email:'thabo@email.com',   bank:'Capitec',  accountNo:'****7832', job:'Red Bull — Sandton',         client:'Red Bull SA',   date:'2026-03-08', hours:8, rate:120, deductions:50,  status:'pending'  },
+  { id:'PAY-003', promoter:'Sipho Mhlongo',   email:'sipho@email.com',   bank:'ABSA',     accountNo:'****3301', job:'Nike — Mall of Africa',      client:'Nike SA',       date:'2026-03-07', hours:8, rate:135, deductions:0,   status:'approved' },
+  { id:'PAY-004', promoter:'Zanele Motha',    email:'zanele@email.com',  bank:'Standard', accountNo:'****9914', job:'Nike — Mall of Africa',      client:'Nike SA',       date:'2026-03-07', hours:8, rate:135, deductions:0,   status:'approved' },
+  { id:'PAY-005', promoter:'Bongani Khumalo', email:'bongani@email.com', bank:'Nedbank',  accountNo:'****5542', job:'Savanna — Gateway',          client:'Distell',       date:'2026-03-06', hours:8, rate:115, deductions:100, status:'exported' },
+  { id:'PAY-006', promoter:'Lerato Mokoena',  email:'lerato@email.com',  bank:'FNB',      accountNo:'****2278', job:'Nedbank Golf Day',           client:'Nedbank',       date:'2026-03-05', hours:8, rate:150, deductions:0,   status:'paid'     },
+  { id:'PAY-007', promoter:'Nomsa Zulu',      email:'nomsa@email.com',   bank:'Capitec',  accountNo:'****6612', job:'Heineken — Mall of Africa',  client:'Heineken SA',   date:'2026-03-09', hours:8, rate:120, deductions:0,   status:'pending'  },
+  { id:'PAY-008', promoter:'Kagiso Radebe',   email:'kagiso@email.com',  bank:'ABSA',     accountNo:'****8843', job:'MTN Soweto Festival',        client:'MTN SA',        date:'2026-03-10', hours:8, rate:110, deductions:0,   status:'approved' },
 ]
 
-// All status colors clearly visible on dark background
 const STATUS_CLR: Record<PayStatus, string> = {
-  pending:  GL,          // bright gold
-  approved: G3,          // mid amber
-  exported: G4,          // pale gold — bright, distinguishable
-  paid:     '#E8D5A8',  // warm cream — visible for "done" state
+  pending:  GL, approved: G3, exported: G4, paid: '#E8D5A8',
 }
 const STATUS_BG: Record<PayStatus, string> = {
-  pending:  hex2rgba(GL, 0.12),
-  approved: hex2rgba(G3, 0.12),
-  exported: hex2rgba(G4, 0.12),
-  paid:     hex2rgba('#8B6840', 0.18),
+  pending: hex2rgba(GL,0.12), approved: hex2rgba(G3,0.12),
+  exported: hex2rgba(G4,0.12), paid: hex2rgba('#8B6840',0.18),
 }
 const STATUS_BORDER: Record<PayStatus, string> = {
-  pending:  hex2rgba(GL, 0.45),
-  approved: hex2rgba(G3, 0.45),
-  exported: hex2rgba(G4, 0.42),
-  paid:     hex2rgba('#8B6840', 0.5),
+  pending: hex2rgba(GL,0.45), approved: hex2rgba(G3,0.45),
+  exported: hex2rgba(G4,0.42), paid: hex2rgba('#8B6840',0.5),
 }
 
 function StatusBadge({ status }: { status: PayStatus }) {
@@ -79,7 +69,7 @@ function StatusBadge({ status }: { status: PayStatus }) {
 
 function FilterBtn({ label, active, color, onClick }: { label:string; active:boolean; color:string; onClick:()=>void }) {
   return (
-    <button onClick={onClick} style={{ padding:'7px 16px', border:`1px solid ${active ? color : 'rgba(212,136,10,0.22)'}`, cursor:'pointer', fontFamily:FD, fontSize:10, fontWeight:active?700:400, textTransform:'capitalize' as const, borderRadius:3, background:active?hex2rgba(color,0.18):'transparent', color:active?color:W55, transition:'all 0.18s' }}>
+    <button onClick={onClick} style={{ padding:'7px 16px', border:`1px solid ${active?color:'rgba(212,136,10,0.22)'}`, cursor:'pointer', fontFamily:FD, fontSize:10, fontWeight:active?700:400, textTransform:'capitalize' as const, borderRadius:3, background:active?hex2rgba(color,0.18):'transparent', color:active?color:W55, transition:'all 0.18s' }}>
       {label}
     </button>
   )
@@ -99,36 +89,169 @@ function StatCard({ label, value, sub, color, count }: { label:string; value:str
 const gross  = (r: PayRecord) => r.hours * r.rate
 const net    = (r: PayRecord) => gross(r) - r.deductions
 const fmtZAR = (n: number)   => `R${n.toLocaleString('en-ZA')}`
+const today  = () => new Date().toISOString().slice(0, 10)
+
+// ── Real CSV Export ────────────────────────────────────────────────────────────
+function downloadCSV(records: PayRecord[], label = 'payroll') {
+  const headers = ['ID','Promoter','Email','Bank','Account No','Job','Client','Date','Hours','Rate (R)','Gross (R)','Deductions (R)','Net Payout (R)','Status']
+  const rows = records.map(r => [
+    r.id, r.promoter, r.email, r.bank, r.accountNo,
+    r.job, r.client, r.date, r.hours, r.rate,
+    gross(r), r.deductions, net(r), r.status,
+  ])
+  const csv = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `honey-group-${label}-${today()}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Real PDF Client Report ─────────────────────────────────────────────────────
+function downloadClientPDF(records: PayRecord[]) {
+  // Group by client
+  const byClient: Record<string, PayRecord[]> = {}
+  records.forEach(r => { byClient[r.client] = byClient[r.client] || []; byClient[r.client].push(r) })
+
+  let html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Honey Group Campaign Reports — ${today()}</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: Georgia, serif; background: #0C0A07; color: #FAF3E8; padding: 48px; }
+      .page-break { page-break-after: always; }
+      .header { border-bottom: 2px solid #D4880A; padding-bottom: 24px; margin-bottom: 32px; }
+      .logo { font-size: 28px; font-weight: 700; color: #E8A820; letter-spacing: 0.12em; }
+      .logo span { color: #FAF3E8; }
+      .subtitle { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: #C07818; margin-top: 6px; }
+      .report-title { font-size: 20px; font-weight: 700; color: #FAF3E8; margin: 20px 0 4px; }
+      .report-date { font-size: 12px; color: rgba(250,243,232,0.55); }
+      .client-section { margin-bottom: 40px; }
+      .client-name { font-size: 16px; font-weight: 700; color: #E8A820; margin-bottom: 6px; border-left: 3px solid #E8A820; padding-left: 12px; }
+      .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+      .summary-card { background: rgba(212,136,10,0.08); border: 1px solid rgba(212,136,10,0.22); padding: 14px 16px; border-radius: 3px; }
+      .summary-label { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(250,243,232,0.55); margin-bottom: 6px; }
+      .summary-value { font-size: 22px; font-weight: 700; color: #E8A820; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+      thead tr { background: rgba(212,136,10,0.12); }
+      th { padding: 10px 12px; text-align: left; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(250,243,232,0.55); font-weight: 700; border-bottom: 1px solid rgba(212,136,10,0.22); }
+      td { padding: 10px 12px; border-bottom: 1px solid rgba(212,136,10,0.10); color: rgba(250,243,232,0.85); }
+      .paid { color: #E8A820; font-weight: 700; }
+      .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid rgba(212,136,10,0.22); font-size: 10px; color: rgba(250,243,232,0.28); }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">HONEY <span>GROUP</span></div>
+      <div class="subtitle">Campaign Attendance &amp; Payroll Report</div>
+      <div class="report-date" style="margin-top:12px">Generated: ${new Date().toLocaleDateString('en-ZA', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</div>
+    </div>
+  `
+
+  Object.entries(byClient).forEach(([client, clientRecords]) => {
+    const totalShifts  = clientRecords.length
+    const totalHours   = clientRecords.reduce((s, r) => s + r.hours, 0)
+    const totalCost    = clientRecords.reduce((s, r) => s + net(r), 0)
+    const promoters    = [...new Set(clientRecords.map(r => r.promoter))].length
+
+    html += `
+    <div class="client-section">
+      <div class="client-name">${client}</div>
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-label">Promoters Deployed</div><div class="summary-value">${promoters}</div></div>
+        <div class="summary-card"><div class="summary-label">Total Shifts</div><div class="summary-value">${totalShifts}</div></div>
+        <div class="summary-card"><div class="summary-label">Total Hours</div><div class="summary-value">${totalHours}h</div></div>
+        <div class="summary-card"><div class="summary-label">Total Payout</div><div class="summary-value">${fmtZAR(totalCost)}</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Promoter</th><th>Job</th><th>Date</th><th>Hours</th><th>Rate</th><th>Net Payout</th><th>Status</th></tr></thead>
+        <tbody>
+          ${clientRecords.map(r => `
+            <tr>
+              <td>${r.promoter}</td>
+              <td>${r.job}</td>
+              <td>${r.date}</td>
+              <td>${r.hours}h</td>
+              <td>R${r.rate}/hr</td>
+              <td class="paid">${fmtZAR(net(r))}</td>
+              <td>${r.status}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    `
+  })
+
+  html += `
+    <div class="footer">
+      Honey Group · Campaign Report · Confidential · Generated ${new Date().toISOString()}
+    </div>
+  </body></html>`
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank')
+  if (win) {
+    win.addEventListener('load', () => {
+      setTimeout(() => { win.print() }, 500)
+    })
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+}
 
 export default function ApproveExport() {
-  const [records,  setRecords ]=useState<PayRecord[]>(MOCK)
-  const [selected, setSelected]=useState<Set<string>>(new Set())
-  const [filter,   setFilter  ]=useState<PayStatus|'all'>('all')
-  const [exported, setExported]=useState(false)
+  const [records,      setRecords    ] = useState<PayRecord[]>(MOCK)
+  const [selected,     setSelected  ] = useState<Set<string>>(new Set())
+  const [filter,       setFilter    ] = useState<PayStatus|'all'>('all')
+  const [exportNotice, setExportNotice] = useState<string|null>(null)
 
-  const filtered  = records.filter(r => filter === 'all' || r.status === filter)
+  const filtered   = records.filter(r => filter === 'all' || r.status === filter)
   const actionable = filtered.filter(r => r.status === 'pending' || r.status === 'approved')
-  const allIds    = actionable.map(r => r.id)
-  const allTicked = allIds.length > 0 && allIds.every(id => selected.has(id))
+  const allIds     = actionable.map(r => r.id)
+  const allTicked  = allIds.length > 0 && allIds.every(id => selected.has(id))
 
   const toggle    = (id: string) => setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   const toggleAll = () => setSelected(allTicked ? new Set() : new Set(allIds))
 
+  const notice = (msg: string) => { setExportNotice(msg); setTimeout(() => setExportNotice(null), 4000) }
+
   const approveSelected = () => {
     setRecords(prev => prev.map(r => selected.has(r.id) && r.status === 'pending' ? { ...r, status: 'approved' } : r))
     setSelected(new Set())
-  }
-  const exportSelected = () => {
-    setRecords(prev => prev.map(r => selected.has(r.id) && r.status === 'approved' ? { ...r, status: 'exported' } : r))
-    setSelected(new Set())
-    setExported(true)
-    setTimeout(() => setExported(false), 3000)
+    notice(`✓ ${selected.size} record${selected.size>1?'s':''} approved`)
   }
 
-  const totalSelected  = [...selected].reduce((sum, id) => { const r = records.find(x => x.id === id); return r ? sum + net(r) : sum }, 0)
-  const pendingTotal   = records.filter(r => r.status === 'pending').reduce((s, r) => s + net(r), 0)
-  const approvedTotal  = records.filter(r => r.status === 'approved').reduce((s, r) => s + net(r), 0)
-  const paidTotal      = records.filter(r => r.status === 'paid').reduce((s, r) => s + net(r), 0)
+  const exportEFT = () => {
+    const toExport = records.filter(r => selected.has(r.id) && r.status === 'approved')
+    if (toExport.length === 0) { notice('Select approved records to export'); return }
+    downloadCSV(toExport, 'eft-batch')
+    setRecords(prev => prev.map(r => selected.has(r.id) && r.status === 'approved' ? { ...r, status: 'exported' } : r))
+    setSelected(new Set())
+    notice(`✓ ${toExport.length} EFT record${toExport.length>1?'s':''} exported to CSV`)
+  }
+
+  const exportAllPayroll = () => {
+    downloadCSV(filtered, 'payroll')
+    notice('✓ Full payroll CSV downloaded')
+  }
+
+  const exportClientReport = () => {
+    downloadClientPDF(filtered)
+    notice('✓ Client PDF report opened — use Print to save as PDF')
+  }
+
+  const totalSelected = [...selected].reduce((sum, id) => { const r = records.find(x => x.id === id); return r ? sum + net(r) : sum }, 0)
+  const pendingTotal  = records.filter(r=>r.status==='pending').reduce((s,r)=>s+net(r), 0)
+  const approvedTotal = records.filter(r=>r.status==='approved').reduce((s,r)=>s+net(r), 0)
+  const paidTotal     = records.filter(r=>r.status==='paid').reduce((s,r)=>s+net(r), 0)
 
   return (
     <AdminLayout>
@@ -138,14 +261,29 @@ export default function ApproveExport() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
           <div>
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Finance · Payroll</div>
-            <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Approve & Export Payments</h1>
-            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Review promoter payouts, approve batches, and export to Paystack EFT.</p>
+            <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Approve &amp; Export Payments</h1>
+            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Review promoter payouts, approve batches, and export to Paystack EFT or PDF reports.</p>
           </div>
-          {exported && (
-            <div style={{ padding:'12px 24px', background:hex2rgba(G3,0.12), border:`1px solid ${hex2rgba(G3,0.45)}`, color:GL, fontFamily:FD, fontSize:13, fontWeight:700, borderRadius:3 }}>
-              ✓ Export successful — EFT batch sent
+          {/* Export buttons — always visible */}
+          <div style={{ display:'flex', gap:8, flexDirection:'column', alignItems:'flex-end' }}>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={exportAllPayroll}
+                style={{ padding:'10px 18px', background:'transparent', border:`1px solid ${G3}`, color:G3, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3, transition:'all 0.2s' }}
+                onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G3,0.15)}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                ↓ CSV Payroll
+              </button>
+              <button onClick={exportClientReport}
+                style={{ padding:'10px 18px', background:'transparent', border:`1px solid ${GL}`, color:GL, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3, transition:'all 0.2s' }}
+                onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.12)}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                ↓ PDF Client Report
+              </button>
             </div>
-          )}
+            {exportNotice && (
+              <div style={{ fontSize:12, color:GL, fontFamily:FD, textAlign:'right' }}>{exportNotice}</div>
+            )}
+          </div>
         </div>
 
         {/* SUMMARY CARDS */}
@@ -166,13 +304,16 @@ export default function ApproveExport() {
           {selected.size > 0 && (
             <div style={{ display:'flex', alignItems:'center', gap:12 }}>
               <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{selected.size} selected · {fmtZAR(totalSelected)}</span>
-              <button onClick={approveSelected} style={{ padding:'8px 18px', background:hex2rgba(G3,0.15), border:`1px solid ${G3}`, color:G3, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3 }}>
+              <button onClick={approveSelected}
+                style={{ padding:'8px 18px', background:hex2rgba(G3,0.15), border:`1px solid ${G3}`, color:G3, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3 }}>
                 ✓ Approve
               </button>
-              <button onClick={exportSelected} style={{ padding:'8px 18px', background:`linear-gradient(135deg,${GL},${G3})`, border:'none', color:B, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3, boxShadow:`0 2px 12px ${hex2rgba(GL,0.35)}` }}
+              <button onClick={exportEFT}
+                style={{ padding:'8px 18px', background:`linear-gradient(135deg,${GL},${G3})`, border:'none', color:B, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3, boxShadow:`0 2px 12px ${hex2rgba(GL,0.35)}` }}
                 onMouseEnter={e=>e.currentTarget.style.opacity='0.85'}
-                onMouseLeave={e=>e.currentTarget.style.opacity='1'}
-              >↑ Export EFT</button>
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                ↑ Export EFT CSV
+              </button>
             </div>
           )}
         </div>
@@ -185,7 +326,7 @@ export default function ApproveExport() {
                 <th style={{ padding:'13px 18px', width:40 }}>
                   <input type="checkbox" checked={allTicked} onChange={toggleAll} style={{ accentColor:GL, cursor:'pointer' }} />
                 </th>
-                {['Promoter','Bank','Job','Date','Hours','Gross','Deductions','Net Payout','Status'].map(h=>(
+                {['Promoter','Bank','Job','Client','Date','Hours','Gross','Deductions','Net Payout','Status'].map(h=>(
                   <th key={h} style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD, whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -209,7 +350,8 @@ export default function ApproveExport() {
                     <div style={{ fontSize:12, color:W, fontFamily:FD }}>{r.bank}</div>
                     <div style={{ fontSize:11, color:W28, fontFamily:MONO }}>{r.accountNo}</div>
                   </td>
-                  <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, maxWidth:160 }}>{r.job}</td>
+                  <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, maxWidth:140, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.job}</td>
+                  <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{r.client}</td>
                   <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
                     {new Date(r.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}
                   </td>
@@ -225,7 +367,7 @@ export default function ApproveExport() {
             </tbody>
             <tfoot>
               <tr style={{ borderTop:`1px solid ${BB}`, background:BB2 }}>
-                <td colSpan={7} style={{ padding:'14px 18px', fontSize:11, color:W55, fontFamily:FD }}>
+                <td colSpan={8} style={{ padding:'14px 18px', fontSize:11, color:W55, fontFamily:FD }}>
                   {filtered.length} records
                 </td>
                 <td colSpan={3} style={{ padding:'14px 18px' }}>
@@ -238,6 +380,14 @@ export default function ApproveExport() {
             </tfoot>
           </table>
         </div>
+
+        {/* Export info */}
+        <div style={{ marginTop:16, padding:'14px 18px', background:BB2, border:`1px solid ${BB}`, borderRadius:3, display:'flex', gap:32, fontSize:11, color:W55, fontFamily:FD }}>
+          <span>📄 <strong style={{ color:W }}>CSV Payroll</strong> — Full payroll register (all current filter)</span>
+          <span>📊 <strong style={{ color:W }}>EFT CSV</strong> — Bank-ready batch file for selected approved records</span>
+          <span>📋 <strong style={{ color:W }}>PDF Client Report</strong> — Campaign attendance &amp; payout summary per client (printable)</span>
+        </div>
+
       </div>
     </AdminLayout>
   )

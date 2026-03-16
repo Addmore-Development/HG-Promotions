@@ -614,7 +614,7 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
     { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3,  sub:'registered',          id:'registrations' },
     { label:'Active Jobs',       value:activeJobs.length,                                                 color:GL,  sub:'live on jobs board',   id:'jobs'          },
     { label:'Pending Approvals', value:regs.filter(r=>isPending(r.status)).length,                        color:G3,  sub:'need review',          id:'registrations' },
-    { label:'Unread Messages',   value:unread,                                                             color:G2,  sub:'complaints & reviews', id:'messages'      },
+    { label:'Unread Messages',   value:unread,                                                             color:G2,  sub:'complaints & enquiries', id:'messages'      },
     { label:'Active Clients',    value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length,        color:G4,  sub:'business clients',     id:'clients'       },
   ]
 
@@ -624,7 +624,7 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
     {label:'Live Map',      icon:'⊙', id:'map',           color:G2},
     {label:'Clients',       icon:'◉', id:'clients',       color:GL},
     {label:'Jobs',          icon:'◎', id:'jobs',          color:G4},
-    {label:'Reviews',       icon:'★', id:'reviews',       color:GL},
+    {label:'Complaints',    icon:'⚑', id:'reviews',       color:GL},
     {label:'Reports',       icon:'▤', id:'reports',       color:G3},
     {label:'Settings',      icon:'⚙', id:'settings',      color:G2},
   ]

@@ -57,6 +57,11 @@ export const ViewAcceptJobs: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [standbyNotified, setStandbyNotified] = useState<Set<string>>(new Set());
 
+  // T&C acceptance state
+  const [tcJob,      setTcJob     ] = useState<Job | null>(null);
+  const [tcAccepted, setTcAccepted] = useState(false);
+  const [tcScrolled, setTcScrolled] = useState(false);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -187,8 +192,23 @@ export const ViewAcceptJobs: React.FC = () => {
     setSortDir(dir);
   };
 
-  const handleApply = async (job: Job) => {
+  // Opens T&C modal before allowing apply
+  const handleApply = (job: Job) => {
     if (!user) return;
+    // If job has no T&C, apply directly
+    const tc = (job as any).termsAndConditions;
+    if (!tc || tc.trim().length === 0) {
+      handleConfirmedApply(job);
+      return;
+    }
+    setTcJob(job);
+    setTcAccepted(false);
+    setTcScrolled(false);
+  };
+
+  const handleConfirmedApply = async (job: Job) => {
+    if (!user) return;
+    setTcJob(null);
     setApplying(job.id);
     try {
       const app = await applicationService.apply(job.id, user.id);
@@ -448,6 +468,76 @@ export const ViewAcceptJobs: React.FC = () => {
           <div style={{ padding: '48px', textAlign: 'center', color: WD, fontSize: 13 }}>No jobs found. Try adjusting your filters.</div>
         )}
       </div>
+
+      {/* ── TERMS & CONDITIONS MODAL ── */}
+      {tcJob && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:24 }}
+          onClick={e => e.target === e.currentTarget && setTcJob(null)}>
+          <div style={{ background:'#151209', border:'1px solid rgba(212,136,10,0.16)', width:'100%', maxWidth:560, maxHeight:'88vh', display:'flex', flexDirection:'column', position:'relative', borderRadius:4 }}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#6B3F10,#E8A820,#6B3F10)', borderRadius:'4px 4px 0 0' }} />
+            {/* Header */}
+            <div style={{ padding:'28px 32px 20px', borderBottom:'1px solid rgba(212,136,10,0.16)' }}>
+              <button onClick={() => setTcJob(null)} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:'rgba(250,243,232,0.28)', fontSize:18 }}>✕</button>
+              <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:'#E8A820', fontWeight:700, fontFamily:"'Playfair Display', Georgia, serif", marginBottom:6 }}>Before You Apply</div>
+              <h2 style={{ fontFamily:"'Playfair Display', Georgia, serif", fontSize:20, fontWeight:700, color:'#FAF3E8', marginBottom:4 }}>{tcJob.title}</h2>
+              <div style={{ fontSize:12, color:'rgba(250,243,232,0.55)', fontFamily:"'Playfair Display', Georgia, serif" }}>
+                {tcJob.client} · {tcJob.venue}
+              </div>
+              <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(212,136,10,0.08)', border:'1px solid rgba(212,136,10,0.22)', borderRadius:3, fontSize:11, color:'#E8A820', fontFamily:"'Playfair Display', Georgia, serif" }}>
+                ⚠ Please read the Terms &amp; Conditions below before applying. You must scroll to the bottom and accept them to proceed.
+              </div>
+            </div>
+
+            {/* Scrollable T&C body */}
+            <div
+              onScroll={e => {
+                const el = e.currentTarget;
+                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
+              }}
+              style={{ flex:1, overflowY:'auto', padding:'24px 32px' }}>
+              <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(250,243,232,0.55)', fontWeight:700, fontFamily:"'Playfair Display', Georgia, serif", marginBottom:12 }}>
+                Terms &amp; Conditions
+              </div>
+              <div style={{ fontSize:13, color:'rgba(250,243,232,0.85)', fontFamily:"'Playfair Display', Georgia, serif", lineHeight:1.9, whiteSpace:'pre-wrap', background:'rgba(212,136,10,0.04)', border:'1px solid rgba(212,136,10,0.12)', padding:'18px 20px', borderRadius:3 }}>
+                {(tcJob as any).termsAndConditions || 'No specific terms provided for this job.'}
+              </div>
+              {!tcScrolled && (
+                <div style={{ marginTop:16, textAlign:'center', fontSize:11, color:'rgba(250,243,232,0.40)', fontFamily:"'Playfair Display', Georgia, serif" }}>
+                  ↓ Scroll down to read all terms
+                </div>
+              )}
+            </div>
+
+            {/* Accept footer */}
+            <div style={{ padding:'20px 32px', borderTop:'1px solid rgba(212,136,10,0.16)', background:'rgba(14,12,6,0.8)' }}>
+              <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor: tcScrolled ? 'pointer' : 'not-allowed', marginBottom:16 }}>
+                <input type="checkbox" checked={tcAccepted} onChange={e => { if(tcScrolled) setTcAccepted(e.target.checked) }}
+                  style={{ accentColor:'#E8A820', marginTop:2, cursor: tcScrolled ? 'pointer' : 'not-allowed', width:16, height:16 }} />
+                <span style={{ fontSize:12, color: tcScrolled ? 'rgba(250,243,232,0.85)' : 'rgba(250,243,232,0.35)', fontFamily:"'Playfair Display', Georgia, serif", lineHeight:1.6 }}>
+                  I have read, understood, and agree to the Terms &amp; Conditions for <strong style={{ color:'#E8A820' }}>{tcJob.title}</strong>. I confirm I meet all requirements and will comply throughout the shift.
+                </span>
+              </label>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => setTcJob(null)}
+                  style={{ flex:1, padding:'12px', background:'transparent', border:'1px solid rgba(212,136,10,0.16)', color:'rgba(250,243,232,0.55)', fontFamily:"'Playfair Display', Georgia, serif", fontSize:11, cursor:'pointer', borderRadius:3 }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { if(tcAccepted && tcScrolled) handleConfirmedApply(tcJob) }}
+                  disabled={!tcAccepted || !tcScrolled}
+                  style={{ flex:2, padding:'12px', background: tcAccepted && tcScrolled ? 'linear-gradient(135deg,#E8A820,#D4880A)' : 'rgba(255,255,255,0.04)', border:`1px solid ${tcAccepted && tcScrolled ? '#E8A820' : 'rgba(212,136,10,0.16)'}`, color: tcAccepted && tcScrolled ? '#0C0A07' : 'rgba(250,243,232,0.28)', fontFamily:"'Playfair Display', Georgia, serif", fontSize:11, fontWeight:700, cursor: tcAccepted && tcScrolled ? 'pointer' : 'not-allowed', borderRadius:3, letterSpacing:'0.08em', textTransform:'uppercase', transition:'all 0.2s' }}>
+                  {applying === tcJob?.id ? 'Applying…' : 'Accept T&C & Apply Now →'}
+                </button>
+              </div>
+              {!tcScrolled && (
+                <div style={{ marginTop:10, textAlign:'center', fontSize:11, color:'rgba(212,136,10,0.55)', fontFamily:"'Playfair Display', Georgia, serif" }}>
+                  Scroll through the full terms to enable the accept button
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Job Detail Modal – restyled to match admin's modal */}
       {selectedJob && (

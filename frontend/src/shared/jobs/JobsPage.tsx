@@ -396,19 +396,6 @@ export function getActiveJobs(allJobs: typeof ALL_JOBS) {
     })
 }
 
-/* ─── Sample Reviews ─────────────────────────────────────────────────────────── */
-const INITIAL_REVIEWS: Record<string, { author: string; rating: number; text: string; date: string; jobId: string }[]> = {
-  'JB-201': [
-    { author: 'Zanele M.', rating: 5, text: 'Amazing campaign. SABMiller team was professional and payment came through on time.', date: '2026-03-05', jobId: 'JB-201' },
-    { author: 'Thabo K.',  rating: 4, text: 'Great shift, good pay. Minor issue: uniform arrived a bit late.', date: '2026-03-04', jobId: 'JB-201' },
-  ],
-  'JB-204': [
-    { author: 'Nomsa D.', rating: 5, text: 'Menlyn Fashion Night was incredible. Evening wear was beautiful.', date: '2026-03-08', jobId: 'JB-204' },
-  ],
-  'JB-210': [
-    { author: 'Palesa R.', rating: 3, text: 'Night activation was fine but started late. Pay was good.', date: '2026-03-06', jobId: 'JB-210' },
-  ],
-}
 
 /* ─── STATUS BADGE ─────────────────────────────────────────────────────────── */
 function StatusBadge({ status }: { status: string }) {
@@ -426,25 +413,6 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-/* ─── STAR RATING ──────────────────────────────────────────────────────────── */
-function StarRating({ rating, size = 14, interactive = false, onRate }: {
-  rating: number; size?: number; interactive?: boolean; onRate?: (r: number) => void
-}) {
-  const [hovered, setHovered] = useState(0)
-  return (
-    <div style={{ display: 'flex', gap: 2 }}>
-      {[1,2,3,4,5].map(i => (
-        <span key={i}
-          onClick={() => interactive && onRate && onRate(i)}
-          onMouseEnter={() => interactive && setHovered(i)}
-          onMouseLeave={() => interactive && setHovered(0)}
-          style={{ fontSize: size, color: i <= (hovered || rating) ? G : WD, cursor: interactive ? 'pointer' : 'default', transition: 'color 0.15s' }}>
-          ★
-        </span>
-      ))}
-    </div>
-  )
-}
 
 /* ─── TERMS MODAL ──────────────────────────────────────────────────────────── */
 function TermsModal({ job, onAccept, onClose }: { job: typeof ALL_JOBS[0]; onAccept: () => void; onClose: () => void }) {
@@ -591,60 +559,6 @@ function PaymentModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; on
   )
 }
 
-/* ─── REVIEW MODAL ─────────────────────────────────────────────────────────── */
-function ReviewModal({ job, onClose, onSubmit }: { job: typeof ALL_JOBS[0]; onClose: () => void; onSubmit: (r: { rating: number; text: string; author: string }) => void }) {
-  const [rating, setRating] = useState(0)
-  const [text,   setText  ] = useState('')
-  const [author, setAuthor] = useState('')
-  const [done,   setDone  ] = useState(false)
-  const handle = () => { if(!rating||!text.trim()||!author.trim()) return; setDone(true); setTimeout(()=>onSubmit({rating,text,author}),1500) }
-  return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1001, padding:24 }}
-      onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div style={{ background:BC, border:`1px solid ${BB}`, width:'100%', maxWidth:460, position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G5},${G},${GL},${G},${G5})` }} />
-        {done ? (
-          <div style={{ padding:'60px 40px', textAlign:'center' }}>
-            <div style={{ fontSize:48, marginBottom:12, color:G }}>✓</div>
-            <div style={{ fontFamily:FD, fontSize:22, color:GL }}>Review Submitted!</div>
-          </div>
-        ) : (
-          <>
-            <div style={{ padding:'28px 32px 20px', borderBottom:`1px solid ${BB}` }}>
-              <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:G, marginBottom:6 }}>Leave a Review</div>
-              <h2 style={{ fontFamily:FD, fontSize:20, color:W }}>{job.company}</h2>
-              <div style={{ fontSize:12, color:WM, marginTop:4 }}>{job.title}</div>
-              <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:WD, fontSize:18 }}>✕</button>
-            </div>
-            <div style={{ padding:'24px 32px 32px' }}>
-              <div style={{ marginBottom:20 }}>
-                <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:WD, marginBottom:10 }}>Your Rating</div>
-                <StarRating rating={rating} size={30} interactive onRate={setRating} />
-              </div>
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:WD, marginBottom:8 }}>Your Name</div>
-                <input value={author} onChange={e=>setAuthor(e.target.value)} placeholder="e.g. Zanele M."
-                  style={{ width:'100%', padding:'11px 14px', background:B, border:`1px solid ${BB}`, color:W, fontFamily:FB, fontSize:13, outline:'none' }}
-                  onFocus={e=>e.currentTarget.style.borderColor=G} onBlur={e=>e.currentTarget.style.borderColor=BB} />
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:WD, marginBottom:8 }}>Your Experience</div>
-                <textarea value={text} onChange={e=>setText(e.target.value)} rows={4}
-                  placeholder="Share your experience — payment, organisation, working conditions..."
-                  style={{ width:'100%', padding:'11px 14px', background:B, border:`1px solid ${BB}`, color:W, fontFamily:FB, fontSize:13, outline:'none', resize:'vertical' }}
-                  onFocus={e=>e.currentTarget.style.borderColor=G} onBlur={e=>e.currentTarget.style.borderColor=BB} />
-              </div>
-              <button onClick={handle} disabled={!rating||!text.trim()||!author.trim()}
-                style={{ width:'100%', padding:'14px', background:rating&&text.trim()&&author.trim()?G:'rgba(255,255,255,0.05)', border:'none', color:rating&&text.trim()&&author.trim()?B:WD, fontFamily:FB, fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', cursor:rating&&text.trim()&&author.trim()?'pointer':'not-allowed', transition:'all 0.25s' }}>
-                Submit Review
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
 
 /* ─── REPOST MODAL ─────────────────────────────────────────────────────────── */
 function RepostModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; onClose: () => void; onSuccess: (newDate: string, newId: string) => void }) {
@@ -696,17 +610,15 @@ function RepostModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; onC
 }
 
 /* ─── JOB CARD ─────────────────────────────────────────────────────────────── */
-function JobCard({ job, onView, onApply, onReview, onRepost, reviews, appliedIds, session }: {
+function JobCard({ job, onView, onApply, onRepost, appliedIds, session }: {
   job: any; onView: (id: string) => void; onApply: (job: any) => void
-  onReview: (job: any) => void; onRepost: (job: any) => void
-  reviews: { author: string; rating: number; text: string; date: string }[]
+  onRepost: (job: any) => void
   appliedIds: Set<string>; session: { role: string; name: string } | null
 }) {
   const [hovered, setHovered] = useState(false)
   const filled = job.slots - job.slotsLeft
   const pct    = Math.round((filled / job.slots) * 100)
   const almostFull = job.slotsLeft <= 2
-  const avgRating  = reviews.length ? reviews.reduce((s,r)=>s+r.rating,0)/reviews.length : 0
   const isApplied  = appliedIds.has(job.id)
   // Use job's accentLine, fallback to G
   const accent = job.accentLine || G
@@ -769,13 +681,6 @@ function JobCard({ job, onView, onApply, onReview, onRepost, reviews, appliedIds
             </div>
           </div>
 
-          {reviews.length>0 && (
-            <div style={{ marginBottom:14, display:'flex', alignItems:'center', gap:8 }}>
-              <StarRating rating={Math.round(avgRating)} size={11} />
-              <span style={{ fontSize:10, color:WD }}>{avgRating.toFixed(1)} ({reviews.length} review{reviews.length!==1?'s':''})</span>
-            </div>
-          )}
-
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <StatusBadge status={job.status} />
             <div style={{ flex:1 }} />
@@ -795,12 +700,6 @@ function JobCard({ job, onView, onApply, onReview, onRepost, reviews, appliedIds
 
       {/* Action row */}
       <div style={{ display:'flex', gap:4, marginTop:4 }}>
-        <button onClick={()=>onReview(job)}
-          style={{ flex:1, padding:'8px', background:'transparent', border:`1px solid ${BB}`, color:WD, fontFamily:FB, fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor=G;e.currentTarget.style.color=G}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor=BB;e.currentTarget.style.color=WD}}>
-          ★ Leave Review
-        </button>
         {session && (
           <button onClick={()=>onRepost(job)}
             style={{ flex:1, padding:'8px', background:'transparent', border:`1px solid ${BB}`, color:WD, fontFamily:FB, fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
@@ -810,24 +709,7 @@ function JobCard({ job, onView, onApply, onReview, onRepost, reviews, appliedIds
           </button>
         )}
       </div>
-
-      {/* Reviews */}
-      {reviews.length>0 && (
-        <div style={{ marginTop:4, background:BC, border:`1px solid ${BB}`, padding:'14px 16px' }}>
-          <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:WD, marginBottom:10 }}>Promoter Reviews</div>
-          {reviews.slice(0,2).map((rev,i,arr)=>(
-            <div key={i} style={{ borderBottom:i<arr.length-1?`1px solid ${BB}`:'none', paddingBottom:i<arr.length-1?10:0, marginBottom:i<arr.length-1?10:0 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, alignItems:'center' }}>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <StarRating rating={rev.rating} size={10} />
-                  <span style={{ fontSize:10, fontWeight:600, color:W }}>{rev.author}</span>
-                </div>
-                <span style={{ fontSize:9, color:WD }}>{rev.date}</span>
-              </div>
-              <p style={{ fontSize:11, color:WM, lineHeight:1.6 }}>{rev.text}</p>
-            </div>
-          ))}
-        </div>
+      </div>
       )}
     </div>
   )
@@ -849,9 +731,7 @@ export default function JobsPage() {
   const [session,    setSession   ] = useState<{ role: string; name: string } | null>(null)
   const [termsJob,   setTermsJob  ] = useState<any>(null)
   const [paymentJob, setPaymentJob] = useState<any>(null)
-  const [reviewJob,  setReviewJob ] = useState<any>(null)
   const [repostJob,  setRepostJob ] = useState<any>(null)
-  const [reviews,    setReviews   ] = useState(INITIAL_REVIEWS)
   const [toast,      setToast     ] = useState('')
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
 
@@ -876,7 +756,6 @@ export default function JobsPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(()=>setToast(''),3500) }
 
   const handleApply  = (job: any) => { if (!session) { navigate('/login'); return }; setTermsJob(job) }
-  const handleReview = (job: any) => { if (!session) { navigate('/login'); return }; setReviewJob(job) }
   const handleRepost = (job: any) => { if (!session) { navigate('/login'); return }; setRepostJob(job) }
 
   const handleTermsAccepted = () => { if (!termsJob) return; setPaymentJob(termsJob); setTermsJob(null) }
@@ -885,13 +764,6 @@ export default function JobsPage() {
     setAppliedIds(prev => new Set([...prev, paymentJob.id]))
     showToast(`✓ Application submitted for "${paymentJob.title}"`)
     setPaymentJob(null)
-  }
-  const handleReviewSubmit = (r: { rating: number; text: string; author: string }) => {
-    if (!reviewJob) return
-    const nr = { ...r, date: new Date().toISOString().split('T')[0], jobId: reviewJob.id }
-    setReviews(prev => ({ ...prev, [reviewJob.id]: [...(prev[reviewJob.id]||[]), nr] }))
-    showToast('Review submitted — thank you!')
-    setReviewJob(null)
   }
   const handleRepostSuccess = (_newDate: string, newId: string) => {
     showToast(`Job reposted as ${newId} — pending admin approval`)
@@ -999,8 +871,8 @@ export default function JobsPage() {
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(340px, 1fr))', gap:20 }}>
             {filtered.map(job=>(
-              <JobCard key={job.id} job={job} reviews={reviews[job.id]||[]} appliedIds={appliedIds} session={session}
-                onView={id=>navigate(`/jobs/${id}`)} onApply={handleApply} onReview={handleReview} onRepost={handleRepost} />
+              <JobCard key={job.id} job={job} appliedIds={appliedIds} session={session}
+                onView={id=>navigate(`/jobs/${id}`)} onApply={handleApply} onRepost={handleRepost} />
             ))}
           </div>
         )}
@@ -1018,7 +890,6 @@ export default function JobsPage() {
 
       {termsJob   && <TermsModal   job={termsJob}   onAccept={handleTermsAccepted}   onClose={()=>setTermsJob(null)}   />}
       {paymentJob && <PaymentModal job={paymentJob} onSuccess={handlePaymentSuccess} onClose={()=>setPaymentJob(null)} />}
-      {reviewJob  && <ReviewModal  job={reviewJob}  onSubmit={handleReviewSubmit}    onClose={()=>setReviewJob(null)}  />}
       {repostJob  && <RepostModal  job={repostJob}  onSuccess={handleRepostSuccess}  onClose={()=>setRepostJob(null)}  />}
     </div>
   )
