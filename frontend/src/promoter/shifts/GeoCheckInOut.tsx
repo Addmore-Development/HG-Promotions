@@ -1,7 +1,7 @@
 // promoter/shifts/GeoCheckInOut.tsx
-// Promoter shift check‑in/out, visually identical to the admin's live map page.
+// Promoter shift check‑in/out with live tracking map and real‑time earnings.
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { shiftsService } from '../../shared/services/shiftsService';
 import { jobsService } from '../../shared/services/jobsService';
@@ -12,15 +12,17 @@ import type { Shift } from '../../shared/types/shift.types';
 import type { Job } from '../../shared/types/job.types';
 
 // Admin‑style tokens (warm amber palette)
-const G   = '#D4880A';   // primary gold
-const GL  = '#E8A820';   // bright gold
-const G2  = '#8B5A1A';   // dark brown accent
-const B   = '#0C0A07';   // near‑black background
-const BC  = '#141008';   // card background
-const BB  = 'rgba(212,136,10,0.12)';   // border
-const W   = '#FAF3E8';   // warm white text
-const WM  = 'rgba(250,243,232,0.65)';  // white muted
-const WD  = 'rgba(250,243,232,0.28)';  // white dim
+const G   = '#D4880A';
+const GL  = '#E8A820';
+const G2  = '#8B5A1A';
+const G3  = '#C07818';
+const B   = '#0C0A07';
+const BC  = '#141008';
+const D2  = '#151209';
+const BB  = 'rgba(212,136,10,0.12)';
+const W   = '#FAF3E8';
+const WM  = 'rgba(250,243,232,0.65)';
+const WD  = 'rgba(250,243,232,0.28)';
 const FD  = "'Playfair Display', Georgia, serif";
 const FB  = "'DM Sans', system-ui, sans-serif";
 
@@ -31,6 +33,52 @@ const CORAL  = '#C4614A';
 const SKY    = '#5A9EC4';
 
 const GEO_THRESHOLD_M = 200;
+
+// Google Maps loader (reused from admin)
+declare global {
+  interface Window { google: any; initHGMap: () => void }
+}
+const GMAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
+function loadGoogleMaps(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps) { resolve(); return; }
+    if (document.getElementById('hg-gmaps-script')) {
+      const interval = setInterval(() => {
+        if (window.google?.maps) { clearInterval(interval); resolve(); }
+      }, 100);
+      return;
+    }
+    window.initHGMap = () => resolve();
+    const script = document.createElement('script');
+    script.id    = 'hg-gmaps-script';
+    script.src   = `https://maps.googleapis.com/maps/api/js?key=${GMAP_KEY}&callback=initHGMap`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => reject(new Error('Google Maps failed to load'));
+    document.head.appendChild(script);
+  });
+}
+
+// Dark gold map style (same as admin)
+const MAP_STYLES = [
+  { elementType:'geometry',                stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.stroke',      stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.fill',        stylers:[{ color:'#6B4F1A' }] },
+  { featureType:'administrative',          elementType:'geometry',            stylers:[{ color:'#1C1709' }] },
+  { featureType:'administrative.country',  elementType:'labels.text.fill',   stylers:[{ color:'#9D8A5A' }] },
+  { featureType:'administrative.province', elementType:'labels.text.fill',   stylers:[{ color:'#7A6535' }] },
+  { featureType:'landscape',               stylers:[{ color:'#0E0C06' }] },
+  { featureType:'poi',                     stylers:[{ visibility:'off' }] },
+  { featureType:'road',                    elementType:'geometry',            stylers:[{ color:'#1C1709' }] },
+  { featureType:'road',                    elementType:'geometry.stroke',     stylers:[{ color:'#0E0C06' }] },
+  { featureType:'road',                    elementType:'labels.text.fill',    stylers:[{ color:'#5A4520' }] },
+  { featureType:'road.highway',            elementType:'geometry',            stylers:[{ color:'#2A1F08' }] },
+  { featureType:'road.highway',            elementType:'geometry.stroke',     stylers:[{ color:'#1A1305' }] },
+  { featureType:'road.highway',            elementType:'labels.text.fill',    stylers:[{ color:'#D4880A' }] },
+  { featureType:'transit',                 stylers:[{ visibility:'off' }] },
+  { featureType:'water',                   elementType:'geometry',            stylers:[{ color:'#040503' }] },
+  { featureType:'water',                   elementType:'labels.text.fill',    stylers:[{ color:'#2A2008' }] },
+];
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
@@ -55,6 +103,15 @@ export const GeoCheckInOut: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<Shift['status'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  // Live tracking map state
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState('');
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<any>(null);
+  const markerPromoter = useRef<any>(null);
+  const markerVenue = useRef<any>(null);
+  const watchId = useRef<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -116,6 +173,31 @@ export const GeoCheckInOut: React.FC = () => {
     );
   };
 
+  // Live location watch while shift is active
+  useEffect(() => {
+    if (selected && selected.status === 'checked_in' && navigator.geolocation) {
+      watchId.current = navigator.geolocation.watchPosition(
+        pos => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          setLoc({ lat, lng });
+          const job = jobs.get(selected.jobId);
+          if (job) {
+            const d = haversine(lat, lng, job.coordinates.lat, job.coordinates.lng);
+            setDistM(Math.round(d));
+            setGps(d <= GEO_THRESHOLD_M ? 'near' : 'far');
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      );
+    }
+    return () => {
+      if (watchId.current !== null) {
+        navigator.geolocation.clearWatch(watchId.current);
+      }
+    };
+  }, [selected, jobs]);
+
   const doCheckIn = async () => {
     if (!selected || !loc || !selfiePreview) return;
     setWorking(true);
@@ -162,6 +244,74 @@ export const GeoCheckInOut: React.FC = () => {
     return <Badge variant={s.variant}>{s.label}</Badge>;
   };
 
+  // Load map when modal opens and shift is active
+  useEffect(() => {
+    if (!selected || selected.status !== 'checked_in' || !mapRef.current) return;
+    loadGoogleMaps()
+      .then(() => {
+        if (!mapRef.current || mapInstance.current) return;
+        mapInstance.current = new window.google.maps.Map(mapRef.current, {
+          center: loc || { lat: -26.2041, lng: 28.0473 },
+          zoom: 14,
+          styles: MAP_STYLES,
+          disableDefaultUI: false,
+          zoomControl: true,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+        setMapReady(true);
+      })
+      .catch(() => setMapError('Google Maps unavailable – check VITE_GOOGLE_MAPS_KEY in .env'));
+  }, [selected]);
+
+  // Update map markers when location changes
+  useEffect(() => {
+    if (!mapReady || !mapInstance.current || !selected) return;
+    const job = jobs.get(selected.jobId);
+    if (!job) return;
+
+    const venuePos = { lat: job.coordinates.lat, lng: job.coordinates.lng };
+    if (!markerVenue.current) {
+      const svgVenue = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22S28 23.63 28 14C28 6.27 21.73 0 14 0z" fill="${G}" stroke="#0C0A07" stroke-width="1.5"/><circle cx="14" cy="14" r="5" fill="#0C0A07"/></svg>`;
+      markerVenue.current = new window.google.maps.Marker({
+        position: venuePos,
+        map: mapInstance.current,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgVenue),
+          scaledSize: new window.google.maps.Size(28, 36),
+          anchor: new window.google.maps.Point(14, 36),
+        },
+        title: job.venue,
+      });
+    } else {
+      markerVenue.current.setPosition(venuePos);
+    }
+
+    if (loc) {
+      if (!markerPromoter.current) {
+        const svgPromoter = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22S28 23.63 28 14C28 6.27 21.73 0 14 0z" fill="${TEAL}" stroke="#0C0A07" stroke-width="1.5"/><circle cx="14" cy="14" r="5" fill="#0C0A07"/></svg>`;
+        markerPromoter.current = new window.google.maps.Marker({
+          position: loc,
+          map: mapInstance.current,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgPromoter),
+            scaledSize: new window.google.maps.Size(28, 36),
+            anchor: new window.google.maps.Point(14, 36),
+          },
+          title: 'You',
+        });
+      } else {
+        markerPromoter.current.setPosition(loc);
+      }
+      // Fit bounds to show both markers
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(venuePos);
+      bounds.extend(loc);
+      mapInstance.current.fitBounds(bounds, 50);
+    }
+  }, [mapReady, loc, selected, jobs]);
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: WD, padding: '60px 0', justifyContent: 'center' }}>
       <div style={{ width: 24, height: 24, border: `2px solid ${GL}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -170,6 +320,7 @@ export const GeoCheckInOut: React.FC = () => {
   );
 
   const active = selected ? shifts.find(s => s.id === selected.id) : null;
+  const activeJob = active ? jobs.get(active.jobId) : null;
 
   return (
     <div style={{ padding: '40px 48px' }}>
@@ -203,15 +354,15 @@ export const GeoCheckInOut: React.FC = () => {
               fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
-             Grid
+            Grid
           </button>
         </div>
       </div>
 
-      {/* Filter bar – styled like admin's city/status filters */}
+      {/* Filter bar */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', width: 240 }}>
-          <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: WD, fontSize: 16 }}></span>
+          <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: WD, fontSize: 16 }}>🔍</span>
           <input
             type="text"
             placeholder="Search shifts…"
@@ -343,7 +494,7 @@ export const GeoCheckInOut: React.FC = () => {
         </>
       )}
 
-      {/* Detail Modal – centered like job modal, with admin styling */}
+      {/* Detail Modal – with live tracking map for active shifts */}
       {selected && active && (
         <div
           style={{
@@ -356,8 +507,8 @@ export const GeoCheckInOut: React.FC = () => {
         >
           <div
             style={{
-              background: BC, border: `1px solid ${BB}`, borderRadius: 4,
-              maxWidth: 540, width: '100%', maxHeight: '85vh',
+              background: D2, border: `1px solid ${BB}`, borderRadius: 4,
+              maxWidth: 600, width: '100%', maxHeight: '90vh',
               overflowY: 'auto', padding: 32, position: 'relative'
             }}
             onClick={e => e.stopPropagation()}
@@ -379,10 +530,10 @@ export const GeoCheckInOut: React.FC = () => {
             </button>
 
             <h2 style={{ color: W, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>
-              {jobs.get(active.jobId)?.title}
+              {activeJob?.title}
             </h2>
             <p style={{ color: WM, fontSize: 14, marginBottom: 24 }}>
-              {jobs.get(active.jobId)?.venue}
+              {activeJob?.venue}
             </p>
 
             {/* Issues display */}
@@ -432,6 +583,55 @@ export const GeoCheckInOut: React.FC = () => {
                 <p style={{ color: WM, margin: 0 }}>Tap below to verify your location</p>
               )}
             </div>
+
+            {/* Live tracking map for active shifts */}
+            {active.status === 'checked_in' && (
+              <>
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ color: GL, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12, textTransform: 'uppercase' }}>
+                    Live Location
+                  </h3>
+                  <div ref={mapRef} style={{ width: '100%', height: 200, borderRadius: 2, overflow: 'hidden', border: `1px solid ${BB}` }} />
+                  {mapError && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: CORAL, textAlign: 'center' }}>{mapError}</div>
+                  )}
+                </div>
+
+                {/* Live earnings and timer */}
+                <div style={{
+                  marginBottom: 20,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  background: `${GL}0f`,
+                  border: `1px solid ${GL}30`,
+                  borderRadius: 2
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: WM, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Earnings</div>
+                    <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: GL }}>
+                      R{active.attendance.checkInTime
+                        ? ((Date.now() - new Date(active.attendance.checkInTime).getTime()) / 3600000 * (activeJob?.hourlyRate || 0)).toFixed(0)
+                        : '0'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: WM, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Time Elapsed</div>
+                    <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: TEAL }}>
+                      {active.attendance.checkInTime
+                        ? (() => {
+                            const diff = Date.now() - new Date(active.attendance.checkInTime).getTime();
+                            const h = Math.floor(diff / 3600000);
+                            const m = Math.floor((diff % 3600000) / 60000);
+                            return `${h}h ${m}m`;
+                          })()
+                        : '0h 0m'}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Selfie capture */}
             {selfieAction !== 'none' && gps === 'near' && (
@@ -487,7 +687,7 @@ export const GeoCheckInOut: React.FC = () => {
                   🟢 Start Shift — Check In
                 </Button>
               )}
-              {(active.status === 'checked_in' || active.status === 'active') && gps === 'near' && selfieAction === 'none' && (
+              {active.status === 'checked_in' && gps === 'near' && selfieAction === 'none' && (
                 <Button fullWidth size="lg" variant="secondary" onClick={() => setSelfieAction('checkout')}>
                   🔴 End Shift — Check Out
                 </Button>
