@@ -19,6 +19,7 @@ const FB           = "'DM Sans', system-ui, sans-serif"
 
 type Role = 'promoter' | 'business'
 
+/* ─── OPTION LISTS ────────────────────────────────────────────── */
 const INDUSTRY_OPTIONS = [
   'FMCG / Beverages', 'FMCG / Food', 'Retail', 'Telecoms', 'Automotive',
   'Financial Services', 'Healthcare / Pharma', 'Fitness & Wellness',
@@ -30,7 +31,12 @@ const PROMOTER_CATEGORIES = [
   'Brand Activation', 'Sampling & Demonstrations', 'In-Store Promotions',
   'Events & Exhibitions', 'Field Marketing', 'Merchandising',
   'Customer Service', 'Hospitality', 'Fitness & Wellness', 'Fashion & Beauty',
-  'Financial Services', 'Telecoms', 'Other',
+  'Financial Services', 'Telecoms', 'Quick Service Restaurant', 'Automotive', 'Other',
+]
+
+const SA_LANGUAGES = [
+  'English', 'Zulu', 'Xhosa', 'Afrikaans', 'Sotho', 'Tswana',
+  'Venda', 'Tsonga', 'Swati', 'Ndebele', 'Pedi',
 ]
 
 const EXPERIENCE_OPTIONS = [
@@ -46,16 +52,13 @@ const DASHBOARD_ROUTE: Record<Role, string> = {
   business: '/business/dashboard',
 }
 
-/* ─── SA VALIDATION ──────────────────────────────────────────── */
+/* ─── SA VALIDATION ───────────────────────────────────────────── */
+// Format-only check: 13 digits with a valid YYMMDD prefix — no Luhn checksum
 const validateSAID = (id: string): boolean => {
   if (!/^\d{13}$/.test(id)) return false
-  let sum = 0
-  for (let i = 0; i < 13; i++) {
-    let n = parseInt(id[i])
-    if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9 }
-    sum += n
-  }
-  return sum % 10 === 0
+  const month = parseInt(id.slice(2, 4))
+  const day   = parseInt(id.slice(4, 6))
+  return month >= 1 && month <= 12 && day >= 1 && day <= 31
 }
 
 const validateSAPhone = (phone: string): boolean =>
@@ -86,6 +89,37 @@ const validatePassword = (pw: string) => ({
   digit:   /[0-9]/.test(pw),
   special: /[!@#$%^&*(),.?":{}|<>]/.test(pw),
 })
+
+/* ─── CHIP — reusable multi-select toggle ─────────────────────── */
+function Chip({ label, active, onClick }: {
+  label: string; active: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding:      '7px 14px',
+        background:   active ? GOLD_FAINT : 'transparent',
+        border:       `1px solid ${active ? GOLD : BLACK_BORDER}`,
+        color:        active ? GOLD : GOLD_DIM,
+        fontFamily:   FB,
+        fontSize:     11,
+        fontWeight:   active ? 600 : 400,
+        cursor:       'pointer',
+        transition:   'all 0.18s',
+        borderRadius: 2,
+        display:      'inline-flex',
+        alignItems:   'center',
+        gap:          5,
+        whiteSpace:   'nowrap' as const,
+      }}
+    >
+      {active && <span style={{ fontSize: 9 }}>✓</span>}
+      {label}
+    </button>
+  )
+}
 
 /* ─── FIELD INPUT ─────────────────────────────────────────────── */
 function Field({
@@ -162,7 +196,7 @@ function FileUploadZone({
   )
 }
 
-/* ─── PHOTO UPLOAD — fixed equal height ──────────────────────── */
+/* ─── PHOTO UPLOAD ────────────────────────────────────────────── */
 const PHOTO_H = 220
 
 function PhotoUpload({
@@ -188,50 +222,25 @@ function PhotoUpload({
       </label>
       <div
         onClick={() => inputRef.current?.click()}
-        style={{
-          height: PHOTO_H,
-          border: `1px dashed ${file ? `${GOLD}55` : BLACK_BORDER}`,
-          background: file ? 'rgba(196,151,58,0.04)' : 'rgba(196,151,58,0.02)',
-          cursor: 'pointer', transition: 'all 0.25s',
-          overflow: 'hidden', display: 'flex', flexDirection: 'column',
-        }}
+        style={{ height: PHOTO_H, border: `1px dashed ${file ? `${GOLD}55` : BLACK_BORDER}`, background: file ? 'rgba(196,151,58,0.04)' : 'rgba(196,151,58,0.02)', cursor: 'pointer', transition: 'all 0.25s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         onMouseEnter={e => { if (!file) (e.currentTarget as HTMLElement).style.borderColor = `${GOLD}88` }}
         onMouseLeave={e => { if (!file) (e.currentTarget as HTMLElement).style.borderColor = BLACK_BORDER }}
       >
-        <input
-          ref={inputRef} type="file"
-          accept="image/jpeg,image/png,image/webp"
-          style={{ display: 'none' }}
-          onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }}
-        />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }} />
         {preview ? (
           <>
-            <img
-              src={preview} alt={label}
-              style={{ width: '100%', flex: 1, objectFit: 'cover', objectPosition: 'top', display: 'block', minHeight: 0 }}
-            />
+            <img src={preview} alt={label} style={{ width: '100%', flex: 1, objectFit: 'cover', objectPosition: 'top', display: 'block', minHeight: 0 }} />
             <div style={{ padding: '7px 12px', background: GOLD_FAINT, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontFamily: FB, fontSize: 10, color: GOLD }}>
-                {'✓ ' + (file && file.name.length > 20 ? file.name.slice(0, 18) + '…' : (file ? file.name : ''))}
-              </span>
+              <span style={{ fontFamily: FB, fontSize: 10, color: GOLD }}>{'✓ ' + (file && file.name.length > 20 ? file.name.slice(0, 18) + '…' : (file ? file.name : ''))}</span>
               <span style={{ fontFamily: FB, fontSize: 9, color: GOLD_PALE }}>Replace</span>
             </div>
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '0 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 30, marginBottom: 10, opacity: 0.5 }}>📷</div>
-            <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM, marginBottom: 6 }}>
-              {'Upload '}
-              <span style={{ color: GOLD }}>photo</span>
-            </p>
-            {aspectHint && (
-              <p style={{ fontFamily: FB, fontSize: 10, color: GOLD, fontWeight: 600, marginBottom: 5 }}>
-                {aspectHint}
-              </p>
-            )}
-            {hint && (
-              <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_PALE }}>{hint}</p>
-            )}
+            <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM, marginBottom: 6 }}>Upload <span style={{ color: GOLD }}>photo</span></p>
+            {aspectHint && <p style={{ fontFamily: FB, fontSize: 10, color: GOLD, fontWeight: 600, marginBottom: 5 }}>{aspectHint}</p>}
+            {hint && <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_PALE }}>{hint}</p>}
           </div>
         )}
       </div>
@@ -292,29 +301,21 @@ function StepBar({ current, total }: { current: number; total: number }) {
 
 /* ─── SUCCESS POPUP ───────────────────────────────────────────── */
 function SuccessModal({ isPromoter, onDashboard, onHome }: {
-  isPromoter: boolean
-  onDashboard: () => void
-  onHome: () => void
+  isPromoter: boolean; onDashboard: () => void; onHome: () => void
 }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.90)', backdropFilter: 'blur(18px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`, padding: '52px 44px', maxWidth: 460, width: '100%', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${BROWN}, ${GOLD}, ${GOLD_LIGHT}, ${GOLD}, ${BROWN})` }} />
         <div style={{ position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 300, height: 180, background: 'radial-gradient(ellipse, rgba(196,151,58,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(196,151,58,0.10)', border: '1px solid rgba(196,151,58,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 34 }}>
-            ⏳
-          </div>
-
+          <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(196,151,58,0.10)', border: '1px solid rgba(196,151,58,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 34 }}>⏳</div>
           <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GOLD, marginBottom: 14 }}>
             {isPromoter ? 'Application Submitted' : 'Account Created'}
           </p>
-
           <h2 style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: WHITE, marginBottom: 20, lineHeight: 1.2 }}>
             {isPromoter ? "You're on the list." : 'Welcome aboard.'}
           </h2>
-
           <div style={{ background: 'rgba(196,151,58,0.06)', border: '1px solid rgba(196,151,58,0.20)', padding: '18px 20px', marginBottom: 28 }}>
             <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_MUTED, lineHeight: 1.85 }}>
               Your account has been created and is currently{' '}
@@ -322,22 +323,17 @@ function SuccessModal({ isPromoter, onDashboard, onHome }: {
               You will be notified once your account has been reviewed and approved.
             </p>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={onDashboard}
+            <button onClick={onDashboard}
               style={{ width: '100%', padding: '15px 0', background: `linear-gradient(90deg, ${AMBER}, ${GOLD}, ${GOLD_LIGHT})`, border: 'none', fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: BLACK, cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
-            >
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}>
               Go to Dashboard
             </button>
-            <button
-              onClick={onHome}
+            <button onClick={onHome}
               style={{ width: '100%', padding: '13px 0', background: 'transparent', border: '1px solid rgba(196,151,58,0.22)', fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(196,151,58,0.22)'; e.currentTarget.style.color = GOLD_DIM }}
-            >
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(196,151,58,0.22)'; e.currentTarget.style.color = GOLD_DIM }}>
               Back to Home
             </button>
           </div>
@@ -358,26 +354,40 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done,       setDone]       = useState(false)
 
-  // Promoter personal
+  // ── Promoter personal
   const [firstName, setFirstName] = useState('')
   const [lastName,  setLastName]  = useState('')
   const [phone,     setPhone]     = useState('')
   const [idNumber,  setIdNumber]  = useState('')
   const [address,   setAddress]   = useState('')
 
-  // Promoter photos + banking
+  // ── Promoter photos + banking
   const [headshotFile, setHeadshotFile] = useState<File | null>(null)
   const [fullBodyFile, setFullBodyFile] = useState<File | null>(null)
   const [bankName,     setBankName]     = useState('')
   const [accountNo,    setAccountNo]    = useState('')
   const [bankProof,    setBankProof]    = useState<File | null>(null)
 
-  // Promoter account
+  // ── Promoter account
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')
   const [confirmPw, setConfirmPw] = useState('')
 
-  // Business
+  // ── Promoter professional profile — multi-select arrays
+  const [promoCategories, setPromoCategories] = useState<string[]>([])
+  const [promoLanguages,  setPromoLanguages]  = useState<string[]>([])
+  const [promoExperience, setPromoExperience] = useState('')
+  const [promoGender,     setPromoGender]     = useState('')
+  const [promoHeight,     setPromoHeight]     = useState('')
+  const [promoClothing,   setPromoClothing]   = useState('')
+
+  const toggleCategory = (cat: string) =>
+    setPromoCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
+
+  const toggleLanguage = (lang: string) =>
+    setPromoLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
+
+  // ── Business
   const [companyName,  setCompanyName]  = useState('')
   const [contactName,  setContactName]  = useState('')
   const [bizPhone,     setBizPhone]     = useState('')
@@ -392,16 +402,15 @@ export default function RegisterPage() {
   const [taxPin,       setTaxPin]       = useState<File | null>(null)
   const [bizBankProof, setBizBankProof] = useState<File | null>(null)
 
-  // Promoter preferences
-  const [promoCategory,   setPromoCategory]   = useState('')
-  const [promoExperience, setPromoExperience] = useState('')
-  const [promoGender,     setPromoGender]     = useState('')
-  const [promoHeight,     setPromoHeight]     = useState('')
-  const [promoClothing,   setPromoClothing]   = useState('')
-
   const isPromoter  = role === 'promoter'
   const TOTAL_STEPS = 3
 
+  const switchRole = (r: Role) => {
+    setRole(r); setStep(0); setErrors({})
+    setPromoCategories([]); setPromoLanguages([])
+  }
+
+  /* ─── VALIDATION ──────────────────────────────────────────── */
   const validateStep = (): boolean => {
     const errs: Record<string, string> = {}
     if (isPromoter) {
@@ -409,12 +418,12 @@ export default function RegisterPage() {
         if (!firstName.trim()) errs.firstName = 'Required'
         if (!lastName.trim())  errs.lastName  = 'Required'
         if (!validateSAPhone(phone)) errs.phone = 'Enter a valid SA phone number e.g. +27 71 000 0000'
-        if (!validateSAID(idNumber)) errs.idNumber = 'Enter a valid 13-digit SA ID number'
+        if (!validateSAID(idNumber)) errs.idNumber = 'Must be 13 digits in SA ID format (YYMMDD followed by 7 digits)'
         if (!address.trim()) errs.address = 'Required'
       }
       if (step === 1) {
-        if (!headshotFile) errs.headshot = 'Headshot photo is required'
-        if (!fullBodyFile) errs.fullBody = 'Full body photo is required'
+        if (!headshotFile) errs.headshot  = 'Headshot photo is required'
+        if (!fullBodyFile) errs.fullBody  = 'Full body photo is required'
         if (!bankName.trim())  errs.bankName  = 'Required'
         if (!accountNo.trim()) errs.accountNo = 'Required'
         if (!bankProof) errs.bankProof = 'Bank proof document is required'
@@ -452,15 +461,15 @@ export default function RegisterPage() {
   const nextStep = () => { if (validateStep()) setStep(s => Math.min(s + 1, TOTAL_STEPS - 1)) }
   const prevStep = () => { setErrors({}); setStep(s => Math.max(s - 1, 0)) }
 
+  /* ─── SUBMIT ──────────────────────────────────────────────── */
   const handleSubmit = async () => {
     if (!validateStep()) return
     setSubmitting(true)
     try {
-      const { authService } = await import('../services/authService')
+      const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
       if (isPromoter) {
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-        const promoterRegRes = await fetch(`${API}/auth/register`, {
+        const regRes = await fetch(`${API}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -472,33 +481,29 @@ export default function RegisterPage() {
             consentPopia: true,
             idNumber,
             city:         address,
-            gender:       promoGender       || undefined,
-            height:       promoHeight ? parseInt(promoHeight) : undefined,
-            clothingSize: promoClothing     || undefined,
-            experience:   promoExperience   || undefined,
-            industry:     promoCategory     || undefined,
+            gender:       promoGender     || undefined,
+            height:       promoHeight     ? parseInt(promoHeight) : undefined,
+            clothingSize: promoClothing   || undefined,
+            experience:   promoExperience || undefined,
+            industry:     promoCategories.length > 0 ? promoCategories.join(', ') : undefined,
+            languages:    promoLanguages.length  > 0 ? promoLanguages.join(', ')  : undefined,
           }),
         })
-        const promoterData = await promoterRegRes.json()
-        if (!promoterRegRes.ok) throw new Error(promoterData.error || 'Registration failed')
-        const promoterUserId = promoterData.userId || ''
-        // Upload promoter documents using the public registration route
+        const regData = await regRes.json()
+        if (!regRes.ok) throw new Error(regData.error || 'Registration failed')
+        const userId = regData.userId || ''
+
         if (bankProof || headshotFile || fullBodyFile) {
           try {
-            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-            const formData = new FormData()
-            if (bankProof)    formData.append('cv',            bankProof)
-            if (headshotFile) formData.append('headshot',      headshotFile)
-            if (fullBodyFile) formData.append('fullBodyPhoto', fullBodyFile)
-            await fetch(`${API}/users/register-documents/${promoterUserId}`, {
-              method: 'POST',
-              body: formData,
-            })
-          } catch { /* non-fatal — docs can be uploaded later */ }
+            const fd = new FormData()
+            if (bankProof)    fd.append('cv',            bankProof)
+            if (headshotFile) fd.append('headshot',      headshotFile)
+            if (fullBodyFile) fd.append('fullBodyPhoto', fullBodyFile)
+            await fetch(`${API}/users/register-documents/${userId}`, { method: 'POST', body: fd })
+          } catch { /* non-fatal */ }
         }
       } else {
-        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-        const bizRegRes = await fetch(`${API}/auth/register`, {
+        const bizRes = await fetch(`${API}/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -516,36 +521,33 @@ export default function RegisterPage() {
             industry:     bizIndustry,
           }),
         })
-        const bizData = await bizRegRes.json()
-        if (!bizRegRes.ok) throw new Error(bizData.error || 'Registration failed')
-        const bizUserId = bizData.userId || ''
-        // Upload business documents using the public registration route
+        const bizData = await bizRes.json()
+        if (!bizRes.ok) throw new Error(bizData.error || 'Registration failed')
+        const userId = bizData.userId || ''
+
         if (cipcDoc || taxPin || bizBankProof) {
           try {
-            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-            const bizDocs = new FormData()
-            if (cipcDoc)      bizDocs.append('cipcDoc',      cipcDoc)
-            if (taxPin)       bizDocs.append('taxPin',       taxPin)
-            if (bizBankProof) bizDocs.append('bizBankProof', bizBankProof)
-            await fetch(`${API}/users/register-documents/${bizUserId}`, {
-              method: 'POST',
-              body: bizDocs,
-            })
-          } catch { /* non-fatal — docs can be uploaded later */ }
+            const fd = new FormData()
+            if (cipcDoc)      fd.append('cipcDoc',      cipcDoc)
+            if (taxPin)       fd.append('taxPin',       taxPin)
+            if (bizBankProof) fd.append('bizBankProof', bizBankProof)
+            await fetch(`${API}/users/register-documents/${userId}`, { method: 'POST', body: fd })
+          } catch { /* non-fatal */ }
         }
       }
 
       setDone(true)
     } catch (err: any) {
-      const emailKey = isPromoter ? 'email' : 'bizEmail'
-      setErrors({ [emailKey]: err.message || 'Registration failed. Please try again.' })
+      setErrors({ submit: err.message || 'Registration failed. Please try again.' })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}) }
-  const stepLabels = ['Personal Info', 'Photos & Banking', 'Account Setup']
+  /* ─── SHARED STYLES ───────────────────────────────────────── */
+  const stepLabels = isPromoter
+    ? ['Profile', 'Photos & Banking', 'Account']
+    : ['Company', 'Documents', 'Account']
 
   const selectStyle: React.CSSProperties = {
     width: '100%',
@@ -556,6 +558,20 @@ export default function RegisterPage() {
     outline: 'none', appearance: 'none', cursor: 'pointer',
   }
 
+  const chipSectionLabel = (text: string, count: number) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+      <span style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: GOLD_DIM }}>
+        {text}
+      </span>
+      {count > 0 && (
+        <span style={{ fontFamily: FB, fontSize: 11, color: GOLD, fontWeight: 600 }}>
+          {count} selected
+        </span>
+      )}
+    </div>
+  )
+
+  /* ─── RENDER ──────────────────────────────────────────────── */
   return (
     <div style={{ minHeight: '100vh', background: BLACK, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontFamily: FB, padding: '60px 16px 80px', position: 'relative', overflow: 'hidden' }}>
       <style>{`
@@ -572,22 +588,14 @@ export default function RegisterPage() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.025, backgroundImage: `linear-gradient(${GOLD} 1px,transparent 1px),linear-gradient(90deg,${GOLD} 1px,transparent 1px)`, backgroundSize: '72px 72px' }} />
       <div style={{ position: 'fixed', top: '-15%', left: '50%', transform: 'translateX(-50%)', width: 800, height: 500, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse, rgba(196,151,58,0.06) 0%, transparent 70%)' }} />
 
-      {/* Confirmation popup — sits above everything */}
-      {done && (
-        <SuccessModal
-          isPromoter={isPromoter}
-          onDashboard={() => navigate(DASHBOARD_ROUTE[role])}
-          onHome={() => navigate('/')}
-        />
-      )}
+      {done && <SuccessModal isPromoter={isPromoter} onDashboard={() => navigate(DASHBOARD_ROUTE[role])} onHome={() => navigate('/')} />}
 
-      <div className="hg-reg" style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 540 }}>
+      <div className="hg-reg" style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 560 }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
-            <span style={{ color: GOLD }}>HONEY</span>
-            <span style={{ color: WHITE }}> GROUP</span>
+            <span style={{ color: GOLD }}>HONEY</span><span style={{ color: WHITE }}> GROUP</span>
           </div>
           <div style={{ width: 32, height: 1, background: GOLD, margin: '0 auto 16px' }} />
           <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD_DIM }}>Create Account</p>
@@ -619,82 +627,163 @@ export default function RegisterPage() {
         <div style={{ background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`, padding: '40px 40px 36px', position: 'relative', boxShadow: '0 40px 100px rgba(0,0,0,0.6)' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${BROWN}, ${GOLD}, ${GOLD_LIGHT}, ${GOLD}, ${BROWN})` }} />
 
-          {/* ── PROMOTER STEP 0 ── */}
+          {/* ════════════════════════════════════════ */}
+          {/* PROMOTER STEP 0 — Profile + Professional */}
+          {/* ════════════════════════════════════════ */}
           {isPromoter && step === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <SectionDivider label="Personal Details" />
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <Field label="First Name" placeholder="Ayanda" value={firstName} onChange={setFirstName} focused={focused === 'firstName'} onFocus={() => setFocused('firstName')} onBlur={() => setFocused(null)} error={errors.firstName} />
                 <Field label="Last Name" placeholder="Dlamini" value={lastName} onChange={setLastName} focused={focused === 'lastName'} onFocus={() => setFocused('lastName')} onBlur={() => setFocused(null)} error={errors.lastName} />
               </div>
-              <Field label="SA Phone Number" placeholder="+27 71 000 0000" value={phone} onChange={v => setPhone(formatSAPhone(v))} focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)} error={errors.phone} hint="South African mobile number" />
-              <Field label="SA ID Number" placeholder="8001015009087" value={idNumber} onChange={setIdNumber} focused={focused === 'idNumber'} onFocus={() => setFocused('idNumber')} onBlur={() => setFocused(null)} error={errors.idNumber} hint="13-digit South African ID number" />
-              <Field label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address} onChange={setAddress} focused={focused === 'address'} onFocus={() => setFocused('address')} onBlur={() => setFocused(null)} error={errors.address} />
+
+              <Field
+                label="SA Phone Number"
+                placeholder="+27 71 000 0000"
+                value={phone}
+                onChange={v => setPhone(formatSAPhone(v))}
+                focused={focused === 'phone'}
+                onFocus={() => setFocused('phone')}
+                onBlur={() => setFocused(null)}
+                error={errors.phone}
+                hint="South African mobile number"
+              />
+
+              <Field
+                label="SA ID Number"
+                placeholder="9001015009087"
+                value={idNumber}
+                onChange={setIdNumber}
+                focused={focused === 'idNumber'}
+                onFocus={() => setFocused('idNumber')}
+                onBlur={() => setFocused(null)}
+                error={errors.idNumber}
+                hint="13 digits · format YYMMDD followed by 7 digits"
+              />
+
+              <Field
+                label="Residential Address"
+                placeholder="123 Main Street, Johannesburg, 2000"
+                value={address}
+                onChange={setAddress}
+                focused={focused === 'address'}
+                onFocus={() => setFocused('address')}
+                onBlur={() => setFocused(null)}
+                error={errors.address}
+              />
 
               <SectionDivider label="Professional Profile" />
+
+              {/* ── Category / Type of Work — multi-select chips ── */}
+              <div>
+                {chipSectionLabel('Category / Type of Work', promoCategories.length)}
+                <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, marginBottom: 12, lineHeight: 1.5 }}>
+                  Select all types of promotional work you can do — more categories = more job matches
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {PROMOTER_CATEGORIES.map(cat => (
+                    <Chip
+                      key={cat}
+                      label={cat}
+                      active={promoCategories.includes(cat)}
+                      onClick={() => toggleCategory(cat)}
+                    />
+                  ))}
+                </div>
+                {promoCategories.length > 0 && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: GOLD_FAINT, border: `1px solid ${GOLD}33` }}>
+                    <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_DIM, marginBottom: 5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Selected categories</p>
+                    <p style={{ fontFamily: FB, fontSize: 12, color: GOLD }}>{promoCategories.join(' · ')}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Languages Spoken — multi-select chips ── */}
+              <div>
+                {chipSectionLabel('Languages Spoken', promoLanguages.length)}
+                <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, marginBottom: 12, lineHeight: 1.5 }}>
+                  Select all 11 official SA languages you speak fluently
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {SA_LANGUAGES.map(lang => (
+                    <Chip
+                      key={lang}
+                      label={lang}
+                      active={promoLanguages.includes(lang)}
+                      onClick={() => toggleLanguage(lang)}
+                    />
+                  ))}
+                </div>
+                {promoLanguages.length > 0 && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: GOLD_FAINT, border: `1px solid ${GOLD}33` }}>
+                    <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_DIM, marginBottom: 5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Selected languages</p>
+                    <p style={{ fontFamily: FB, fontSize: 12, color: GOLD }}>{promoLanguages.join(' · ')}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Experience + Gender ── */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Category / Type of Work</label>
-                  <select value={promoCategory} onChange={e => setPromoCategory(e.target.value)} style={selectStyle}>
-                    <option value="">— Select category —</option>
-                    {PROMOTER_CATEGORIES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Experience Level</label>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+                    Experience Level
+                  </label>
                   <select value={promoExperience} onChange={e => setPromoExperience(e.target.value)} style={selectStyle}>
-                    <option value="">— Select experience —</option>
+                    <option value="">— Select —</option>
                     {EXPERIENCE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Gender</label>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+                    Gender
+                  </label>
                   <select value={promoGender} onChange={e => setPromoGender(e.target.value)} style={selectStyle}>
                     <option value="">— Select —</option>
                     {['Male', 'Female', 'Non-binary', 'Prefer not to say'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* ── Height + Clothing ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Height (cm)</label>
-                  <input type="number" value={promoHeight} onChange={e => setPromoHeight(e.target.value)} placeholder="e.g. 170" min="140" max="220"
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number" value={promoHeight} onChange={e => setPromoHeight(e.target.value)}
+                    placeholder="e.g. 170" min="140" max="220"
                     style={{ width: '100%', background: 'rgba(196,151,58,0.03)', border: `1px solid ${BLACK_BORDER}`, padding: '13px 16px', fontFamily: FB, fontSize: 14, color: WHITE, outline: 'none' }}
                     onFocus={e => e.currentTarget.style.borderColor = GOLD}
-                    onBlur={e => e.currentTarget.style.borderColor = BLACK_BORDER} />
+                    onBlur={e => e.currentTarget.style.borderColor = BLACK_BORDER}
+                  />
                 </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Clothing Size</label>
-                <select value={promoClothing} onChange={e => setPromoClothing(e.target.value)} style={selectStyle}>
-                  <option value="">— Select size —</option>
-                  {['XS (32–34)', 'S (34–36)', 'M (36–38)', 'L (38–40)', 'XL (40–42)', 'XXL (42–44)'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                <div>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+                    Clothing Size
+                  </label>
+                  <select value={promoClothing} onChange={e => setPromoClothing(e.target.value)} style={selectStyle}>
+                    <option value="">— Select —</option>
+                    {['XS (32–34)', 'S (34–36)', 'M (36–38)', 'L (38–40)', 'XL (40–42)', 'XXL (42–44)'].map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
 
-          {/* ── PROMOTER STEP 1 ── */}
+          {/* ════════════════════════════════════ */}
+          {/* PROMOTER STEP 1 — Photos + Banking  */}
+          {/* ════════════════════════════════════ */}
           {isPromoter && step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <SectionDivider label="Profile Photos" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <PhotoUpload
-                  label="Headshot"
-                  file={headshotFile}
-                  onChange={setHeadshotFile}
-                  required
-                  aspectHint="Face clearly visible"
-                  hint="JPG or PNG · Max 5 MB"
-                />
-                <PhotoUpload
-                  label="Full Body Photo"
-                  file={fullBodyFile}
-                  onChange={setFullBodyFile}
-                  required
-                  aspectHint="Head to toe, standing"
-                  hint="JPG or PNG · Max 5 MB"
-                />
+                <PhotoUpload label="Headshot" file={headshotFile} onChange={setHeadshotFile} required aspectHint="Face clearly visible" hint="JPG or PNG · Max 5 MB" />
+                <PhotoUpload label="Full Body Photo" file={fullBodyFile} onChange={setFullBodyFile} required aspectHint="Head to toe, standing" hint="JPG or PNG · Max 5 MB" />
               </div>
               {errors.headshot && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.headshot}</p>}
               {errors.fullBody && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.fullBody}</p>}
@@ -702,9 +791,7 @@ export default function RegisterPage() {
               <SectionDivider label="Banking Details" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
-                    Bank Name
-                  </label>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Bank Name</label>
                   <select value={bankName} onChange={e => setBankName(e.target.value)} style={selectStyle}>
                     <option value="" disabled>Select bank</option>
                     {['ABSA', 'Standard Bank', 'FNB', 'Nedbank', 'Capitec', 'African Bank', 'TymeBank', 'Discovery Bank', 'Investec', 'Other'].map(b => (
@@ -720,7 +807,9 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── PROMOTER STEP 2 ── */}
+          {/* ════════════════════════════════════ */}
+          {/* PROMOTER STEP 2 — Account           */}
+          {/* ════════════════════════════════════ */}
           {isPromoter && step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <SectionDivider label="Login Credentials" />
@@ -739,7 +828,9 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── BUSINESS STEP 0 ── */}
+          {/* ════════════════════════════════════ */}
+          {/* BUSINESS STEP 0 — Company Info       */}
+          {/* ════════════════════════════════════ */}
           {!isPromoter && step === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <SectionDivider label="Company Information" />
@@ -764,7 +855,9 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── BUSINESS STEP 1 ── */}
+          {/* ════════════════════════════════════ */}
+          {/* BUSINESS STEP 1 — Documents          */}
+          {/* ════════════════════════════════════ */}
           {!isPromoter && step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <SectionDivider label="Business Documents" />
@@ -777,7 +870,9 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── BUSINESS STEP 2 ── */}
+          {/* ════════════════════════════════════ */}
+          {/* BUSINESS STEP 2 — Account            */}
+          {/* ════════════════════════════════════ */}
           {!isPromoter && step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <SectionDivider label="Login Credentials" />
@@ -792,6 +887,13 @@ export default function RegisterPage() {
                   Your business account will be <span style={{ color: GOLD }}>pending review</span> until verified by Honey Group administrators.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Submit error */}
+          {errors.submit && (
+            <div style={{ marginTop: 16, padding: '12px 16px', background: `${AMBER}18`, border: `1px solid ${AMBER}44` }}>
+              <p style={{ fontFamily: FB, fontSize: 12, color: AMBER }}>{errors.submit}</p>
             </div>
           )}
 
@@ -818,15 +920,13 @@ export default function RegisterPage() {
 
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <span style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM }}>Already have an account? </span>
-          <button onClick={() => navigate('/login')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, padding: 0 }}>
+          <button onClick={() => navigate('/login')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, padding: 0 }}>
             Log In
           </button>
         </div>
         <p style={{ textAlign: 'center', marginTop: 12, fontFamily: FB, fontSize: 10, color: GOLD_PALE, letterSpacing: '0.14em' }}>
           ADMIN ACCOUNTS ARE CREATED BY INVITATION ONLY
         </p>
-
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <button onClick={() => navigate('/')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}

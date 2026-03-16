@@ -1,204 +1,221 @@
-// promoter/PromoterLayout.tsx
-// Dedicated layout for the promoter portal, exactly matching the admin design.
-// Warm amber palette — same as Admin but labelled "Promoter Portal".
 
-import { useNavigate, useLocation } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
-import { useAuth } from '../shared/hooks/useAuth'
 
-const G   = '#D4880A'
-const GL  = '#E8A820'
-const G2  = '#8B5A1A'
-const B   = '#0C0A07'
-const BC  = '#141008'
-const BB  = 'rgba(212,136,10,0.12)'
-const W   = '#FAF3E8'
-const WM  = 'rgba(250,243,232,0.65)'
-const WD  = 'rgba(250,243,232,0.28)'
-const FD  = "'Playfair Display', Georgia, serif"
-const FB  = "'DM Sans', system-ui, sans-serif"
+const BLK   = '#050402'
+const BLK1  = '#0A0804'
+const GL    = '#E8A820'
+const GD    = '#C07818'
+const GD2   = '#8B5A1A'
+const BB    = 'rgba(212,136,10,0.14)'
+const W     = '#FAF3E8'
+const WM    = 'rgba(250,243,232,0.65)'
+const WD    = 'rgba(250,243,232,0.28)'
+const FD    = "'Playfair Display', Georgia, serif"
+const FB    = "'DM Sans', system-ui, sans-serif"
 
-const PROMOTER_NAV_GROUPS = [
-  {
-    label: 'Overview',
-    items: [{ label: 'Dashboard', icon: '◈', tab: 'dashboard' }],
-  },
-  {
-    label: 'Jobs',
-    items: [{ label: 'Job Feed', icon: '◎', tab: 'jobs' }],
-  },
-  {
-    label: 'Shifts',
-    items: [{ label: 'My Shifts', icon: '▦', tab: 'shifts' }],
-  },
-  {
-    label: 'Payments',
-    items: [{ label: 'Earnings', icon: '◆', tab: 'earnings' }],
-  },
-  {
-    label: 'Account',
-    items: [{ label: 'My Profile', icon: '⊙', tab: 'profile' }],
-  },
+const NAV_ITEMS = [
+  { path: 'dashboard', icon: '◈', label: 'Dashboard'  },
+  { path: 'jobs',      icon: '◎', label: 'Jobs'       },
+  { path: 'shifts',    icon: '⊙', label: 'Shifts'     },
+  { path: 'earnings',  icon: '◆', label: 'Earnings'   },
+  { path: 'profile',   icon: '⬡', label: 'My Profile' },
 ]
 
-function injectScrollbarStyles() {
-  if (document.getElementById('hg-promoter-scrollbar')) return
-  const el = document.createElement('style')
-  el.id = 'hg-promoter-scrollbar'
-  el.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    select option { background: #141008; color: #FAF3E8; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-    @keyframes spin { to { transform: rotate(360deg) } }
-    .hg-prom-scroll::-webkit-scrollbar { width: 6px; }
-    .hg-prom-scroll::-webkit-scrollbar-track { background: rgba(212,136,10,0.04); }
-    .hg-prom-scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #D4880A, #8B5A1A); border-radius: 6px; min-height: 40px; }
-    .hg-prom-scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #E8A820, #D4880A); }
-    .hg-prom-scroll { scrollbar-width: thin; scrollbar-color: #D4880A rgba(212,136,10,0.04); }
-  `
-  document.head.appendChild(el)
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+function authHdr() {
+  const t = localStorage.getItem('hg_token')
+  return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-interface Props { children: ReactNode }
-
-export function PromoterLayout({ children }: Props) {
-  const navigate   = useNavigate()
-  const location   = useLocation()
-  const { user, logout } = useAuth()
-  const searchParams = new URLSearchParams(location.search)
-  const activeTab  = searchParams.get('tab') || 'dashboard'
+export const PromoterLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'dashboard'
+  const [collapsed, setCollapsed] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+  const [unreadShifts, setUnreadShifts] = useState(0)
 
   useEffect(() => {
-    injectScrollbarStyles()
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = ''
-      document.documentElement.style.overflow = ''
+    // Inject fonts
+    if (!document.getElementById('hg-promoter-styles')) {
+      const el = document.createElement('style')
+      el.id = 'hg-promoter-styles'
+      el.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(${GL}, ${GD}); border-radius: 2px; }
+      `
+      document.head.appendChild(el)
     }
+
+    // Load profile for sidebar
+    fetch(`${API}/auth/me`, { headers: authHdr() as any })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setProfile(data) })
+      .catch(() => {})
+
+    // Count today's scheduled shifts
+    Promise.all([
+      fetch(`${API}/shifts/my`, { headers: authHdr() as any }),
+      fetch(`${API}/jobs`, { headers: authHdr() as any }),
+    ]).then(async ([sRes, jRes]) => {
+      if (!sRes.ok || !jRes.ok) return
+      const shifts = await sRes.json()
+      const jobs = await jRes.json()
+      const jobMap = new Map(jobs.map((j: any) => [j.id, j]))
+      const today = new Date().toDateString()
+      const todayScheduled = shifts.filter((s: any) => {
+        const job: any = jobMap.get(s.jobId)
+        if (!job) return false
+        return new Date(job.date).toDateString() === today && s.status === 'SCHEDULED'
+      })
+      setUnreadShifts(todayScheduled.length)
+    }).catch(() => {})
   }, [])
 
-  const isActive = (tab: string) =>
-    location.pathname === '/promoter/' && activeTab === tab
+  const handleLogout = () => {
+    localStorage.removeItem('hg_session')
+    localStorage.removeItem('hg_token')
+    navigate('/')
+  }
 
-  const displayName = user?.name?.split(' ')[0] || 'Promoter'
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'
+  const displayName = profile?.fullName || 'Promoter'
+  const firstName = displayName.split(' ')[0]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: B, fontFamily: FB, color: W }}>
-      {/* ── Sidebar ── */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: BLK, fontFamily: FB }}>
+      {/* SIDEBAR */}
       <aside style={{
-        width: 224, flexShrink: 0,
-        background: `linear-gradient(180deg, ${BC} 0%, #100D07 100%)`,
+        width: collapsed ? 58 : 220, flexShrink: 0,
+        background: `linear-gradient(180deg, ${BLK1} 0%, ${BLK} 100%)`,
         borderRight: `1px solid ${BB}`,
         display: 'flex', flexDirection: 'column',
-        boxShadow: '4px 0 32px rgba(0,0,0,0.6)',
+        transition: 'width 0.3s ease',
+        position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.6)',
       }}>
-
         {/* Logo */}
-        <div style={{ padding: '26px 22px 18px', borderBottom: `1px solid ${BB}`, flexShrink: 0 }}>
-          <div style={{ height: 2, background: `linear-gradient(90deg, ${GL}, ${G}, ${G2})`, marginBottom: 14, borderRadius: 1 }} />
-          <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 700 }}>
-            <span style={{ color: GL }}>HONEY</span>
-            <span style={{ color: W }}> GROUP</span>
-          </div>
-          <div style={{ fontSize: 8, letterSpacing: '0.38em', color: WD, marginTop: 5, textTransform: 'uppercase' }}>
-            Promoter Portal
-          </div>
+        <div style={{ padding: collapsed ? '24px 0' : '24px 20px', borderBottom: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
+          {!collapsed && (
+            <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700 }}>
+              <span style={{ color: GL }}>HONEY</span>
+              <span style={{ color: W }}> GROUP</span>
+            </div>
+          )}
+          <button onClick={() => setCollapsed(c => !c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: WD, fontSize: 12, padding: 4, transition: 'color 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GL)}
+            onMouseLeave={e => (e.currentTarget.style.color = WD)}>
+            {collapsed ? '▶' : '◀'}
+          </button>
         </div>
 
         {/* Nav */}
-        <nav className="hg-prom-scroll" style={{ flex: 1, overflowY: 'scroll', overflowX: 'hidden', padding: '10px 10px' }}>
-          {PROMOTER_NAV_GROUPS.map(group => (
-            <div key={group.label} style={{ marginBottom: 4 }}>
-              <div style={{
-                fontSize: 7.5, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase',
-                color: WD, padding: '10px 12px 5px',
-              }}>
-                {group.label}
-              </div>
-              {group.items.map(n => {
-                const active = isActive(n.tab)
-                return (
-                  <button
-                    key={n.tab}
-                    onClick={() => navigate(`/promoter/?tab=${n.tab}`)}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 9,
-                      padding: '8px 12px', marginBottom: 2, borderRadius: 6, cursor: 'pointer',
-                      background: active
-                        ? `linear-gradient(135deg, rgba(212,136,10,0.22), rgba(139,90,26,0.14))`
-                        : 'transparent',
-                      border: active ? `1px solid rgba(212,136,10,0.40)` : '1px solid transparent',
-                      color: active ? GL : WM, fontFamily: FB, fontSize: 12.5,
-                      fontWeight: active ? 600 : 400, transition: 'all 0.18s', position: 'relative',
-                    }}
-                    onMouseEnter={e => {
-                      if (!active) {
-                        e.currentTarget.style.background = 'rgba(212,136,10,0.08)'
-                        e.currentTarget.style.color = W
-                        e.currentTarget.style.borderColor = 'rgba(212,136,10,0.18)'
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!active) {
-                        e.currentTarget.style.background = 'transparent'
-                        e.currentTarget.style.color = WM
-                        e.currentTarget.style.borderColor = 'transparent'
-                      }
-                    }}
-                  >
-                    {active && (
-                      <div style={{
-                        position: 'absolute', left: 0, top: '20%', bottom: '20%',
-                        width: 3, borderRadius: '0 2px 2px 0',
-                        background: `linear-gradient(180deg, ${GL}, ${G})`,
-                      }} />
-                    )}
-                    <span style={{ fontSize: 12, color: active ? GL : WD, transition: 'color 0.18s' }}>
-                      {n.icon}
-                    </span>
-                    <span style={{ flex: 1, textAlign: 'left' }}>{n.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+        <nav style={{ flex: 1, padding: '12px 0' }}>
+          {NAV_ITEMS.map(item => {
+            const active = activeTab === item.path
+            const badge = item.path === 'shifts' && unreadShifts > 0 ? unreadShifts : 0
+            return (
+              <button key={item.path}
+                onClick={() => navigate(`/promoter/?tab=${item.path}`)}
+                title={collapsed ? item.label : undefined}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: collapsed ? '12px 0' : '11px 20px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  background: active ? 'rgba(232,168,32,0.08)' : 'transparent',
+                  borderLeft: active ? `3px solid ${GL}` : '3px solid transparent',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  color: active ? GL : WM, position: 'relative',
+                }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(212,136,10,0.06)'; e.currentTarget.style.color = W } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = WM } }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
+                {!collapsed && <span style={{ fontFamily: FD, fontSize: 12, fontWeight: active ? 700 : 400, letterSpacing: '0.04em' }}>{item.label}</span>}
+                {badge > 0 && (
+                  <span style={{ marginLeft: 'auto', width: 18, height: 18, borderRadius: '50%', background: GL, color: BLK, fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{badge}</span>
+                )}
+              </button>
+            )
+          })}
+
+          {/* Browse Site link — opens landing page without logging out */}
+          <button
+            onClick={() => window.open('/', '_blank')}
+            title={collapsed ? 'Browse Site' : undefined}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: collapsed ? '12px 0' : '11px 20px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              background: 'transparent', borderLeft: '3px solid transparent',
+              border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+              color: WD, marginTop: 8, borderTop: `1px solid ${BB}`,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,136,10,0.06)'; e.currentTarget.style.color = GL }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = WD }}>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>⊹</span>
+            {!collapsed && <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 400 }}>Browse Site</span>}
+          </button>
         </nav>
 
-        {/* Footer */}
-        <div style={{ padding: '14px 18px', borderTop: `1px solid ${BB}`, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: `linear-gradient(135deg, ${G2}, ${G})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, color: W, flexShrink: 0,
-            }}>{initials}</div>
-            <div>
-              <div style={{ fontSize: 12, color: W, fontWeight: 600 }}>{displayName}</div>
-              <div style={{ fontSize: 10, color: WD, marginTop: 1 }}>Promoter</div>
+        {/* User + logout */}
+        <div style={{ borderTop: `1px solid ${BB}`, padding: collapsed ? '14px 0' : '14px 18px' }}>
+          {!collapsed && profile && (
+            <div style={{ marginBottom: 10 }}>
+              {/* Avatar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: `linear-gradient(135deg, ${GD2}, ${GL})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: BLK, border: `1px solid ${BB}` }}>
+                  {profile.headshotUrl || profile.profilePhotoUrl ? (
+                    <img src={profile.headshotUrl || profile.profilePhotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : firstName.charAt(0).toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: W, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
+                  <p style={{ fontFamily: FB, fontSize: 10, color: GL, margin: 0 }}>
+                    {profile.status === 'approved' ? '✓ Approved' : '⏳ Pending'}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-          <button
-            onClick={logout}
-            style={{
-              fontSize: 10.5, color: WD, background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: FB, padding: 0, letterSpacing: '0.06em',
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = G}
-            onMouseLeave={e => e.currentTarget.style.color = WD}
-          >
-            ← Sign Out
+          )}
+          <button onClick={handleLogout} title={collapsed ? 'Log Out' : undefined}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, justifyContent: collapsed ? 'center' : 'flex-start', background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: WD, padding: collapsed ? '6px 0' : '6px 2px', transition: 'color 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = GL)}
+            onMouseLeave={e => (e.currentTarget.style.color = WD)}>
+            <span style={{ fontSize: 13 }}>⏻</span>
+            {!collapsed && <span>Log Out</span>}
           </button>
         </div>
       </aside>
 
-      {/* ── Main ── */}
-      <main style={{ flex: 1, overflowY: 'auto', background: B }}>
-        <div style={{ animation: 'fadeIn 0.25s ease' }}>{children}</div>
+      {/* MAIN */}
+      <main style={{ flex: 1, overflow: 'auto', minWidth: 0, background: BLK }}>
+        {/* Top bar */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(5,4,2,0.96)', backdropFilter: 'blur(20px)', borderBottom: `1px solid ${BB}`, padding: '0 36px', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 2, height: 18, background: `linear-gradient(${GL}, ${GD})` }} />
+            <p style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: GL }}>
+              {NAV_ITEMS.find(n => n.path === activeTab)?.label || 'Promoter Portal'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Browse Site in top bar too */}
+            <button onClick={() => window.open('/', '_blank')}
+              style={{ background: 'none', border: `1px solid ${BB}`, cursor: 'pointer', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', color: WD, padding: '6px 14px', transition: 'all 0.2s', borderRadius: 2 }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = WD }}>
+              ⊹ Browse Site
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GL }} />
+              <span style={{ fontFamily: FB, fontSize: 10, color: WD }}>Online</span>
+            </div>
+          </div>
+        </div>
+        {children}
       </main>
     </div>
   )

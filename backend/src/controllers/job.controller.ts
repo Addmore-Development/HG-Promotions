@@ -15,16 +15,13 @@ export const getAllJobs = async (req: AuthRequest, res: Response): Promise<void>
       where.status = (status as string).toUpperCase();
     }
 
-    // Business users see all jobs posted under their company name
-    // Admin sees ALL jobs regardless
+    // Business users see only their company's jobs
     if (userRole === 'BUSINESS') {
-      // Get the business user's fullName (company name)
       const bizUser = await prisma.user.findUnique({
         where: { id: userId },
         select: { fullName: true },
       });
       if (bizUser?.fullName) {
-        // Match jobs where client name contains the business name (case-insensitive)
         where.OR = [
           { client: { contains: bizUser.fullName, mode: 'insensitive' } },
           { brand:  { contains: bizUser.fullName, mode: 'insensitive' } },
@@ -32,9 +29,43 @@ export const getAllJobs = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
 
+    // Promoters see OPEN and FILLED jobs
+    if (userRole === 'PROMOTER') {
+      if (!status || status === 'all') {
+        where.status = { in: ['OPEN', 'FILLED', 'IN_PROGRESS'] };
+      }
+    }
+
     const jobs = await prisma.job.findMany({
       where,
-      include: { applications: { include: { promoter: { select: { id: true, fullName: true, profilePhotoUrl: true } } } } },
+      include: {
+        applications: {
+          include: {
+            promoter: {
+              select: {
+                id: true,
+                fullName: true,
+                profilePhotoUrl: true,
+                headshotUrl: true,
+                fullBodyPhotoUrl: true,
+                city: true,
+                reliabilityScore: true,
+                height: true,
+                gender: true,
+                clothingSize: true,
+                shoeSize: true,
+                phone: true,
+                email: true,
+                province: true,
+                cvUrl: true,
+                status: true,
+                onboardingStatus: true,
+                createdAt: true,
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -49,7 +80,34 @@ export const getJobById = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const job = await prisma.job.findUnique({
       where: { id: req.params.id },
-      include: { applications: { include: { promoter: true } } },
+      include: {
+        applications: {
+          include: {
+            promoter: {
+              select: {
+                id: true,
+                fullName: true,
+                profilePhotoUrl: true,
+                headshotUrl: true,
+                fullBodyPhotoUrl: true,
+                city: true,
+                reliabilityScore: true,
+                height: true,
+                gender: true,
+                clothingSize: true,
+                shoeSize: true,
+                phone: true,
+                email: true,
+                province: true,
+                cvUrl: true,
+                status: true,
+                onboardingStatus: true,
+                createdAt: true,
+              }
+            }
+          }
+        }
+      },
     });
     if (!job) { res.status(404).json({ error: 'Job not found' }); return; }
     res.json(job);
@@ -87,21 +145,21 @@ export const createJob = async (req: AuthRequest, res: Response): Promise<void> 
     const job = await prisma.job.create({
       data: {
         title,
-        client:     client,
-        brand:      brand || client,
-        venue:      venue  || '',
-        address:    address || venue || '',
-        lat:        parseFloat(lat)  || -26.2041,
-        lng:        parseFloat(lng)  || 28.0473,
-        date:       new Date(date),
-        startTime:  startTime || '09:00',
-        endTime:    endTime   || '17:00',
-        hourlyRate: parseInt(hourlyRate) || 0,
-        totalSlots: parseInt(totalSlots) || 1,
+        client,
+        brand:       brand || client,
+        venue:       venue  || '',
+        address:     address || venue || '',
+        lat:         parseFloat(lat)  || -26.2041,
+        lng:         parseFloat(lng)  || 28.0473,
+        date:        new Date(date),
+        startTime:   startTime || '09:00',
+        endTime:     endTime   || '17:00',
+        hourlyRate:  parseInt(hourlyRate) || 0,
+        totalSlots:  parseInt(totalSlots) || 1,
         filledSlots: parseInt(filledSlots) || 0,
-        status:     (status || 'OPEN').toUpperCase() as any,
-        filters:    filters || {},
-        createdBy:  req.user!.id,
+        status:      (status || 'OPEN').toUpperCase() as any,
+        filters:     filters || {},
+        createdBy:   req.user!.id,
       },
     });
 
@@ -127,21 +185,21 @@ export const updateJob = async (req: AuthRequest, res: Response): Promise<void> 
     const job = await prisma.job.update({
       where: { id: req.params.id },
       data: {
-        ...(title      !== undefined && { title }),
-        ...(client     !== undefined && { client }),
-        ...(brand      !== undefined && { brand }),
-        ...(venue      !== undefined && { venue }),
-        ...(address    !== undefined && { address }),
-        ...(lat        !== undefined && { lat: parseFloat(lat) }),
-        ...(lng        !== undefined && { lng: parseFloat(lng) }),
-        ...(date       !== undefined && { date: new Date(date) }),
-        ...(startTime  !== undefined && { startTime }),
-        ...(endTime    !== undefined && { endTime }),
-        ...(hourlyRate !== undefined && { hourlyRate: parseInt(hourlyRate) }),
-        ...(totalSlots !== undefined && { totalSlots: parseInt(totalSlots) }),
-        ...(filledSlots!== undefined && { filledSlots: parseInt(filledSlots) }),
-        ...(status     !== undefined && { status: status.toUpperCase() as any }),
-        ...(filters    !== undefined && { filters }),
+        ...(title       !== undefined && { title }),
+        ...(client      !== undefined && { client }),
+        ...(brand       !== undefined && { brand }),
+        ...(venue       !== undefined && { venue }),
+        ...(address     !== undefined && { address }),
+        ...(lat         !== undefined && { lat: parseFloat(lat) }),
+        ...(lng         !== undefined && { lng: parseFloat(lng) }),
+        ...(date        !== undefined && { date: new Date(date) }),
+        ...(startTime   !== undefined && { startTime }),
+        ...(endTime     !== undefined && { endTime }),
+        ...(hourlyRate  !== undefined && { hourlyRate: parseInt(hourlyRate) }),
+        ...(totalSlots  !== undefined && { totalSlots: parseInt(totalSlots) }),
+        ...(filledSlots !== undefined && { filledSlots: parseInt(filledSlots) }),
+        ...(status      !== undefined && { status: status.toUpperCase() as any }),
+        ...(filters     !== undefined && { filters }),
       },
     });
 

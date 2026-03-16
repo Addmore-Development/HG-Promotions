@@ -1,27 +1,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// ─── Strict Gold & Black Palette ──────────────────────────────────────────────
-const BLK   = '#050402'
-const BLK1  = '#0A0804'
-const BLK2  = '#100C05'
-const BLK3  = '#181206'
-const BLK4  = '#201808'
-const GOLD  = '#D4880A'
-const GL    = '#E8A820'
-const GL2   = '#F0C050'
-const GD    = '#C07818'
-const GD2   = '#8B5A1A'
-const GD3   = '#6B3F10'
-const BB    = 'rgba(212,136,10,0.16)'
-const BB2   = 'rgba(212,136,10,0.08)'
-const W     = '#FAF3E8'
-const W8    = 'rgba(250,243,232,0.85)'
-const W7    = 'rgba(250,243,232,0.70)'
-const W4    = 'rgba(250,243,232,0.40)'
-const W2    = 'rgba(250,243,232,0.20)'
-const FD    = "'Playfair Display', Georgia, serif"
-const FB    = "'DM Sans', system-ui, sans-serif"
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const BLK  = '#050402'
+const BLK1 = '#0A0804'
+const BLK2 = '#100C05'
+const BLK3 = '#181206'
+const GL   = '#E8A820'
+const GD   = '#C07818'
+const GD2  = '#8B5A1A'
+const GD3  = '#6B3F10'
+const BB   = 'rgba(212,136,10,0.16)'
+const BB2  = 'rgba(212,136,10,0.08)'
+const W    = '#FAF3E8'
+const W8   = 'rgba(250,243,232,0.85)'
+const W7   = 'rgba(250,243,232,0.70)'
+const W4   = 'rgba(250,243,232,0.40)'
+const W2   = 'rgba(250,243,232,0.20)'
+const FD   = "'Playfair Display', Georgia, serif"
+const FB   = "'DM Sans', system-ui, sans-serif"
+const TEAL  = '#4AABB8'
+const CORAL = '#C4614A'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 function authHdr(): Record<string, string> {
@@ -46,79 +45,211 @@ interface ApiJob {
 }
 
 interface Promoter {
-  id: string; fullName: string; email: string; phone?: string
-  city?: string; reliabilityScore?: number
-  profilePhotoUrl?: string; headshotUrl?: string; fullBodyPhotoUrl?: string
-  height?: number; clothingSize?: string; gender?: string
-  appStatus?: string | null; appId?: string
+  id: string
+  fullName: string
+  email: string
+  phone?: string
+  city?: string
+  province?: string
+  gender?: string
+  height?: number
+  clothingSize?: string
+  shoeSize?: string
+  reliabilityScore?: number
+  profilePhotoUrl?: string
+  headshotUrl?: string
+  fullBodyPhotoUrl?: string
+  cvUrl?: string
+  onboardingStatus?: string
+  status?: string
+  createdAt?: string
+  appStatus?: string | null
+  appId?: string
 }
 
-// ─── Promoter Profile Modal ───────────────────────────────────────────────────
-function PromoterModal({ promoter, onClose, onSelect, isSelected, canSelect }: {
-  promoter: Promoter; onClose: () => void
-  onSelect: () => void; isSelected: boolean; canSelect: boolean
+// ─── Full Promoter Profile Modal (same style as admin) ────────────────────────
+function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, canSelect }: {
+  promoter: Promoter
+  onClose: () => void
+  isSelected: boolean
+  onToggleSelect: () => void
+  canSelect: boolean
 }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: BLK2, border: `1px solid ${BB}`, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', position: 'relative', borderRadius: 4 }}>
+      <div style={{ background: BLK2, border: `1px solid ${BB}`, width: '100%', maxWidth: 580, maxHeight: '92vh', overflowY: 'auto', position: 'relative', borderRadius: 4 }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${GD3}, ${GL}, ${GD3})` }} />
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 18, background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 18 }}>✕</button>
-        <div style={{ padding: '32px 32px 0' }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 16 }}>Promoter Profile</div>
-          <div style={{ display: 'flex', gap: 20, marginBottom: 24 }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 18, background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 20, lineHeight: 1 }}>✕</button>
+
+        <div style={{ padding: '36px 36px 0' }}>
+          {/* Label */}
+          <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 20 }}>
+            Promoter Profile
+          </div>
+
+          {/* Hero: headshot + name */}
+          <div style={{ display: 'flex', gap: 24, marginBottom: 28, alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0 }}>
-              {promoter.headshotUrl ? (
-                <img src={promoter.headshotUrl} alt="Headshot" style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${GL}` }} />
+              {promoter.headshotUrl || promoter.profilePhotoUrl ? (
+                <img
+                  src={promoter.headshotUrl || promoter.profilePhotoUrl}
+                  alt={promoter.fullName}
+                  style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', objectPosition: 'top', border: `3px solid ${GL}` }} />
               ) : (
-                <div style={{ width: 90, height: 90, borderRadius: '50%', background: hex2rgba(GL, 0.12), border: `2px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: GL, fontFamily: FD, fontWeight: 700 }}>
+                <div style={{ width: 110, height: 110, borderRadius: '50%', background: hex2rgba(GL, 0.12), border: `3px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: GL, fontFamily: FD, fontWeight: 700 }}>
                   {promoter.fullName.charAt(0)}
                 </div>
               )}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: W, marginBottom: 4 }}>{promoter.fullName}</div>
-              <div style={{ fontSize: 12, color: W4, fontFamily: FB, marginBottom: 8 }}>{promoter.email}</div>
+              <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 700, color: W, marginBottom: 6 }}>{promoter.fullName}</div>
+              <div style={{ fontSize: 13, color: W4, fontFamily: FB, marginBottom: 10 }}>{promoter.email}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {promoter.city && <span style={{ fontSize: 10, color: W7, background: BB, padding: '3px 10px', borderRadius: 2, fontFamily: FB }}>📍 {promoter.city}</span>}
-                {(promoter.reliabilityScore ?? 0) > 0 && <span style={{ fontSize: 10, color: GL, background: hex2rgba(GL, 0.1), padding: '3px 10px', borderRadius: 2, fontFamily: FB }}>⭐ {(promoter.reliabilityScore ?? 0).toFixed(1)}</span>}
+                {promoter.city && (
+                  <span style={{ fontSize: 11, color: W7, background: BB, padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>
+                    📍 {promoter.city}
+                  </span>
+                )}
+                {(promoter.reliabilityScore ?? 0) > 0 && (
+                  <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>
+                    ⭐ {(promoter.reliabilityScore ?? 0).toFixed(1)} / 5
+                  </span>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Full body photo */}
           {promoter.fullBodyPhotoUrl && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: W4, fontFamily: FD, marginBottom: 8 }}>Full Body Photo</div>
-              <img src={promoter.fullBodyPhotoUrl} alt="Full body" style={{ width: '100%', maxHeight: 320, objectFit: 'cover', objectPosition: 'top', borderRadius: 3, border: `1px solid ${BB}` }} />
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 10, fontWeight: 700 }}>Full Body Photo</div>
+              <img
+                src={promoter.fullBodyPhotoUrl}
+                alt="Full body"
+                style={{ width: '100%', maxHeight: 360, objectFit: 'cover', objectPosition: 'top', borderRadius: 4, border: `1px solid ${BB}` }} />
             </div>
           )}
-          <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 20, marginBottom: 20 }}>
-            <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 14, fontWeight: 700 }}>Details</div>
-            {[
-              { label: 'Phone',    value: promoter.phone },
-              { label: 'Height',   value: promoter.height ? `${promoter.height}cm` : null },
-              { label: 'Gender',   value: promoter.gender },
-              { label: 'Clothing', value: promoter.clothingSize },
-            ].filter(r => r.value).map(r => (
-              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BB}` }}>
-                <span style={{ fontSize: 12, color: W4, fontFamily: FB }}>{r.label}</span>
-                <span style={{ fontSize: 12, color: W, fontWeight: 600, fontFamily: FB }}>{r.value}</span>
+
+          {/* Personal details — two column grid */}
+          <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 24, marginBottom: 24 }}>
+            <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 16, fontWeight: 700 }}>Personal Details</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+              {[
+                { label: 'Phone',         value: promoter.phone },
+                { label: 'Gender',        value: promoter.gender },
+                { label: 'Height',        value: promoter.height ? `${promoter.height} cm` : null },
+                { label: 'Clothing Size', value: promoter.clothingSize },
+                { label: 'Shoe Size',     value: promoter.shoeSize },
+                { label: 'Province',      value: promoter.province },
+                { label: 'Member Since',  value: promoter.createdAt ? new Date(promoter.createdAt).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' }) : null },
+                { label: 'Account',       value: promoter.status === 'approved' ? '✅ Approved' : promoter.status },
+              ].filter(r => r.value).map(r => (
+                <div key={r.label} style={{ padding: '12px 0', borderBottom: `1px solid ${BB}`, paddingRight: 16 }}>
+                  <div style={{ fontSize: 9, color: W4, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4, fontFamily: FB }}>{r.label}</div>
+                  <div style={{ fontSize: 14, color: W, fontWeight: 600, fontFamily: FB }}>{r.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CV link */}
+          {promoter.cvUrl && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 10, fontWeight: 700 }}>Documents</div>
+              <a href={promoter.cvUrl} target="_blank" rel="noopener noreferrer" download
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: hex2rgba(GL, 0.08), border: `1px solid ${hex2rgba(GL, 0.3)}`, borderRadius: 3, color: GL, fontSize: 12, fontFamily: FD, fontWeight: 700, textDecoration: 'none' }}>
+                📄 Download CV / Portfolio
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Footer action */}
+        <div style={{ padding: '0 36px 36px' }}>
+          {isSelected ? (
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1, padding: '14px', background: hex2rgba(GL, 0.08), border: `1px solid ${hex2rgba(GL, 0.4)}`, borderRadius: 3, fontSize: 13, color: GL, fontFamily: FD, textAlign: 'center', fontWeight: 700 }}>
+                ✓ Added to selection
+              </div>
+              <button onClick={() => { onToggleSelect(); onClose(); }}
+                style={{ padding: '14px 20px', background: hex2rgba(CORAL, 0.1), border: `1px solid ${hex2rgba(CORAL, 0.4)}`, color: CORAL, fontFamily: FD, fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 3, letterSpacing: '0.08em' }}>
+                Remove
+              </button>
+            </div>
+          ) : canSelect ? (
+            <button onClick={() => { onToggleSelect(); onClose(); }}
+              style={{ width: '100%', padding: '14px', background: `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: BLK, fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 3 }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+              + Add to Selection
+            </button>
+          ) : (
+            <div style={{ padding: '14px', background: BB2, border: `1px solid ${BB}`, fontSize: 13, color: W4, fontFamily: FD, textAlign: 'center', borderRadius: 3 }}>
+              Job slots are full
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Confirm Selection Modal ──────────────────────────────────────────────────
+function ConfirmSelectionModal({ job, selected, promoters, onConfirm, onClose, confirming }: {
+  job: ApiJob
+  selected: Set<string>
+  promoters: Promoter[]
+  onConfirm: () => void
+  onClose: () => void
+  confirming: boolean
+}) {
+  const selectedPromoters = promoters.filter(p => selected.has(p.id))
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, padding: 24 }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: BLK2, border: `1px solid ${BB}`, width: '100%', maxWidth: 480, position: 'relative', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${GD3}, ${GL}, ${GD3})` }} />
+        <div style={{ padding: '36px 36px 0' }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 8 }}>Confirm Team</div>
+          <h2 style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, marginBottom: 6 }}>Confirm Selection</h2>
+          <p style={{ fontSize: 13, color: W4, fontFamily: FB, marginBottom: 24, lineHeight: 1.6 }}>
+            You are about to confirm <strong style={{ color: GL }}>{selectedPromoters.length}</strong> promoter{selectedPromoters.length > 1 ? 's' : ''} for <strong style={{ color: GL }}>{job.title}</strong>. They will be notified and this job will appear on their dashboard.
+          </p>
+
+          {/* Selected promoters list */}
+          <div style={{ marginBottom: 28 }}>
+            {selectedPromoters.map((p, i) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < selectedPromoters.length - 1 ? `1px solid ${BB}` : 'none' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: `1px solid ${BB}` }}>
+                  {p.headshotUrl || p.profilePhotoUrl ? (
+                    <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: GL, fontFamily: FD }}>
+                      {p.fullName.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{p.fullName}</div>
+                  <div style={{ fontSize: 11, color: W4, fontFamily: FB }}>{p.city || p.email}</div>
+                </div>
+                <div style={{ fontSize: 10, color: GL, fontWeight: 700, fontFamily: FD }}>✓</div>
               </div>
             ))}
           </div>
         </div>
-        <div style={{ padding: '0 32px 32px' }}>
-          {isSelected ? (
-            <div style={{ padding: '12px 16px', background: hex2rgba(GL, 0.08), border: `1px solid ${hex2rgba(GL, 0.4)}`, fontSize: 12, color: GL, fontFamily: FD, textAlign: 'center' }}>✓ Selected for this job</div>
-          ) : canSelect ? (
-            <button onClick={() => { onSelect(); onClose() }}
-              style={{ width: '100%', padding: '13px', background: `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: BLK, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-              ✓ Select for This Job
-            </button>
-          ) : (
-            <div style={{ padding: '12px 16px', background: BB, border: `1px solid ${BB}`, fontSize: 12, color: W4, fontFamily: FD, textAlign: 'center' }}>Job slots are full</div>
-          )}
+
+        <div style={{ padding: '0 36px 36px', display: 'flex', gap: 12 }}>
+          <button onClick={onClose} disabled={confirming}
+            style={{ flex: 1, padding: '13px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 3 }}>
+            Go Back
+          </button>
+          <button onClick={onConfirm} disabled={confirming}
+            style={{ flex: 2, padding: '13px', background: confirming ? BB : `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: confirming ? W4 : BLK, fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: confirming ? 'not-allowed' : 'pointer', borderRadius: 3, transition: 'all 0.2s' }}>
+            {confirming ? 'Confirming…' : `✓ Confirm ${selectedPromoters.length} Promoter${selectedPromoters.length > 1 ? 's' : ''}`}
+          </button>
         </div>
       </div>
     </div>
@@ -130,8 +261,8 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
   const isFull      = job.filledSlots >= job.totalSlots
   const statusColor = job.status === 'OPEN' ? GL : job.status === 'FILLED' ? GD : W4
   const pct         = job.totalSlots > 0 ? Math.round((job.filledSlots / job.totalSlots) * 100) : 0
-  const tags: string[] = job.filters?.tags || []
-  const category    = job.filters?.category || ''
+  const interestedCount = job.applications?.filter((a: any) => a.status === 'STANDBY').length || 0
+  const selectedCount   = job.applications?.filter((a: any) => a.status === 'ALLOCATED').length || 0
 
   return (
     <div onClick={onOpen}
@@ -140,11 +271,9 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = BB; (e.currentTarget as HTMLElement).style.background = BLK2 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${GD3}, ${statusColor}, ${GD3})` }} />
 
-      {/* Title row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: W, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.title}</div>
-          {category && <div style={{ fontSize: 10, color: GL, fontFamily: FD, marginBottom: 3, fontWeight: 600 }}>{category}</div>}
           <div style={{ fontSize: 11, color: W4, fontFamily: FB }}>📍 {job.venue || job.address?.split(',')[0]}</div>
         </div>
         <span style={{ flexShrink: 0, marginLeft: 12, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: statusColor, background: hex2rgba(statusColor, 0.1), border: `1px solid ${hex2rgba(statusColor, 0.4)}`, padding: '3px 10px', borderRadius: 2, fontFamily: FD }}>
@@ -152,7 +281,6 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
         </span>
       </div>
 
-      {/* Info grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12, marginTop: 10 }}>
         {[
           { label: 'Rate',  value: `R${job.hourlyRate}/hr`, color: GL },
@@ -167,136 +295,194 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
         ))}
       </div>
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
-          {tags.slice(0, 4).map((t, i) => (
-            <span key={i} style={{ fontSize: 9, color: GL, background: hex2rgba(GL, 0.08), border: `1px solid ${hex2rgba(GL, 0.22)}`, padding: '2px 8px', borderRadius: 2, fontFamily: FD }}>{t}</span>
-          ))}
-          {tags.length > 4 && <span style={{ fontSize: 9, color: W4, fontFamily: FD }}>+{tags.length - 4} more</span>}
+      {/* Promoter interest count */}
+      {(interestedCount > 0 || selectedCount > 0) && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 10, fontSize: 11, fontFamily: FB }}>
+          {interestedCount > 0 && <span style={{ color: TEAL }}>👋 {interestedCount} interested</span>}
+          {selectedCount   > 0 && <span style={{ color: GL   }}>✓ {selectedCount} selected</span>}
         </div>
       )}
 
-      {/* Fill bar */}
       <div style={{ height: 3, background: BB, borderRadius: 2, marginBottom: 12 }}>
         <div style={{ height: '100%', borderRadius: 2, background: isFull ? GD : GL, width: `${pct}%`, transition: 'width 0.4s' }} />
       </div>
 
-      <button style={{ width: '100%', padding: '10px', background: BB, border: `1px solid ${BB}`, color: GL, fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
+      <button style={{ width: '100%', padding: '10px', background: BB2, border: `1px solid ${BB}`, color: GL, fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
         onMouseEnter={e => { e.currentTarget.style.background = hex2rgba(GL, 0.14); e.currentTarget.style.borderColor = hex2rgba(GL, 0.4) }}
-        onMouseLeave={e => { e.currentTarget.style.background = BB; e.currentTarget.style.borderColor = BB }}>
-        View Details & Select Promoters →
+        onMouseLeave={e => { e.currentTarget.style.background = BB2; e.currentTarget.style.borderColor = BB }}>
+        View & Select Promoters →
       </button>
     </div>
   )
 }
 
-// ─── Job Detail Panel — CENTERED MODAL ───────────────────────────────────────
-function JobDetailPanel({ job, onClose }: { job: ApiJob; onClose: () => void }) {
+// ─── Job Detail Panel ─────────────────────────────────────────────────────────
+function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () => void; onRefresh: () => void }) {
   const [promoters,    setPromoters]    = useState<Promoter[]>([])
   const [loading,      setLoading]      = useState(true)
-  const [selected,     setSelected]     = useState<Set<string>>(new Set())
-  const [saving,       setSaving]       = useState(false)
-  const [savedMsg,     setSavedMsg]     = useState('')
+  // pendingSelection = promoters the business has ticked but NOT yet confirmed
+  const [pendingSelect, setPendingSelect] = useState<Set<string>>(new Set())
+  // confirmedIds = already ALLOCATED in the DB
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
   const [viewPromoter, setViewPromoter] = useState<Promoter | null>(null)
-  const [cityFilter,   setCityFilter]   = useState('all')
   const [tab,          setTab]          = useState<'info' | 'promoters'>('info')
+  const [showConfirm,  setShowConfirm]  = useState(false)
+  const [confirming,   setConfirming]   = useState(false)
+  const [resultMsg,    setResultMsg]    = useState('')
 
-  const filters      = job.filters || {}
-  const tags: string[] = filters.tags || []
-  const category     = filters.category || ''
-  const gender       = filters.gender || ''
-  const languages    = filters.languages || ''
-  const minHeight    = filters.minHeight || ''
-  const minAge       = filters.minAge || ''
-  const experience   = filters.experience || ''
-  const attire       = filters.attire || ''
-  const termsText    = filters.termsAndConditions || ''
+  const loadPromoters = async () => {
+    setLoading(true)
+    try {
+      const [appsRes, eligRes] = await Promise.all([
+        fetch(`${API}/applications/job/${job.id}`, { headers: authHdr() as any }),
+        fetch(`${API}/users/promoters/eligible?jobId=${job.id}`, { headers: authHdr() as any }),
+      ])
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const [promoRes, appRes] = await Promise.all([
-          fetch(`${API}/users/promoters/eligible?jobId=${job.id}`, { headers: authHdr() as any }),
-          fetch(`${API}/applications/job/${job.id}`, { headers: authHdr() as any }),
-        ])
+      const apps: any[]     = appsRes.ok ? await appsRes.json() : []
+      const eligible: any[] = eligRes.ok  ? await eligRes.json() : []
 
-        let promos: any[] = promoRes.ok ? await promoRes.json() : []
+      const appMap    = new Map(apps.map((a: any) => [a.promoterId, a]))
+      const appliedIds = new Set(apps.map((a: any) => a.promoterId))
 
-        // Fallback: if eligible returns empty, fetch all approved promoters
-        if (promos.length === 0) {
-          const fallRes = await fetch(`${API}/users?role=PROMOTER&status=approved`, { headers: authHdr() as any })
-          if (fallRes.ok) promos = await fallRes.json()
-        }
+      const allPromoters: Promoter[] = [
+        // Applied promoters first
+        ...apps.map((a: any) => ({
+          id:               a.promoter.id,
+          fullName:         a.promoter.fullName,
+          email:            a.promoter.email,
+          phone:            a.promoter.phone,
+          city:             a.promoter.city,
+          province:         a.promoter.province,
+          gender:           a.promoter.gender,
+          height:           a.promoter.height,
+          clothingSize:     a.promoter.clothingSize,
+          shoeSize:         a.promoter.shoeSize,
+          reliabilityScore: a.promoter.reliabilityScore,
+          profilePhotoUrl:  a.promoter.profilePhotoUrl,
+          headshotUrl:      a.promoter.headshotUrl,
+          fullBodyPhotoUrl: a.promoter.fullBodyPhotoUrl,
+          cvUrl:            a.promoter.cvUrl,
+          onboardingStatus: a.promoter.onboardingStatus,
+          status:           a.promoter.status,
+          createdAt:        a.promoter.createdAt,
+          appStatus:        a.status,
+          appId:            a.id,
+        })),
+        // Eligible promoters who haven't applied
+        ...eligible
+          .filter((p: any) => !appliedIds.has(p.id))
+          .map((p: any) => ({
+            id:               p.id,
+            fullName:         p.fullName,
+            email:            p.email,
+            phone:            p.phone,
+            city:             p.city,
+            province:         p.province,
+            gender:           p.gender,
+            height:           p.height,
+            clothingSize:     p.clothingSize,
+            shoeSize:         p.shoeSize,
+            reliabilityScore: p.reliabilityScore,
+            profilePhotoUrl:  p.profilePhotoUrl,
+            headshotUrl:      p.headshotUrl,
+            fullBodyPhotoUrl: p.fullBodyPhotoUrl,
+            cvUrl:            p.cvUrl,
+            onboardingStatus: p.onboardingStatus,
+            status:           p.status,
+            createdAt:        p.createdAt,
+            appStatus:        null,
+            appId:            undefined,
+          })),
+      ]
 
-        const apps: any[]  = appRes.ok ? await appRes.json() : []
-        const appMap = new Map(apps.map((a: any) => [a.promoterId, a]))
+      setPromoters(allPromoters)
 
-        const merged: Promoter[] = promos.map((p: any) => ({
-          id: p.id, fullName: p.fullName, email: p.email, phone: p.phone,
-          city: p.city, reliabilityScore: p.reliabilityScore || 0,
-          profilePhotoUrl: p.profilePhotoUrl, headshotUrl: p.headshotUrl,
-          fullBodyPhotoUrl: p.fullBodyPhotoUrl, height: p.height,
-          clothingSize: p.clothingSize, gender: p.gender,
-          appStatus: appMap.get(p.id)?.status || null,
-          appId:     appMap.get(p.id)?.id,
-        }))
-
-        setPromoters(merged)
-        setSelected(new Set(merged.filter(p => p.appStatus === 'ALLOCATED').map(p => p.id)))
-      } catch (e) { console.error('Load promoters failed', e) }
-      setLoading(false)
+      // Set confirmed IDs from DB
+      const dbConfirmed = new Set(
+        apps.filter((a: any) => a.status === 'ALLOCATED').map((a: any) => a.promoterId)
+      )
+      setConfirmedIds(dbConfirmed)
+      // Pre-populate pending selection with already confirmed ones
+      setPendingSelect(new Set(dbConfirmed))
+    } catch (e) {
+      console.error('[BusinessJobs] loadPromoters error:', e)
     }
-    load()
-  }, [job.id])
+    setLoading(false)
+  }
 
-  const canSelectMore = selected.size < job.totalSlots
+  useEffect(() => { loadPromoters() }, [job.id])
 
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
+  const slotsRemaining = job.totalSlots - confirmedIds.size
+
+  const togglePending = (id: string) => {
+    if (confirmedIds.has(id)) return // Can't uncheck already confirmed via this flow
+    setPendingSelect(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else if (next.size < job.totalSlots) next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        // Can't select more than total slots
+        if (next.size >= job.totalSlots) return prev
+        next.add(id)
+      }
       return next
     })
   }
 
-  const handleSave = async () => {
-    setSaving(true); setSavedMsg('')
+  // New selections = pending but not yet confirmed
+  const newSelections = [...pendingSelect].filter(id => !confirmedIds.has(id))
+
+  const handleConfirm = async () => {
+    if (newSelections.length === 0) { setShowConfirm(false); return }
+    setConfirming(true)
     try {
-      for (const pid of selected) {
-        const promo = promoters.find(p => p.id === pid)
-        if (!promo || (promo.appId && promo.appStatus === 'ALLOCATED')) continue
-        if (promo.appId) {
-          await fetch(`${API}/applications/${promo.appId}/status`, { method: 'PUT', headers: authHdr() as any, body: JSON.stringify({ status: 'ALLOCATED' }) })
-        } else {
-          await fetch(`${API}/applications`, { method: 'POST', headers: authHdr() as any, body: JSON.stringify({ jobId: job.id, promoterId: pid }) })
-        }
+      const res = await fetch(`${API}/applications/bulk-allocate`, {
+        method: 'POST',
+        headers: authHdr() as any,
+        body: JSON.stringify({ jobId: job.id, promoterIds: newSelections }),
+      })
+      if (res.ok) {
+        setConfirmedIds(new Set(pendingSelect))
+        setShowConfirm(false)
+        setResultMsg(`✓ ${newSelections.length} promoter${newSelections.length > 1 ? 's' : ''} confirmed! They will see this job on their dashboard.`)
+        setTimeout(() => setResultMsg(''), 5000)
+        await loadPromoters()
+        onRefresh()
+      } else {
+        const err = await res.json()
+        setResultMsg(`Failed: ${err.error || 'Please try again'}`)
       }
-      setSavedMsg('✓ Selection saved successfully')
-      setTimeout(() => setSavedMsg(''), 3000)
-    } catch { setSavedMsg('Failed to save — please try again') }
-    setSaving(false)
+    } catch {
+      setResultMsg('Network error — please try again')
+    }
+    setConfirming(false)
   }
 
-  const cities   = ['all', ...Array.from(new Set(promoters.map(p => p.city).filter(Boolean) as string[]))]
-  const filtered = promoters.filter(p => cityFilter === 'all' || p.city === cityFilter)
-  const jobCity  = job.address?.split(',')[0]?.trim() || job.venue
+  const handleRemove = async (promoter: Promoter) => {
+    if (!promoter.appId) return
+    try {
+      await fetch(`${API}/applications/${promoter.appId}/status`, {
+        method: 'PUT',
+        headers: authHdr() as any,
+        body: JSON.stringify({ status: 'STANDBY' }),
+      })
+      setConfirmedIds(prev => { const s = new Set(prev); s.delete(promoter.id); return s })
+      setPendingSelect(prev => { const s = new Set(prev); s.delete(promoter.id); return s })
+      setResultMsg(`✓ ${promoter.fullName} removed from this job.`)
+      setTimeout(() => setResultMsg(''), 3000)
+      await loadPromoters()
+      onRefresh()
+    } catch {
+      setResultMsg('Failed to remove — please try again')
+    }
+  }
 
-  const reqRows = [
-    { label: 'Gender',     value: gender,                      show: !!gender && gender !== 'Any Gender' },
-    { label: 'Languages',  value: languages,                   show: !!languages },
-    { label: 'Min Height', value: minHeight ? `${minHeight}cm` : '', show: !!minHeight },
-    { label: 'Min Age',    value: minAge ? `${minAge}+` : '',  show: !!minAge },
-    { label: 'Experience', value: experience,                  show: !!experience && experience !== 'None' },
-    { label: 'Attire',     value: attire,                      show: !!attire && attire !== 'Smart Casual' },
-  ].filter(r => r.show)
+  const filters = job.filters || {}
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.90)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: BLK1, border: `1px solid ${BB}`, width: '100%', maxWidth: 800, maxHeight: '92vh', display: 'flex', flexDirection: 'column', position: 'relative', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ background: BLK1, border: `1px solid ${BB}`, width: '100%', maxWidth: 820, maxHeight: '92vh', display: 'flex', flexDirection: 'column', position: 'relative', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${GD3}, ${GL}, ${GD3})` }} />
 
         {/* Header */}
@@ -306,30 +492,39 @@ function JobDetailPanel({ job, onClose }: { job: ApiJob; onClose: () => void }) 
               <div style={{ fontSize: 9, color: GL, fontFamily: FD, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: 5 }}>Job Details</div>
               <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, marginBottom: 6 }}>{job.title}</div>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: W4, fontFamily: FB }}>
-                {job.client   && <span>🏢 {job.client}</span>}
+                {job.client && <span>🏢 {job.client}</span>}
                 {(job.venue || job.address) && <span>📍 {job.venue || job.address?.split(',')[0]}</span>}
-                {job.date     && <span>📅 {fmtDate(job.date)}</span>}
+                {job.date && <span>📅 {fmtDate(job.date)}</span>}
                 <span>🕐 {job.startTime} – {job.endTime}</span>
                 <span style={{ color: GL, fontWeight: 700 }}>R{job.hourlyRate}/hr · {job.totalSlots} slots</span>
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 20, flexShrink: 0, marginLeft: 16, padding: 4 }}>✕</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 20, flexShrink: 0, marginLeft: 16 }}>✕</button>
           </div>
 
           {/* Slot progress */}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
             <div style={{ flex: 1, height: 4, background: BB, borderRadius: 2 }}>
-              <div style={{ height: '100%', borderRadius: 2, background: `linear-gradient(90deg, ${GD3}, ${GL})`, width: `${Math.round(selected.size / Math.max(job.totalSlots,1) * 100)}%`, transition: 'width 0.3s' }} />
+              <div style={{ height: '100%', borderRadius: 2, background: `linear-gradient(90deg, ${GD3}, ${GL})`, width: `${Math.round(pendingSelect.size / Math.max(job.totalSlots, 1) * 100)}%`, transition: 'width 0.3s' }} />
             </div>
-            <span style={{ fontSize: 11, color: GL, fontFamily: FD, fontWeight: 700, flexShrink: 0 }}>{selected.size}/{job.totalSlots} selected</span>
+            <span style={{ fontSize: 11, color: GL, fontFamily: FD, fontWeight: 700, flexShrink: 0 }}>
+              {confirmedIds.size} confirmed · {pendingSelect.size - confirmedIds.size} pending · {job.totalSlots} total
+            </span>
           </div>
+
+          {/* Result message */}
+          {resultMsg && (
+            <div style={{ padding: '10px 14px', background: resultMsg.startsWith('✓') ? hex2rgba(TEAL, 0.1) : hex2rgba(CORAL, 0.1), border: `1px solid ${resultMsg.startsWith('✓') ? hex2rgba(TEAL, 0.4) : hex2rgba(CORAL, 0.4)}`, borderRadius: 3, marginBottom: 14, fontSize: 12, color: resultMsg.startsWith('✓') ? TEAL : CORAL, fontFamily: FD }}>
+              {resultMsg}
+            </div>
+          )}
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, border: `1px solid ${BB}`, borderRadius: 3, overflow: 'hidden' }}>
             {(['info', 'promoters'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
                 style={{ flex: 1, padding: '9px', background: tab === t ? hex2rgba(GL, 0.14) : 'transparent', border: 'none', color: tab === t ? GL : W4, fontFamily: FD, fontSize: 10, fontWeight: tab === t ? 700 : 400, cursor: 'pointer', letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'all 0.18s' }}>
-                {t === 'info' ? '📋  Job Info & Requirements' : `👥  Select Promoters ${loading ? '' : `(${promoters.length})`}`}
+                {t === 'info' ? '📋  Job Info' : `👥  Select Promoters ${loading ? '' : `(${promoters.length} available)`}`}
               </button>
             ))}
           </div>
@@ -338,163 +533,139 @@ function JobDetailPanel({ job, onClose }: { job: ApiJob; onClose: () => void }) 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
 
-          {/* ── INFO TAB ── */}
+          {/* INFO TAB */}
           {tab === 'info' && (
-            <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-
-              {/* Key details grid */}
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: '0.26em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 12 }}>Job Information</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  {[
-                    { label: 'Client',      value: job.client || '—' },
-                    { label: 'Category',    value: category   || 'General' },
-                    { label: 'Venue',       value: job.venue  || job.address?.split(',')[0] || '—' },
-                    { label: 'Date',        value: fmtDate(job.date) },
-                    { label: 'Start Time',  value: job.startTime },
-                    { label: 'End Time',    value: job.endTime },
-                    { label: 'Hourly Rate', value: `R${job.hourlyRate}/hr` },
-                    { label: 'Total Slots', value: `${job.totalSlots} promoters needed` },
-                    { label: 'Status',      value: job.status },
-                  ].map(r => (
-                    <div key={r.label} style={{ background: BB2, border: `1px solid ${BB}`, padding: '11px 14px', borderRadius: 3 }}>
-                      <div style={{ fontSize: 9, color: W4, fontFamily: FD, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 4 }}>{r.label}</div>
-                      <div style={{ fontSize: 13, color: W, fontFamily: FD, fontWeight: 600 }}>{r.value}</div>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                {[
+                  { label: 'Client',     value: job.client  || '—' },
+                  { label: 'Venue',      value: job.venue   || job.address?.split(',')[0] || '—' },
+                  { label: 'Date',       value: fmtDate(job.date) },
+                  { label: 'Start',      value: job.startTime },
+                  { label: 'End',        value: job.endTime },
+                  { label: 'Rate',       value: `R${job.hourlyRate}/hr` },
+                  { label: 'Slots',      value: `${job.totalSlots} needed` },
+                  { label: 'Filled',     value: `${job.filledSlots} confirmed` },
+                  { label: 'Status',     value: job.status },
+                ].map(r => (
+                  <div key={r.label} style={{ background: BB2, border: `1px solid ${BB}`, padding: '11px 14px', borderRadius: 3 }}>
+                    <div style={{ fontSize: 9, color: W4, fontFamily: FD, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 4 }}>{r.label}</div>
+                    <div style={{ fontSize: 13, color: W, fontFamily: FD, fontWeight: 600 }}>{r.value}</div>
+                  </div>
+                ))}
               </div>
-
-              {/* Requirements */}
-              {(reqRows.length > 0 || tags.length > 0) && (
+              {(filters.gender || filters.minHeight) && (
                 <div>
-                  <div style={{ fontSize: 9, letterSpacing: '0.26em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 12 }}>Promoter Requirements</div>
-                  {reqRows.length > 0 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                      {reqRows.map(r => (
-                        <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: BB2, border: `1px solid ${BB}`, borderRadius: 3 }}>
-                          <span style={{ fontSize: 11, color: W4, fontFamily: FB }}>{r.label}</span>
-                          <span style={{ fontSize: 12, color: W, fontWeight: 600, fontFamily: FB }}>{r.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {tags.length > 0 && (
-                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                      {tags.map((t, i) => (
-                        <span key={i} style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{t}</span>
-                      ))}
-                    </div>
-                  )}
+                  <div style={{ fontSize: 9, letterSpacing: '0.26em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 10 }}>Requirements</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {filters.gender && filters.gender !== 'Any Gender' && (
+                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.gender}</span>
+                    )}
+                    {filters.minHeight && (
+                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>Min {filters.minHeight}cm</span>
+                    )}
+                    {filters.languages && (
+                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.languages}</span>
+                    )}
+                  </div>
                 </div>
               )}
-
-              {/* T&Cs */}
-              <div>
-                <div style={{ fontSize: 9, letterSpacing: '0.26em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 12 }}>Terms & Conditions</div>
-                <div style={{ padding: '14px 16px', background: hex2rgba(GD3, 0.3), border: `1px solid ${hex2rgba(GD2, 0.4)}`, borderRadius: 3, marginBottom: termsText ? 10 : 0 }}>
-                  <p style={{ fontSize: 12, color: W7, fontFamily: FB, lineHeight: 1.75, margin: 0 }}>
-                    Standard Honey Group Terms & Conditions apply to all promoters. Promoters are independent contractors — not employees of the client or Honey Group. Cancellations within 24 hours will result in a reliability score penalty.
-                  </p>
-                </div>
-                {termsText && (
-                  <div style={{ padding: '14px 16px', background: BB2, border: `1px solid ${BB}`, borderRadius: 3 }}>
-                    <div style={{ fontSize: 9, color: GL, fontFamily: FD, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Campaign-Specific Terms</div>
-                    <p style={{ fontSize: 12, color: W7, fontFamily: FB, lineHeight: 1.75, margin: 0 }}>{termsText}</p>
-                  </div>
-                )}
-              </div>
-
               <button onClick={() => setTab('promoters')}
-                style={{ padding: '13px', background: `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: BLK, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 3, transition: 'all 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                style={{ padding: '13px', background: `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: BLK, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 3 }}>
                 Select Promoters for This Job →
               </button>
             </div>
           )}
 
-          {/* ── PROMOTERS TAB ── */}
+          {/* PROMOTERS TAB */}
           {tab === 'promoters' && (
             <>
-              {cities.length > 2 && (
-                <div style={{ padding: '10px 32px', borderBottom: `1px solid ${BB}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {cities.map(c => (
-                    <button key={c} onClick={() => setCityFilter(c)}
-                      style={{ padding: '4px 12px', background: cityFilter === c ? hex2rgba(GL, 0.16) : 'transparent', border: `1px solid ${cityFilter === c ? GL : BB}`, color: cityFilter === c ? GL : W4, fontFamily: FD, fontSize: 9, fontWeight: cityFilter === c ? 700 : 400, cursor: 'pointer', borderRadius: 2, transition: 'all 0.18s', letterSpacing: '0.1em' }}>
-                      {c === 'all' ? 'All Cities' : c}
-                      {c !== 'all' && c?.toLowerCase() === jobCity?.toLowerCase() && <span style={{ marginLeft: 4, color: GL2 }}>●</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* Legend */}
+              <div style={{ padding: '10px 32px', borderBottom: `1px solid ${BB}`, display: 'flex', gap: 20, fontSize: 11, color: W4, fontFamily: FB, background: hex2rgba(GL, 0.02), flexWrap: 'wrap', alignItems: 'center' }}>
+                <span><span style={{ color: TEAL }}>●</span> Interested (applied)</span>
+                <span><span style={{ color: GL }}>●</span> Confirmed (allocated)</span>
+                <span><span style={{ color: GD }}>●</span> Pending your confirm</span>
+                <span style={{ marginLeft: 'auto', color: W2, fontSize: 10 }}>Click photo or name to view full profile</span>
+              </div>
 
               {loading ? (
                 <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>Loading promoters…</div>
-              ) : filtered.length === 0 ? (
-                <div style={{ padding: 60, textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, color: W4, fontFamily: FD, marginBottom: 8 }}>No approved promoters found</div>
-                  <div style={{ fontSize: 12, color: W2, fontFamily: FB }}>Promoters need to register and be approved by admin before appearing here.</div>
+              ) : promoters.length === 0 ? (
+                <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>
+                  No approved promoters found yet.
                 </div>
               ) : (
-                <>
-                  <div style={{ padding: '10px 32px 8px', fontSize: 9, color: W2, fontFamily: FD, letterSpacing: '0.2em', textTransform: 'uppercase', borderBottom: `1px solid ${BB}` }}>
-                    {filtered.length} promoter{filtered.length !== 1 ? 's' : ''} · sorted by location then reliability
-                  </div>
-                  {filtered.map((p) => {
-                    const isSel     = selected.has(p.id)
-                    const isAlready = p.appStatus === 'ALLOCATED'
-                    const cityMatch = jobCity && p.city?.toLowerCase().includes(jobCity.toLowerCase())
-                    const accent    = isSel ? GL : isAlready ? GD : W4
+                promoters.map((p, i) => {
+                  const isConfirmed  = confirmedIds.has(p.id)
+                  const isPending    = pendingSelect.has(p.id) && !isConfirmed
+                  const isInterested = p.appStatus === 'STANDBY'
+                  const accentColor  = isConfirmed ? GL : isInterested ? TEAL : W4
 
-                    return (
-                      <div key={p.id}
-                        style={{ padding: '14px 32px', borderBottom: `1px solid ${BB}`, background: isSel ? hex2rgba(GL, 0.04) : 'transparent', display: 'flex', alignItems: 'center', gap: 14, transition: 'background 0.18s' }}
-                        onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLElement).style.background = BB }}
-                        onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                  return (
+                    <div key={p.id}
+                      style={{ padding: '16px 32px', borderBottom: i < promoters.length - 1 ? `1px solid ${BB}` : 'none', background: isConfirmed ? hex2rgba(GL, 0.05) : isPending ? hex2rgba(GD, 0.04) : isInterested ? hex2rgba(TEAL, 0.03) : 'transparent', display: 'flex', alignItems: 'center', gap: 16, transition: 'background 0.15s' }}
+                      onMouseEnter={e => { if (!isConfirmed && !isPending) (e.currentTarget as HTMLElement).style.background = BB2 }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isConfirmed ? hex2rgba(GL, 0.05) : isPending ? hex2rgba(GD, 0.04) : isInterested ? hex2rgba(TEAL, 0.03) : 'transparent' }}>
 
-                        <div style={{ width: 46, height: 46, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: `2px solid ${hex2rgba(accent, 0.5)}`, cursor: 'pointer' }}
-                          onClick={() => setViewPromoter(p)}>
-                          {p.headshotUrl || p.profilePhotoUrl ? (
-                            <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: GL, fontFamily: FD }}>
-                              {p.fullName.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD }}>{p.fullName}</span>
-                            {cityMatch && <span style={{ fontSize: 9, color: GL2, background: hex2rgba(GL2, 0.1), padding: '2px 7px', borderRadius: 2, fontFamily: FD, fontWeight: 700 }}>LOCAL</span>}
-                            {isAlready && <span style={{ fontSize: 9, color: GD, background: hex2rgba(GD, 0.1), padding: '2px 7px', borderRadius: 2, fontFamily: FD, fontWeight: 700 }}>ALLOCATED</span>}
+                      {/* Clickable avatar */}
+                      <div style={{ width: 54, height: 54, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: `2px solid ${hex2rgba(accentColor, 0.6)}`, cursor: 'pointer', transition: 'transform 0.2s' }}
+                        onClick={() => setViewPromoter(p)}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.06)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}>
+                        {p.headshotUrl || p.profilePhotoUrl ? (
+                          <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: GL, fontFamily: FD }}>
+                            {p.fullName.charAt(0)}
                           </div>
-                          <div style={{ fontSize: 11, color: W4, fontFamily: FB }}>
-                            {p.city || '—'}
-                            {(p.reliabilityScore ?? 0) > 0 && <span style={{ marginLeft: 10, color: GL }}>⭐ {(p.reliabilityScore ?? 0).toFixed(1)}</span>}
-                            {p.height && <span style={{ marginLeft: 10, color: W2 }}>{p.height}cm</span>}
-                            {p.gender && <span style={{ marginLeft: 10, color: W2 }}>{p.gender}</span>}
-                          </div>
-                        </div>
+                        )}
+                      </div>
 
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button onClick={() => setViewPromoter(p)}
-                            style={{ padding: '6px 12px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.18s' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W4 }}>
-                            View
-                          </button>
-                          <button onClick={() => toggleSelect(p.id)}
-                            style={{ padding: '6px 14px', background: isSel ? `linear-gradient(135deg, ${GL}, ${GD})` : 'transparent', border: `1px solid ${isSel ? GL : hex2rgba(GL, 0.35)}`, color: isSel ? BLK : GL, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: (canSelectMore || isSel) ? 'pointer' : 'not-allowed', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.2s', opacity: (!canSelectMore && !isSel) ? 0.4 : 1 }}
-                            disabled={!canSelectMore && !isSel}>
-                            {isSel ? '✓ Selected' : '+ Select'}
-                          </button>
+                      {/* Info — clickable */}
+                      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setViewPromoter(p)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: W, fontFamily: FD }}>{p.fullName}</span>
+                          {isInterested && !isConfirmed && <span style={{ fontSize: 9, color: TEAL,  background: hex2rgba(TEAL, 0.1),  padding: '2px 8px', borderRadius: 2, fontFamily: FD, fontWeight: 700 }}>INTERESTED</span>}
+                          {isConfirmed  && <span style={{ fontSize: 9, color: GL,    background: hex2rgba(GL,   0.1),  padding: '2px 8px', borderRadius: 2, fontFamily: FD, fontWeight: 700 }}>✓ CONFIRMED</span>}
+                          {isPending    && <span style={{ fontSize: 9, color: GD,    background: hex2rgba(GD,   0.12), padding: '2px 8px', borderRadius: 2, fontFamily: FD, fontWeight: 700 }}>SELECTED</span>}
+                        </div>
+                        <div style={{ fontSize: 12, color: W4, fontFamily: FB }}>
+                          {p.city || '—'}
+                          {(p.reliabilityScore ?? 0) > 0 && <span style={{ marginLeft: 10, color: GL }}>⭐ {(p.reliabilityScore ?? 0).toFixed(1)}</span>}
+                          {p.height && <span style={{ marginLeft: 10, color: W2 }}>{p.height}cm</span>}
+                          {p.gender && <span style={{ marginLeft: 10, color: W2 }}>{p.gender}</span>}
+                        </div>
+                        <div style={{ fontSize: 10, color: hex2rgba(GL, 0.45), marginTop: 2, fontFamily: FB }}>
+                          Click to view full profile →
                         </div>
                       </div>
-                    )
-                  })}
-                </>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <button onClick={() => setViewPromoter(p)}
+                          style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.18s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W4 }}>
+                          View
+                        </button>
+
+                        {isConfirmed ? (
+                          <button onClick={() => handleRemove(p)}
+                            style={{ padding: '7px 14px', background: hex2rgba(CORAL, 0.1), border: `1px solid ${hex2rgba(CORAL, 0.4)}`, color: CORAL, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: 'pointer', borderRadius: 2 }}>
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => togglePending(p.id)}
+                            disabled={!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots}
+                            style={{ padding: '7px 14px', background: pendingSelect.has(p.id) ? `linear-gradient(135deg, ${GD}, ${GL})` : 'transparent', border: `1px solid ${pendingSelect.has(p.id) ? GL : hex2rgba(GL, 0.4)}`, color: pendingSelect.has(p.id) ? BLK : GL, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: (!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots) ? 'not-allowed' : 'pointer', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.2s', opacity: (!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots) ? 0.4 : 1 }}>
+                            {pendingSelect.has(p.id) ? '✓ Selected' : '+ Select'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
               )}
             </>
           )}
@@ -502,27 +673,44 @@ function JobDetailPanel({ job, onClose }: { job: ApiJob; onClose: () => void }) 
 
         {/* Footer */}
         <div style={{ padding: '14px 32px', borderTop: `1px solid ${BB}`, flexShrink: 0, background: BLK, display: 'flex', gap: 12, alignItems: 'center' }}>
-          {savedMsg ? (
-            <span style={{ flex: 1, fontSize: 12, color: savedMsg.startsWith('✓') ? GL : GD2, fontFamily: FD }}>{savedMsg}</span>
-          ) : (
-            <span style={{ flex: 1, fontSize: 11, color: W2, fontFamily: FB }}>{selected.size} of {job.totalSlots} slots filled</span>
-          )}
-          {tab === 'promoters' && (
-            <button onClick={handleSave} disabled={saving || selected.size === 0}
-              style={{ padding: '11px 28px', background: selected.size > 0 ? `linear-gradient(135deg, ${GL}, ${GD})` : BB, border: 'none', color: selected.size > 0 ? BLK : W4, fontFamily: FD, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: selected.size > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.2s', borderRadius: 3 }}>
-              {saving ? 'Saving…' : 'Save Selection'}
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 11, color: W4, fontFamily: FB }}>
+              {confirmedIds.size} confirmed · {newSelections.length > 0 ? `${newSelections.length} pending confirm` : 'no new selections'} · {job.totalSlots} total slots
+            </span>
+          </div>
+          <button onClick={onClose}
+            style={{ padding: '10px 20px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 10, fontWeight: 700, cursor: 'pointer', borderRadius: 3, letterSpacing: '0.1em' }}>
+            Close
+          </button>
+          {tab === 'promoters' && newSelections.length > 0 && (
+            <button onClick={() => setShowConfirm(true)}
+              style={{ padding: '10px 24px', background: `linear-gradient(135deg, ${GL}, ${GD})`, border: 'none', color: BLK, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 3, boxShadow: `0 2px 14px ${hex2rgba(GL, 0.35)}` }}>
+              Confirm {newSelections.length} Promoter{newSelections.length > 1 ? 's' : ''} →
             </button>
           )}
         </div>
       </div>
 
+      {/* Full profile modal */}
       {viewPromoter && (
-        <PromoterModal
+        <PromoterProfileModal
           promoter={viewPromoter}
           onClose={() => setViewPromoter(null)}
-          onSelect={() => toggleSelect(viewPromoter.id)}
-          isSelected={selected.has(viewPromoter.id)}
-          canSelect={canSelectMore || selected.has(viewPromoter.id)}
+          isSelected={pendingSelect.has(viewPromoter.id)}
+          onToggleSelect={() => togglePending(viewPromoter.id)}
+          canSelect={pendingSelect.has(viewPromoter.id) || pendingSelect.size < job.totalSlots}
+        />
+      )}
+
+      {/* Confirm selection modal */}
+      {showConfirm && (
+        <ConfirmSelectionModal
+          job={job}
+          selected={new Set(newSelections)}
+          promoters={promoters}
+          onConfirm={handleConfirm}
+          onClose={() => setShowConfirm(false)}
+          confirming={confirming}
         />
       )}
     </div>
@@ -531,7 +719,6 @@ function JobDetailPanel({ job, onClose }: { job: ApiJob; onClose: () => void }) 
 
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function BusinessJobs() {
-  const navigate  = useNavigate()
   const [jobs,     setJobs]     = useState<ApiJob[]>([])
   const [loading,  setLoading]  = useState(true)
   const [filter,   setFilter]   = useState<'all' | 'OPEN' | 'FILLED' | 'COMPLETED' | 'CANCELLED'>('all')
@@ -542,11 +729,8 @@ export default function BusinessJobs() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/jobs`, { headers: authHdr() as any })
-      if (res.ok) {
-        const data: ApiJob[] = await res.json()
-        setJobs(data)
-      }
-    } catch (e) { console.error('Failed to load jobs', e) }
+      if (res.ok) setJobs(await res.json())
+    } catch (e) { console.error(e) }
     setLoading(false)
   }, [])
 
@@ -574,17 +758,17 @@ export default function BusinessJobs() {
         <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Operations · Jobs</div>
         <h1 style={{ fontFamily: FD, fontSize: 'clamp(22px,3vw,34px)', fontWeight: 700, color: W, lineHeight: 1.1 }}>Campaign Jobs</h1>
         <p style={{ fontSize: 13, color: W4, marginTop: 6, fontFamily: FB }}>
-          Jobs posted for your business. Click a job to view details and select promoters.
+          Select promoters for your jobs. They'll be notified and it will appear on their dashboard.
         </p>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 28 }}>
         {[
-          { label: 'Total Jobs',  value: counts.all,       color: GL  },
-          { label: 'Open',        value: counts.OPEN,      color: GL  },
-          { label: 'Filled',      value: counts.FILLED,    color: GD  },
-          { label: 'Completed',   value: counts.COMPLETED, color: GD2 },
+          { label: 'Total Jobs', value: counts.all,       color: GL  },
+          { label: 'Open',       value: counts.OPEN,      color: GL  },
+          { label: 'Filled',     value: counts.FILLED,    color: GD  },
+          { label: 'Completed',  value: counts.COMPLETED, color: GD2 },
         ].map((s, i) => (
           <div key={i} className="biz-page" style={{ background: BLK2, padding: '18px 20px', position: 'relative' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${s.color}, ${hex2rgba(s.color, 0.3)})` }} />
@@ -605,9 +789,8 @@ export default function BusinessJobs() {
           ))}
         </div>
         <div style={{ marginLeft: 'auto', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: W2, fontSize: 12, pointerEvents: 'none' }}>⌕</span>
           <input placeholder="Search jobs…" value={search} onChange={e => setSearch(e.target.value)}
-            style={{ background: BLK2, border: `1px solid ${BB}`, padding: '7px 14px 7px 30px', color: W, fontFamily: FB, fontSize: 11, outline: 'none', borderRadius: 2, width: 200 }}
+            style={{ background: BLK2, border: `1px solid ${BB}`, padding: '7px 14px', color: W, fontFamily: FB, fontSize: 11, outline: 'none', borderRadius: 2, width: 200 }}
             onFocus={e => e.currentTarget.style.borderColor = GL}
             onBlur={e => e.currentTarget.style.borderColor = BB} />
         </div>
@@ -620,9 +803,7 @@ export default function BusinessJobs() {
         <div style={{ padding: '60px 20px', textAlign: 'center', border: `1px dashed ${BB}`, borderRadius: 3 }}>
           <p style={{ fontFamily: FD, fontSize: 20, color: W4, marginBottom: 8 }}>No jobs found</p>
           <p style={{ fontFamily: FB, fontSize: 13, color: W2 }}>
-            {jobs.length === 0
-              ? 'No jobs have been posted for your business yet. Contact your Honey Group account manager.'
-              : 'No jobs match your filters.'}
+            {jobs.length === 0 ? 'No jobs posted for your business yet.' : 'No jobs match your filters.'}
           </p>
         </div>
       ) : (
@@ -638,7 +819,11 @@ export default function BusinessJobs() {
       </div>
 
       {selected && (
-        <JobDetailPanel job={selected} onClose={() => { setSelected(null); loadJobs() }} />
+        <JobDetailPanel
+          job={selected}
+          onClose={() => { setSelected(null); loadJobs(); }}
+          onRefresh={loadJobs}
+        />
       )}
     </div>
   )
