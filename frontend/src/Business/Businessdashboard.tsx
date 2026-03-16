@@ -44,14 +44,28 @@ function StatCard({ label, value, sub, color, delay = 0 }: { label: string; valu
 
 export default function BusinessDashboard() {
   const navigate = useNavigate()
-  const [session, setSession]   = useState<any>(null)
-  const [jobs,    setJobs]       = useState<any[]>([])
-  const [loading, setLoading]    = useState(true)
-  const [time,    setTime]       = useState(new Date())
+  const [session,     setSession]     = useState<any>(null)
+  const [jobs,        setJobs]        = useState<any[]>([])
+  const [loading,     setLoading]      = useState(true)
+  const [time,        setTime]         = useState(new Date())
+  const [companyName, setCompanyName]  = useState('')
 
   useEffect(() => {
     const s = localStorage.getItem('hg_session')
-    if (s) setSession(JSON.parse(s))
+    if (s) {
+      const parsed = JSON.parse(s)
+      setSession(parsed)
+      // Try to get company name from API profile
+      const token = localStorage.getItem('hg_token')
+      if (token) {
+        fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.fullName) setCompanyName(data.fullName)
+          })
+          .catch(() => {})
+      }
+    }
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -67,7 +81,7 @@ export default function BusinessDashboard() {
     load()
   }, [])
 
-  const displayName = session?.companyName || session?.name || session?.email || 'My Business'
+  const displayName = companyName || session?.companyName || session?.name || session?.email || 'My Business'
   const h = time.getHours()
   const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 
