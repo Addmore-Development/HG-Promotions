@@ -1,4 +1,3 @@
-// promoter/payments/ViewEarnings.tsx
 // Displays payment history and summary – now matching the new admin design.
 
 import React, { useState, useEffect } from 'react';

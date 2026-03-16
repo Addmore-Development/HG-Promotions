@@ -1,214 +1,290 @@
-import { useState, useEffect, useRef } from 'react'
-import { getBusinessJobs, calcHours, calcPayout, type Job, type Applicant } from './jobsStore'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
-const BLACK        = '#080808'
-const BLACK_CARD   = '#161616'
-const BLACK_BORDER = 'rgba(255,255,255,0.07)'
-const GOLD         = '#C4973A'
-const WHITE        = '#F4EFE6'
-const WHITE_MUTED  = 'rgba(244,239,230,0.55)'
-const WHITE_DIM    = 'rgba(244,239,230,0.18)'
-const GREEN        = '#4ade80'
-const FD           = "'Playfair Display', Georgia, serif"
-const FB           = "'DM Sans', system-ui, sans-serif"
+// ─── Strict Gold & Black Palette ──────────────────────────────────────────────
+const BLK   = '#050402'
+const BLK1  = '#0A0804'
+const BLK2  = '#100C05'
+const BLK3  = '#181206'
+const BLK4  = '#201808'
+const GOLD  = '#D4880A'
+const GL    = '#E8A820'
+const GL2   = '#F0C050'
+const GD    = '#C07818'
+const GD2   = '#8B5A1A'
+const GD3   = '#6B3F10'
+const GREEN = '#4ade80'
+const BB    = 'rgba(212,136,10,0.16)'
+const BB2   = 'rgba(212,136,10,0.08)'
+const W     = '#FAF3E8'
+const W7    = 'rgba(250,243,232,0.70)'
+const W4    = 'rgba(250,243,232,0.40)'
+const W2    = 'rgba(250,243,232,0.20)'
+const FD    = "'Playfair Display', Georgia, serif"
+const FB    = "'DM Sans', system-ui, sans-serif"
 
-/* ─── LIVE TIMER ───────────────────────────────────────────── */
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+function authHdr() {
+  const t = localStorage.getItem('hg_token')
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+function hex2rgba(hex: string, a: number) {
+  const h = hex.replace('#', '')
+  return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`
+}
+
+interface TrackJob {
+  id: string; title: string; client: string; venue: string
+  address: string; date: string; startTime: string; endTime: string
+  hourlyRate: number; totalSlots: number; filledSlots: number; status: string
+}
+
+interface TrackPromoter {
+  promoterId:  string
+  fullName:    string
+  email:       string
+  city?:       string
+  profilePhotoUrl?: string
+  headshotUrl?: string
+  checkStatus: 'checked-in' | 'scheduled' | 'completed' | 'absent'
+  checkInTime?: string
+  checkOutTime?: string
+  totalHours?: number
+  liveEarning?: number
+  hourlyRate:  number
+}
+
+// ─── Live Timer ───────────────────────────────────────────────────────────────
 function LiveTimer({ checkIn }: { checkIn: string }) {
   const [elapsed, setElapsed] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   useEffect(() => {
-    const update = () => {
-      setElapsed((Date.now() - new Date(checkIn).getTime()) / 1000)
-    }
+    const update = () => setElapsed((Date.now() - new Date(checkIn).getTime()) / 1000)
     update()
-    timerRef.current = setInterval(update, 1000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+    const t = setInterval(update, 1000)
+    return () => clearInterval(t)
   }, [checkIn])
-
   const h = Math.floor(elapsed / 3600)
   const m = Math.floor((elapsed % 3600) / 60)
   const s = Math.floor(elapsed % 60)
-
   return (
-    <span style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: GREEN, letterSpacing: '0.1em' }}>
-      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+    <span style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: GREEN, letterSpacing: '0.1em' }}>
+      {String(h).padStart(2,'0')}:{String(m).padStart(2,'0')}:{String(s).padStart(2,'0')}
     </span>
   )
 }
 
-/* ─── PROMOTER LIVE CARD (view-only) ───────────────────────── */
-// ── CHANGE: removed all check-in / check-out buttons; view-only display of live promoters ──
-function PromoterLiveCard({ applicant, job }: {
-  applicant: Applicant; job: Job
-}) {
-  const activeShift = applicant.shifts.find(s => !s.checkOut)
-  const completedShifts = applicant.shifts.filter(s => s.checkOut)
-  const totalHours = calcHours(applicant.shifts)
-  const totalPayout = calcPayout(applicant.shifts, job.ratePerHour)
-
-  // Only render if there's an active shift
-  if (!activeShift) return null
+// ─── Promoter Live Card ───────────────────────────────────────────────────────
+function PromoterCard({ p }: { p: TrackPromoter }) {
+  const isLive      = p.checkStatus === 'checked-in'
+  const isCompleted = p.checkStatus === 'completed'
+  const statusColor = isLive ? GREEN : isCompleted ? GD : p.checkStatus === 'scheduled' ? GL : W4
+  const liveEarning = isLive && p.checkInTime
+    ? (Date.now() - new Date(p.checkInTime).getTime()) / 3600000 * p.hourlyRate
+    : 0
 
   return (
     <div style={{
-      background: BLACK_CARD,
-      border: `1px solid ${GREEN}30`,
-      position: 'relative', overflow: 'hidden',
-      boxShadow: `0 0 24px rgba(74,222,128,0.06)`,
+      background: BLK2, border: `1px solid ${isLive ? hex2rgba(GREEN, 0.25) : BB}`,
+      position: 'relative', overflow: 'hidden', borderRadius: 3,
+      boxShadow: isLive ? `0 0 20px ${hex2rgba(GREEN, 0.06)}` : 'none',
     }}>
-      <div style={{ height: 3, background: GREEN }} />
-
-      <div style={{ padding: '20px 22px' }}>
-        {/* Promoter info */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+      <div style={{ height: 2, background: statusColor }} />
+      <div style={{ padding: '18px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-              background: `${GREEN}15`,
-              border: `1px solid ${GREEN}40`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: FD, fontSize: 15, color: GREEN,
-            }}>
-              {applicant.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            {/* Photo */}
+            <div style={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: `2px solid ${hex2rgba(statusColor, 0.5)}` }}>
+              {p.headshotUrl || p.profilePhotoUrl ? (
+                <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: GL, fontFamily: FD }}>
+                  {p.fullName.charAt(0)}
+                </div>
+              )}
             </div>
             <div>
-              <p style={{ fontFamily: FB, fontSize: 13, fontWeight: 600, color: WHITE, marginBottom: 2 }}>{applicant.fullName}</p>
-              <p style={{ fontFamily: FB, fontSize: 11, color: WHITE_MUTED }}>{applicant.phone || applicant.email}</p>
+              <div style={{ fontSize: 13, fontWeight: 700, color: W, fontFamily: FD, marginBottom: 2 }}>{p.fullName}</div>
+              <div style={{ fontSize: 10, color: W4, fontFamily: FB }}>{p.city || p.email}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', padding: '4px 10px' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}`, animation: 'pulse 2s infinite' }} />
-              <span style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.22em', color: GREEN }}>ON SHIFT</span>
-            </div>
-            <LiveTimer checkIn={activeShift.checkIn} />
+
+          <div style={{ textAlign: 'right' }}>
+            {isLive ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end', marginBottom: 4 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: GREEN, fontFamily: FD, letterSpacing: '0.16em' }}>ON SHIFT</span>
+                </div>
+                {p.checkInTime && <LiveTimer checkIn={p.checkInTime} />}
+              </>
+            ) : (
+              <span style={{ fontSize: 9, fontWeight: 700, color: statusColor, background: hex2rgba(statusColor, 0.1), border: `1px solid ${hex2rgba(statusColor, 0.4)}`, padding: '3px 10px', borderRadius: 2, fontFamily: FD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                {p.checkStatus === 'scheduled' ? 'Scheduled' : p.checkStatus === 'completed' ? 'Completed' : 'Absent'}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Stats row */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 18, border: `1px solid ${BLACK_BORDER}` }}>
+        {/* Stats */}
+        <div style={{ display: 'flex', gap: 0, border: `1px solid ${BB}` }}>
           {[
-            { label: 'Shifts Done', value: String(completedShifts.length) },
-            { label: 'Hours Total', value: totalHours.toFixed(2) },
-            { label: 'Payout', value: `R ${totalPayout.toFixed(2)}` },
+            { label: 'Check In',  value: p.checkInTime ? new Date(p.checkInTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : '—' },
+            { label: 'Hours',     value: p.totalHours ? `${p.totalHours.toFixed(1)}h` : isLive && p.checkInTime ? `${((Date.now() - new Date(p.checkInTime).getTime()) / 3600000).toFixed(1)}h` : '—' },
+            { label: isLive ? 'Live Earning' : 'Payout', value: isLive ? `R${liveEarning.toFixed(0)}` : p.totalHours ? `R${(p.totalHours * p.hourlyRate).toFixed(0)}` : '—', accent: GL },
           ].map((s, i) => (
-            <div key={s.label} style={{ flex: 1, padding: '12px 14px', borderRight: i < 2 ? `1px solid ${BLACK_BORDER}` : 'none', textAlign: 'center' }}>
-              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 4 }}>{s.label}</p>
-              <p style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: i === 2 ? GOLD : WHITE }}>{s.value}</p>
+            <div key={s.label} style={{ flex: 1, padding: '10px 12px', borderRight: i < 2 ? `1px solid ${BB}` : 'none', textAlign: 'center' }}>
+              <div style={{ fontSize: 8, letterSpacing: '0.16em', textTransform: 'uppercase', color: W2, fontFamily: FB, marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 700, color: s.accent || W }}>{s.value}</div>
             </div>
           ))}
         </div>
 
-        {/* Active shift info */}
-        <div style={{ padding: '12px 14px', background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.15)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Checked in</p>
-              <p style={{ fontFamily: FB, fontSize: 12, color: WHITE }}>{new Date(activeShift.checkIn).toLocaleTimeString('en-ZA')}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Est. earning</p>
-              <p style={{ fontFamily: FB, fontSize: 13, color: GREEN }}>
-                R {((Date.now() - new Date(activeShift.checkIn).getTime()) / 3600000 * job.ratePerHour).toFixed(2)}
-              </p>
-            </div>
+        {isLive && (
+          <div style={{ marginTop: 12, padding: '8px 12px', background: hex2rgba(GREEN, 0.04), border: `1px solid ${hex2rgba(GREEN, 0.15)}`, fontSize: 11, color: W4, fontFamily: FB }}>
+            View-only · Promoters check in and out from their own app
           </div>
-        </div>
-        {/* ── CHANGE: no check-in / check-out buttons — view only ── */}
-        <p style={{ fontFamily: FB, fontSize: 10, color: WHITE_DIM, textAlign: 'center', marginTop: 14, letterSpacing: '0.1em' }}>
-          View only · Shift management is handled by promoters
-        </p>
+        )}
       </div>
-
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
     </div>
   )
 }
 
-/* ─── MAIN TRACKING PAGE ───────────────────────────────────── */
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function BusinessTracking() {
-  const [jobs,       setJobs]       = useState<Job[]>([])
-  const [session,    setSession]    = useState<Record<string,string> | null>(null)
+  const [jobs,        setJobs]        = useState<TrackJob[]>([])
+  const [promoters,   setPromoters]   = useState<TrackPromoter[]>([])
   const [selectedJob, setSelectedJob] = useState<string>('')
+  const [loading,     setLoading]     = useState(true)
+  const [lastRefresh, setLastRefresh] = useState(new Date())
   const [, forceUpdate] = useState(0)
 
-  useEffect(() => {
-    const s = localStorage.getItem('hg_session')
-    if (s) {
-      const parsed = JSON.parse(s)
-      setSession(parsed)
-      // ── CHANGE: only load active jobs ──
-      const bizJobs = getBusinessJobs(parsed.email).filter(j => j.status === 'active')
-      setJobs(bizJobs)
-      if (bizJobs.length > 0) setSelectedJob(bizJobs[0].id)
-    }
-  }, [])
+  const loadData = useCallback(async () => {
+    try {
+      // Load jobs for this business
+      const jobsRes = await fetch(`${API}/jobs?status=all`, { headers: authHdr() as any })
+      if (jobsRes.ok) {
+        const data: TrackJob[] = await jobsRes.json()
+        const openJobs = data.filter(j => ['OPEN', 'FILLED', 'IN_PROGRESS'].includes(j.status))
+        setJobs(openJobs)
+        if (!selectedJob && openJobs.length > 0) setSelectedJob(openJobs[0].id)
+      }
+    } catch (e) { console.error('Load jobs failed', e) }
+    setLoading(false)
+    setLastRefresh(new Date())
+  }, [selectedJob])
 
-  // Refresh payout display every 10 seconds while shifts are live
+  const loadPromoters = useCallback(async (jobId: string) => {
+    if (!jobId) return
+    try {
+      const job = jobs.find(j => j.id === jobId)
+      const [appRes, shiftRes] = await Promise.all([
+        fetch(`${API}/applications/job/${jobId}`, { headers: authHdr() as any }),
+        fetch(`${API}/shifts/all`, { headers: authHdr() as any }),
+      ])
+      const apps:   any[] = appRes.ok   ? await appRes.json()   : []
+      const shifts: any[] = shiftRes.ok ? await shiftRes.json() : []
+
+      // Map shifts by promoter for this job
+      const shiftMap = new Map<string, any>()
+      shifts
+        .filter((s: any) => s.jobId === jobId)
+        .forEach((s: any) => shiftMap.set(s.promoterId, s))
+
+      const promos: TrackPromoter[] = apps
+        .filter((a: any) => a.status === 'ALLOCATED')
+        .map((a: any) => {
+          const shift = shiftMap.get(a.promoterId)
+          const u = a.promoter || {}
+          let checkStatus: TrackPromoter['checkStatus'] = 'scheduled'
+          if (shift) {
+            const st = shift.status?.toLowerCase()
+            if (st === 'checked_in' || st === 'checked-in') checkStatus = 'checked-in'
+            else if (st === 'approved' || st === 'pending_approval' || st === 'checked_out') checkStatus = 'completed'
+          }
+          return {
+            promoterId:      a.promoterId,
+            fullName:        u.fullName || 'Unknown',
+            email:           u.email   || '',
+            city:            u.city,
+            profilePhotoUrl: u.profilePhotoUrl,
+            headshotUrl:     u.headshotUrl,
+            checkStatus,
+            checkInTime:  shift?.checkInTime  || undefined,
+            checkOutTime: shift?.checkOutTime || undefined,
+            totalHours:   shift?.totalHours   || undefined,
+            hourlyRate:   job?.hourlyRate      || 0,
+          }
+        })
+
+      setPromoters(promos)
+    } catch (e) { console.error('Load promoters failed', e) }
+  }, [jobs])
+
+  useEffect(() => { loadData() }, [])
   useEffect(() => {
-    const interval = setInterval(() => forceUpdate(n => n + 1), 10000)
+    if (selectedJob) loadPromoters(selectedJob)
+  }, [selectedJob, loadPromoters])
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData()
+      if (selectedJob) loadPromoters(selectedJob)
+      forceUpdate(n => n + 1)
+    }, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [selectedJob, loadData, loadPromoters])
 
-  const reload = () => {
-    if (session) {
-      const fresh = getBusinessJobs(session.email).filter(j => j.status === 'active')
-      setJobs(fresh)
-    }
-  }
+  const currentJob  = jobs.find(j => j.id === selectedJob)
+  const liveCount   = promoters.filter(p => p.checkStatus === 'checked-in').length
+  const doneCount   = promoters.filter(p => p.checkStatus === 'completed').length
+  const pendingCount = promoters.filter(p => p.checkStatus === 'scheduled').length
 
-  // ── CHANGE: only active jobs, only promoters with a live shift ──
-  const activeJobs = jobs  // already filtered to active only
-  const currentJob = jobs.find(j => j.id === selectedJob)
-
-  // Only promoters currently on an active shift
-  const livePromoters = currentJob
-    ? currentJob.applicants.filter(a => a.shifts.some(s => !s.checkOut))
-    : []
-
-  const liveCount = livePromoters.length
+  const liveEarningTotal = promoters
+    .filter(p => p.checkStatus === 'checked-in' && p.checkInTime)
+    .reduce((acc, p) => acc + (Date.now() - new Date(p.checkInTime!).getTime()) / 3600000 * p.hourlyRate, 0)
 
   return (
     <div>
       {/* Header */}
-      <div className="biz-page" style={{ marginBottom: 32 }}>
-        <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD, marginBottom: 8 }}>
-          Live Tracking
-        </p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <h1 style={{ fontFamily: FD, fontSize: 'clamp(24px,3vw,36px)', fontWeight: 700, color: WHITE, lineHeight: 1.1 }}>
-            Live Promoters
-          </h1>
-          {liveCount > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', padding: '8px 16px' }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
-              <span style={{ fontFamily: FB, fontSize: 11, fontWeight: 600, color: GREEN }}>{liveCount} promoter{liveCount !== 1 ? 's' : ''} currently on shift</span>
+      <div className="biz-page" style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Operations · Live</div>
+            <h1 style={{ fontFamily: FD, fontSize: 'clamp(22px,3vw,34px)', fontWeight: 700, color: W }}>Live Tracking</h1>
+            <p style={{ fontSize: 13, color: W4, marginTop: 6, fontFamily: FB }}>Monitor promoters on your active campaigns in real-time.</p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+            {liveCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: hex2rgba(GREEN, 0.08), border: `1px solid ${hex2rgba(GREEN, 0.25)}`, padding: '7px 14px' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
+                <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: GREEN }}>{liveCount} on shift</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: GL }} />
+              <span style={{ fontSize: 10, color: W4, fontFamily: FB }}>Updated {lastRefresh.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {activeJobs.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 20px', border: `1px dashed ${BLACK_BORDER}` }}>
-          <p style={{ fontFamily: FD, fontSize: 22, color: WHITE_MUTED, marginBottom: 8 }}>No active jobs</p>
-          <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>Create and activate a job to start tracking live shifts.</p>
+      {loading ? (
+        <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>Loading…</div>
+      ) : jobs.length === 0 ? (
+        <div style={{ padding: '60px 20px', textAlign: 'center', border: `1px dashed ${BB}` }}>
+          <p style={{ fontFamily: FD, fontSize: 20, color: W4, marginBottom: 8 }}>No active jobs</p>
+          <p style={{ fontFamily: FB, fontSize: 13, color: W2 }}>Active jobs with allocated promoters will appear here for live tracking.</p>
         </div>
       ) : (
         <>
           {/* Job selector */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
-            {activeJobs.map(job => {
-              const live = job.applicants.filter(a => a.shifts.some(s => !s.checkOut)).length
+          <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
+            {jobs.map(job => {
+              const live = 0 // will be updated from promoters
               const active = selectedJob === job.id
               return (
                 <button key={job.id} onClick={() => setSelectedJob(job.id)}
-                  style={{ padding: '10px 20px', background: active ? 'rgba(196,151,58,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${active ? `${GOLD}55` : BLACK_BORDER}`, fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: active ? GOLD : WHITE_MUTED, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8 }}
-                >
+                  style={{ padding: '9px 18px', background: active ? hex2rgba(GL, 0.12) : BLK2, border: `1px solid ${active ? hex2rgba(GL, 0.45) : BB}`, fontFamily: FD, fontSize: 11, fontWeight: active ? 700 : 400, letterSpacing: '0.04em', color: active ? GL : W4, cursor: 'pointer', transition: 'all 0.2s', borderRadius: 2 }}>
                   {job.title}
-                  {live > 0 && (
-                    <span style={{ background: `${GREEN}20`, border: `1px solid ${GREEN}40`, color: GREEN, fontSize: 9, padding: '2px 6px', fontWeight: 700 }}>{live} live</span>
-                  )}
                 </button>
               )
             })}
@@ -216,52 +292,36 @@ export default function BusinessTracking() {
 
           {currentJob && (
             <>
-              {/* Job summary bar */}
-              <div className="biz-page" style={{ background: BLACK_CARD, border: `1px solid ${BLACK_BORDER}`, padding: '18px 24px', marginBottom: 24, display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between' }}>
+              {/* Summary bar */}
+              <div className="biz-page" style={{ background: BLK2, border: `1px solid ${BB}`, padding: '16px 22px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between', borderRadius: 3 }}>
                 <div>
-                  <p style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: WHITE, marginBottom: 4 }}>{currentJob.title}</p>
-                  <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED }}>📍 {currentJob.location} · R {currentJob.ratePerHour}/hr · Ends {new Date(currentJob.endDate).toLocaleDateString('en-ZA')}</p>
+                  <div style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: W, marginBottom: 4 }}>{currentJob.title}</div>
+                  <div style={{ fontSize: 12, color: W4, fontFamily: FB }}>📍 {currentJob.venue || currentJob.address} · R{currentJob.hourlyRate}/hr</div>
                 </div>
-                <div style={{ display: 'flex', gap: 20 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Team Total</p>
-                    <p style={{ fontFamily: FD, fontSize: 20, color: WHITE }}>{currentJob.applicants.length}</p>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>On Shift Now</p>
-                    <p style={{ fontFamily: FD, fontSize: 20, color: GREEN }}>{liveCount}</p>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: WHITE_DIM, marginBottom: 3 }}>Live Earning</p>
-                    <p style={{ fontFamily: FD, fontSize: 20, color: GOLD }}>
-                      R {livePromoters.reduce((acc, a) => {
-                        const activeShift = a.shifts.find(s => !s.checkOut)
-                        if (!activeShift) return acc
-                        return acc + (Date.now() - new Date(activeShift.checkIn).getTime()) / 3600000 * currentJob.ratePerHour
-                      }, 0).toFixed(2)}
-                    </p>
-                  </div>
+                <div style={{ display: 'flex', gap: 24 }}>
+                  {[
+                    { label: 'On Shift',  value: liveCount,    color: GREEN },
+                    { label: 'Pending',   value: pendingCount, color: GL },
+                    { label: 'Completed', value: doneCount,    color: GD },
+                    { label: 'Live Cost', value: `R${liveEarningTotal.toFixed(0)}`, color: GL },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: W2, fontFamily: FB, marginBottom: 3 }}>{s.label}</div>
+                      <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* ── CHANGE: only show live promoters, or empty state if none ── */}
-              {liveCount === 0 ? (
-                <div style={{ textAlign: 'center', padding: '52px 20px', border: `1px dashed ${BLACK_BORDER}` }}>
-                  <div style={{ fontSize: 32, marginBottom: 16 }}>◎</div>
-                  <p style={{ fontFamily: FD, fontSize: 20, color: WHITE_MUTED, marginBottom: 8 }}>No one on shift right now</p>
-                  <p style={{ fontFamily: FB, fontSize: 13, color: WHITE_DIM }}>
-                    Promoters will appear here automatically once they check in to their shifts.
-                  </p>
+              {/* Promoters grid */}
+              {promoters.length === 0 ? (
+                <div style={{ padding: '48px 20px', textAlign: 'center', border: `1px dashed ${BB}` }}>
+                  <p style={{ fontFamily: FD, fontSize: 18, color: W4, marginBottom: 8 }}>No promoters allocated</p>
+                  <p style={{ fontFamily: FB, fontSize: 13, color: W2 }}>Go to Jobs to select promoters for this campaign.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-                  {livePromoters.map(ap => (
-                    <PromoterLiveCard
-                      key={ap.email}
-                      applicant={ap}
-                      job={currentJob}
-                    />
-                  ))}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+                  {promoters.map(p => <PromoterCard key={p.promoterId} p={p} />)}
                 </div>
               )}
             </>

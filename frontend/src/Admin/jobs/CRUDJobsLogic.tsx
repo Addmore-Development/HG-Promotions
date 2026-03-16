@@ -34,13 +34,16 @@ type JobSource = 'base' | 'api' | 'admin'
 
 interface Job {
   id: string; title: string; client: string; venue: string
-  date: string; startTime: string; endTime: string
+  date: string; startDate?: string; startTime: string; endTime: string
   hourlyRate: number; totalSlots: number; filledSlots: number
   status: JobStatus; city: string; category?: string
   lat?: number; lng?: number
   source: JobSource
   applications?: any[]
+<<<<<<< HEAD
   termsAndConditions?: string
+=======
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
   pay?: string; payPer?: string; jobDate?: string
   location?: string; type?: string; duration?: string
   tags?: string[]; accentLine?: string
@@ -57,6 +60,13 @@ interface PromoterMatch {
 interface ShortlistEntry {
   jobId: string; promoterId: string; promoterName: string; notifiedAt: string
   message: string; type: 'shortlisted' | 'not_needed'
+}
+
+// ─── Client entry from API ────────────────────────────────────────────────────
+interface ClientEntry {
+  id: string
+  name: string
+  email: string
 }
 
 const STATUS_COLOR: Record<JobStatus, string> = {
@@ -86,6 +96,7 @@ function authHeader() {
 
 function baseJobsToAdminJobs(): Job[] {
   return ALL_JOBS.map(j => ({
+<<<<<<< HEAD
     id: j.id, title: j.title, client: j.company,
     venue: j.location.split(',')[0]?.trim() || j.location,
     date: j.jobDate, startTime: '09:00', endTime: '17:00',
@@ -96,6 +107,30 @@ function baseJobsToAdminJobs(): Job[] {
     category: j.type, source: 'base' as JobSource,
     pay: j.pay, payPer: j.payPer, jobDate: j.jobDate, location: j.location,
     type: j.type, duration: j.duration, tags: j.tags, accentLine: j.accentLine,
+=======
+    id:          j.id,
+    title:       j.title,
+    client:      j.company,
+    venue:       j.location.split(',')[0]?.trim() || j.location,
+    date:        j.jobDate,
+    startTime:   '09:00',
+    endTime:     '17:00',
+    hourlyRate:  parseInt(j.pay.replace(/\D/g, '')) || 0,
+    totalSlots:  j.slots,
+    filledSlots: j.slots - j.slotsLeft,
+    status:      j.slotsLeft === 0 ? 'filled' : ('open' as JobStatus),
+    city:        j.location.split(',').slice(-1)[0]?.trim() || '',
+    category:    j.type,
+    source:      'base' as JobSource,
+    pay:         j.pay,
+    payPer:      j.payPer,
+    jobDate:     j.jobDate,
+    location:    j.location,
+    type:        j.type,
+    duration:    j.duration,
+    tags:        j.tags,
+    accentLine:  j.accentLine,
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
   }))
 }
 
@@ -156,13 +191,34 @@ function FilterBtn({ label, active, color, onClick }: { label:string; active:boo
   )
 }
 
+<<<<<<< HEAD
 const EMPTY_JOB = {
   title:'', client:'', venue:'', date:'', startTime:'09:00', endTime:'17:00',
   hourlyRate:120, totalSlots:4, filledSlots:0, status:'open' as JobStatus, city:'', category:'',
   termsAndConditions:'',
+=======
+const EMPTY_JOB: Omit<Job, 'id'|'applications'|'source'> = {
+  title:'', client:'', venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
+  hourlyRate:120, totalSlots:4, filledSlots:0, status:'open', city:'', category:'',
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
 }
 
+// ─── Fallback hardcoded clients (used if API is unreachable) ──────────────────
+const FALLBACK_CLIENTS: ClientEntry[] = [
+  { id:'f1', name:'Red Bull SA',         email:'' },
+  { id:'f2', name:'AB InBev',            email:'' },
+  { id:'f3', name:'Nike SA',             email:'' },
+  { id:'f4', name:'Vodacom',             email:'' },
+  { id:'f5', name:'Nedbank',             email:'' },
+  { id:'f6', name:'Castle Lager SA',     email:'' },
+  { id:'f7', name:'Standard Bank SA',    email:'' },
+  { id:'f8', name:'MTN SA',              email:'' },
+  { id:'f9', name:'Coca-Cola SA',        email:'' },
+  { id:'f10',name:'KFC South Africa',    email:'' },
+]
+
 export default function CRUDJobsLogic() {
+<<<<<<< HEAD
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<'create'|'edit'|'promoters'|null>(null)
@@ -176,18 +232,115 @@ export default function CRUDJobsLogic() {
   const [tcError, setTcError] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string|null>(null)
   const [promoterJob, setPromoterJob] = useState<Job|null>(null)
+=======
+  const [jobs,          setJobs         ] = useState<Job[]>([])
+  const [loading,       setLoading      ] = useState(true)
+  const [modal,         setModal        ] = useState<'create'|'edit'|'promoters'|null>(null)
+  const [editing,       setEditing      ] = useState<Job|null>(null)
+  const [form,          setForm         ] = useState<Omit<Job,'id'|'applications'|'source'>>(EMPTY_JOB)
+  const [statusFilter,  setStatusFilter ] = useState<JobStatus|'all'>('all')
+  const [sourceFilter,  setSourceFilter ] = useState<JobSource|'all'>('all')
+  const [search,        setSearch       ] = useState('')
+  const [deleting,      setDeleting     ] = useState<string|null>(null)
+  const [saving,        setSaving       ] = useState(false)
+
+  // ── Requirements / tags / T&Cs ────────────────────────────────────────────────
+  const [reqGender,     setReqGender    ] = useState('Any Gender')
+  const [reqLanguages,  setReqLanguages ] = useState('')
+  const [reqMinHeight,  setReqMinHeight ] = useState('')
+  const [reqMinAge,     setReqMinAge    ] = useState('')
+  const [reqExperience, setReqExperience] = useState('None')
+  const [reqAttire,     setReqAttire    ] = useState('Smart Casual')
+  const [reqOther,      setReqOther     ] = useState('')
+  const [termsText,     setTermsText    ] = useState('')
+  const [termsAgreed,   setTermsAgreed  ] = useState(false)
+
+  const resetRequirements = () => {
+    setReqGender('Any Gender'); setReqLanguages(''); setReqMinHeight('')
+    setReqMinAge(''); setReqExperience('None'); setReqAttire('Smart Casual')
+    setReqOther(''); setTermsText(''); setTermsAgreed(false)
+  }
+
+  // ── API-driven clients ────────────────────────────────────────────────────────
+  const [clients,       setClients      ] = useState<ClientEntry[]>(FALLBACK_CLIENTS)
+  const [clientsLoaded, setClientsLoaded] = useState(false)
+
+  // Promoters panel
+  const [promoterJob,   setPromoterJob  ] = useState<Job|null>(null)
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
   const [matchedPromos, setMatchedPromos] = useState<PromoterMatch[]>([])
   const [promoLoading, setPromoLoading] = useState(false)
   const [shortlistMsg, setShortlistMsg] = useState('')
   const [notifications, setNotifications] = useState<ShortlistEntry[]>([])
 
+<<<<<<< HEAD
+=======
+  // ── Load approved business clients from API ───────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('hg_token')
+    if (!token) {
+      setClients(FALLBACK_CLIENTS)
+      setClientsLoaded(true)
+      return
+    }
+
+    // Fetch approved business users directly from the users endpoint
+    fetch(`${API_URL}/users?role=BUSINESS&status=approved`, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    })
+      .then(async r => {
+        if (r.ok) {
+          const data: any[] = await r.json()
+          return data
+        }
+        // Fallback: try admin/registrations and filter manually
+        const r2 = await fetch(`${API_URL}/admin/registrations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (r2.ok) {
+          const data: any[] = await r2.json()
+          // status can be 'approved' directly from DB
+          return data.filter((u: any) =>
+            u.role?.toUpperCase() === 'BUSINESS' &&
+            (u.status === 'approved' || u._rawStatus === 'approved')
+          )
+        }
+        return []
+      })
+      .then((data: any[]) => {
+        const bizClients: ClientEntry[] = data
+          .filter((u: any) => u.role?.toUpperCase() === 'BUSINESS')
+          .map((u: any) => ({
+            id:    u.id,
+            name:  u.fullName || u.name,
+            email: u.email,
+          }))
+        // Merge: API registered clients first, then fallback mock clients
+        const apiNames = new Set(bizClients.map(c => c.name.toLowerCase()))
+        const merged = [
+          ...bizClients,
+          ...FALLBACK_CLIENTS.filter(f => !apiNames.has(f.name.toLowerCase())),
+        ]
+        setClients(merged)
+        setClientsLoaded(true)
+      })
+      .catch(() => {
+        setClients(FALLBACK_CLIENTS)
+        setClientsLoaded(true)
+      })
+  }, [])
+
+  // ── Load & merge all job sources ──────────────────────────────────────────────
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
   const loadJobs = useCallback(async () => {
     const base = baseJobsToAdminJobs()
     try {
-      const res = await fetch(`${API_URL}/jobs?status=all`, { headers: authHeader() as any })
+      // Try fetching all jobs — backend may not support status=all, try both
+      const res = await fetch(`${API_URL}/jobs`, { headers: authHeader() as any })
       if (res.ok) {
         const data: any[] = await res.json()
         const apiJobs: Job[] = data.map(j => ({
+<<<<<<< HEAD
           id: j.id, title: j.title, client: j.client, venue: j.venue,
           date: j.date?.slice(0,10) || '', startTime: j.startTime || '09:00', endTime: j.endTime || '17:00',
           hourlyRate: j.hourlyRate || 0, totalSlots: j.totalSlots || 0, filledSlots: j.filledSlots || 0,
@@ -200,11 +353,42 @@ export default function CRUDJobsLogic() {
         setJobs([...apiJobs, ...base.filter(b => !apiIds.has(b.id))])
       } else { setJobs(base) }
     } catch { setJobs(base) }
+=======
+          id:          j.id,
+          title:       j.title,
+          client:      j.client,
+          venue:       j.venue,
+          date:        j.date?.slice(0,10) || '',
+          startTime:   j.startTime || '09:00',
+          endTime:     j.endTime   || '17:00',
+          hourlyRate:  j.hourlyRate || 0,
+          totalSlots:  j.totalSlots || 0,
+          filledSlots: j.filledSlots || 0,
+          status:      (j.status?.toLowerCase() || 'open') as JobStatus,
+          city:        j.address?.split(',')[0] || j.city || '',
+          category:    j.filters?.category || '',
+          tags:        j.filters?.tags || [],
+          lat:         j.lat,
+          lng:         j.lng,
+          source:      'api' as JobSource,
+          applications: j.applications || [],
+        }))
+        const apiIds = new Set(apiJobs.map(j => j.id))
+        const mergedBase = base.filter(b => !apiIds.has(b.id))
+        setJobs([...apiJobs, ...mergedBase])
+      } else {
+        setJobs(base)
+      }
+    } catch {
+      setJobs(base)
+    }
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
     setLoading(false)
   }, [])
 
   useEffect(() => { loadJobs() }, [loadJobs])
 
+<<<<<<< HEAD
   useEffect(() => {
     const publicJobs = jobs.filter(j => j.status === 'open').map((j, idx) => {
       if (j.source === 'base') {
@@ -225,17 +409,71 @@ export default function CRUDJobsLogic() {
         status: 'open', termsAndConditions: j.termsAndConditions || '',
       }
     })
+=======
+  // ── Sync open jobs to localStorage so landing page & public board are live ────
+  useEffect(() => {
+    const publicJobs = jobs
+      .filter(j => j.status === 'open')
+      .map((j, idx) => {
+        if (j.source === 'base') {
+          const base = ALL_JOBS.find(b => b.id === j.id)
+          if (base) return base
+        }
+        return {
+          id: j.id, title: j.title, company: j.client,
+          companyInitial: j.client.charAt(0),
+          companyColor: WARM_ACCENTS[idx % WARM_ACCENTS.length],
+          location: `${j.venue}, ${j.city}`,
+          type: j.category || 'Brand Activation',
+          pay: `R ${j.hourlyRate.toLocaleString('en-ZA')}`, payPer: 'per hour',
+          date: j.date ? new Date(j.date).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '',
+          jobDate: j.date, approvedAt: new Date().toISOString().slice(0,10),
+          slots: j.totalSlots, slotsLeft: j.totalSlots - j.filledSlots,
+          duration: `${j.startTime}–${j.endTime}`,
+          tags: [j.category || 'Admin Posted'],
+          accentLine: WARM_ACCENTS[idx % WARM_ACCENTS.length],
+          gradient: `linear-gradient(135deg, rgba(232,168,32,0.10) 0%, rgba(196,151,58,0.04) 100%)`,
+          status: 'open',
+        }
+      })
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
     localStorage.setItem('hg_admin_jobs', JSON.stringify(publicJobs))
     window.dispatchEvent(new Event('storage'))
   }, [jobs])
 
+<<<<<<< HEAD
   const save = async () => {
     if (!form.termsAndConditions || form.termsAndConditions.trim().length < 20) {
       setTcError(true); return
     }
     setTcError(false); setSaving(true)
+=======
+  // ── Save (create / update) ────────────────────────────────────────────────────
+  const [saveError, setSaveError] = useState('')
+
+  const save = async () => {
+    if (!form.title.trim())  { setSaveError('Job title is required'); return }
+    if (!form.client.trim() || form.client === '__other__') { setSaveError('Client is required'); return }
+    if (!form.date)          { setSaveError('Start date is required'); return }
+    if (!termsAgreed)        { setSaveError('Please confirm compliance with T&Cs before saving'); return }
+    setSaveError('')
+    setSaving(true)
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
     try {
+      // Ensure date is sent as full ISO string — Prisma requires DateTime
+      const dateISO = form.date ? new Date(form.date).toISOString() : new Date().toISOString()
+      // Build tags array from requirements
+      const builtTags: string[] = []
+      if (reqGender && reqGender !== 'Any Gender') builtTags.push(reqGender)
+      if (reqLanguages) builtTags.push(reqLanguages)
+      if (reqMinHeight) builtTags.push(`Min ${reqMinHeight}cm`)
+      if (reqMinAge) builtTags.push(`${reqMinAge}+`)
+      if (reqExperience && reqExperience !== 'None') builtTags.push(reqExperience)
+      if (reqAttire && reqAttire !== 'Smart Casual') builtTags.push(reqAttire)
+      if (reqOther) builtTags.push(reqOther)
+
       const payload = {
+<<<<<<< HEAD
         title: form.title, client: form.client, brand: form.client, venue: form.venue,
         address: `${form.venue}, ${form.city}`,
         lat: (form as any).lat ?? cityCoords(form.city)?.[0] ?? -26.2041,
@@ -244,10 +482,43 @@ export default function CRUDJobsLogic() {
         hourlyRate: form.hourlyRate, totalSlots: form.totalSlots, filledSlots: form.filledSlots,
         status: form.status.toUpperCase(), filters: { category: form.category || '' },
         termsAndConditions: form.termsAndConditions,
+=======
+        title:      form.title,
+        client:     form.client,
+        brand:      form.client,
+        venue:      form.venue || form.city,
+        address:    `${form.venue || form.city}, ${form.city}`,
+        lat:        cityCoords(form.city)?.[0] ?? -26.2041,
+        lng:        cityCoords(form.city)?.[1] ?? 28.0473,
+        date:       dateISO,
+        startTime:  form.startTime,
+        endTime:    form.endTime,
+        hourlyRate: Number(form.hourlyRate) || 0,
+        totalSlots: Number(form.totalSlots) || 1,
+        filledSlots: Number(form.filledSlots) || 0,
+        status:     form.status.toUpperCase(),
+        filters: {
+          category:         form.category || '',
+          gender:           reqGender,
+          languages:        reqLanguages,
+          minHeight:        reqMinHeight,
+          minAge:           reqMinAge,
+          experience:       reqExperience,
+          attire:           reqAttire,
+          other:            reqOther,
+          tags:             builtTags,
+          termsAndConditions: termsText,
+        },
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
       }
       if (editing && editing.source !== 'base') {
         const res = await fetch(`${API_URL}/jobs/${editing.id}`, { method:'PUT', headers: authHeader() as any, body: JSON.stringify(payload) })
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) {
+          await loadJobs(); closeModal()
+        } else {
+          const err = await res.json().catch(() => ({}))
+          setSaveError(err.error || `Update failed (${res.status})`)
+        }
       } else if (editing && editing.source === 'base') {
         const stored: any[] = JSON.parse(localStorage.getItem('hg_admin_jobs') || '[]')
         const updated = stored.map((j: any) => j.id === editing.id ? { ...j, ...payload, id: editing.id } : j)
@@ -256,23 +527,45 @@ export default function CRUDJobsLogic() {
         closeModal()
       } else {
         const res = await fetch(`${API_URL}/jobs`, { method:'POST', headers: authHeader() as any, body: JSON.stringify(payload) })
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) {
+          await loadJobs(); closeModal()
+        } else {
+          const err = await res.json().catch(() => ({}))
+          setSaveError(err.error || `Create failed (${res.status}) — check all required fields`)
+        }
       }
-    } catch (e) { console.error('Save job failed', e) }
+    } catch (e) {
+      console.error('Save job failed', e)
+      setSaveError('Network error — is the backend running?')
+    }
     finally { setSaving(false) }
   }
 
   const handleDelete = async (id: string) => {
     const job = jobs.find(j => j.id === id)
+<<<<<<< HEAD
     if (job?.source === 'base') { setJobs(prev => prev.filter(j => j.id !== id)) }
     else {
       try { await fetch(`${API_URL}/jobs/${id}`, { method:'DELETE', headers: authHeader() as any }); setJobs(prev => prev.filter(j => j.id !== id)) }
       catch (e) { console.error('Delete failed', e) }
+=======
+    if (job?.source === 'base') {
+      setJobs(prev => prev.filter(j => j.id !== id))
+    } else {
+      try {
+        await fetch(`${API_URL}/jobs/${id}`, { method:'DELETE', headers: authHeader() as any })
+        setJobs(prev => prev.filter(j => j.id !== id))
+      } catch (e) { console.error('Delete failed', e) }
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
     }
     setDeleting(null)
   }
 
+<<<<<<< HEAD
   const toggleBaseStatus = (job: Job, newStatus: JobStatus) =>
+=======
+  const toggleBaseStatus = (job: Job, newStatus: JobStatus) => {
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: newStatus } : j))
 
   const openPromoterPanel = async (job: Job) => {
@@ -346,6 +639,31 @@ export default function CRUDJobsLogic() {
   const closeModal = () => { setModal(null); setEditing(null); setPromoterJob(null); setTcError(false) }
   const F = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }))
 
+<<<<<<< HEAD
+=======
+  const openCreate = () => {
+    setForm(EMPTY_JOB); setEditing(null); setSaveError(''); resetRequirements(); setModal('create')
+  }
+  const openEdit = (job: Job) => {
+    setForm({ ...job }); setEditing(job); setSaveError('')
+    // Restore requirements from stored filters
+    const f = (job as any).filters || {}
+    setReqGender(f.gender || 'Any Gender')
+    setReqLanguages(f.languages || '')
+    setReqMinHeight(f.minHeight || '')
+    setReqMinAge(f.minAge || '')
+    setReqExperience(f.experience || 'None')
+    setReqAttire(f.attire || 'Smart Casual')
+    setReqOther(f.other || '')
+    setTermsText(f.termsAndConditions || '')
+    setTermsAgreed(false)
+    setModal('edit')
+  }
+  const closeModal = () => { setModal(null); setEditing(null); setPromoterJob(null); setSaveError('') }
+  const F = (key: string, value: string | number) => setForm(prev => ({ ...prev, [key]: value }))
+
+  // ── Filtered view ─────────────────────────────────────────────────────────────
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
   const filtered = jobs.filter(j => {
     const sm = statusFilter === 'all' || j.status === statusFilter
     const om = sourceFilter === 'all' || j.source === sourceFilter
@@ -360,9 +678,14 @@ export default function CRUDJobsLogic() {
     base: jobs.filter(j=>j.source==='base').length, api: jobs.filter(j=>j.source==='api').length,
   }
 
+<<<<<<< HEAD
   const inp: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
   const lbl: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
   const registeredClients = ['Red Bull SA','AB InBev','Nike SA','Vodacom','Nedbank','Distell','SABMiller SA','Castle Lager SA','Standard Bank SA','MTN SA','Heineken SA','Woolworths SA','Tiger Brands','Coca-Cola SA','KFC South Africa','Old Mutual SA','Shoprite Holdings','Pick n Pay SA']
+=======
+  const inputStyle: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
+  const labelStyle: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
 
   return (
     <AdminLayout>
@@ -438,10 +761,23 @@ export default function CRUDJobsLogic() {
           <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
               <colgroup>
+<<<<<<< HEAD
                 <col style={{ width:'6%' }} /><col style={{ width:'24%' }} /><col style={{ width:'13%' }} />
                 <col style={{ width:'13%' }} /><col style={{ width:'9%' }} /><col style={{ width:'8%' }} />
                 <col style={{ width:'7%' }} /><col style={{ width:'9%' }} /><col style={{ width:'6%' }} />
                 <col style={{ width:'5%' }} />
+=======
+                <col style={{ width:'6%'  }} />
+                <col style={{ width:'20%' }} />
+                <col style={{ width:'11%' }} />
+                <col style={{ width:'12%' }} />
+                <col style={{ width:'8%'  }} />
+                <col style={{ width:'7%'  }} />
+                <col style={{ width:'6%'  }} />
+                <col style={{ width:'7%'  }} />
+                <col style={{ width:'5%'  }} />
+                <col style={{ width:'18%' }} />
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
               </colgroup>
               <thead>
                 <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
@@ -456,6 +792,7 @@ export default function CRUDJobsLogic() {
                   const DIM = 'rgba(250,243,232,0.60)'
                   const isExpanded = expandedRow === job.id
                   return (
+<<<<<<< HEAD
                     <React.Fragment key={job.id}>
                       <tr
                         style={{ borderBottom: isExpanded ? 'none' : `1px solid ${BB}`, transition:'background 0.15s', background:isExpanded?hex2rgba(GL,0.05):isBase?hex2rgba(GL,0.01):'transparent', cursor:'pointer' }}
@@ -553,6 +890,100 @@ export default function CRUDJobsLogic() {
                         </tr>
                       )}
                     </React.Fragment>
+=======
+                    <tr key={job.id}
+                      style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s', background:isBase?hex2rgba(GL,0.01):'transparent' }}
+                      onMouseEnter={e=>e.currentTarget.style.background=BB2}
+                      onMouseLeave={e=>e.currentTarget.style.background=isBase?hex2rgba(GL,0.01):'transparent'}>
+                      <td style={{ padding:'16px 16px', fontSize:10, color:DIM, fontFamily:MONO, verticalAlign:'top', paddingTop:18 }}>{job.id}</td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top' }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, lineHeight:1.3, marginBottom:3 }}>{job.title}</div>
+                        {job.category && <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginBottom:5 }}>{job.category}</div>}
+                        {(() => {
+                          const displayTags = job.tags && job.tags.length > 0
+                            ? job.tags
+                            : (job as any).filters?.tags || []
+                          return displayTags.length > 0 ? (
+                            <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                              {displayTags.slice(0,4).map((t: string, ti: number) => (
+                                <span key={ti} style={{ fontSize:9, color:GL, background:hex2rgba(GL,0.08), border:`1px solid ${hex2rgba(GL,0.25)}`, padding:'2px 7px', borderRadius:2, fontFamily:FD }}>{t}</span>
+                              ))}
+                            </div>
+                          ) : null
+                        })()}
+                      </td>
+                      <td style={{ padding:'16px 16px', fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'top', paddingTop:18 }}>{job.client}</td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:12, color:W, fontFamily:FD, fontWeight:600 }}>{job.city || job.location?.split(',').slice(-1)[0]?.trim()}</div>
+                        <div style={{ fontSize:11, color:DIM, fontFamily:FD, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
+                      </td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, fontWeight:600 }}>
+                          {job.jobDate || job.date ? new Date(job.jobDate||job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) : '—'}
+                        </div>
+                        <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginTop:3 }}>
+                          {isBase && job.duration ? job.duration : `${job.startTime}–${job.endTime}`}
+                        </div>
+                      </td>
+                      <td style={{ padding:'16px 16px', fontSize:14, color:GL, fontWeight:700, fontFamily:FD, verticalAlign:'top', paddingTop:18, whiteSpace:'nowrap' }}>
+                        {isBase ? job.pay : `R${job.hourlyRate}/hr`}
+                      </td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
+                        <div style={{ fontSize:13, color:W, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
+                        <div style={{ marginTop:6, height:3, background:'rgba(212,136,10,0.22)', borderRadius:2, width:44 }}>
+                          <div style={{ height:'100%', borderRadius:2, background:STATUS_COLOR[job.status], width:`${job.totalSlots>0?(job.filledSlots/job.totalSlots)*100:0}%`, transition:'width 0.3s' }} />
+                        </div>
+                      </td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}><StatusBadge status={job.status} /></td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}><SourceBadge source={job.source} /></td>
+                      <td style={{ padding:'12px 16px', verticalAlign:'middle' }}>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+                          <button onClick={()=>openEdit(job)}
+                            style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.20)}
+                            onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(GL,0.10)}>
+                            Edit
+                          </button>
+                          <button onClick={()=>openPromoterPanel(job)}
+                            style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G4,0.20)}
+                            onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(G4,0.10)}>
+                            Staff
+                          </button>
+                          {isBase && job.status==='open' && (
+                            <button onClick={()=>toggleBaseStatus(job,'cancelled')}
+                              style={{ fontSize:10, color:'rgba(250,243,232,0.60)', background:'rgba(250,243,232,0.05)', border:`1px solid rgba(250,243,232,0.18)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background='rgba(250,243,232,0.10)'}
+                              onMouseLeave={e=>e.currentTarget.style.background='rgba(250,243,232,0.05)'}>
+                              Cancel
+                            </button>
+                          )}
+                          {isBase && job.status==='cancelled' && (
+                            <button onClick={()=>toggleBaseStatus(job,'open')}
+                              style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.20)}
+                              onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(GL,0.10)}>
+                              Reopen
+                            </button>
+                          )}
+                          {job.status==='filled' && !isBase && (
+                            <button onClick={()=>markSlotOpen(job)}
+                              style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                              onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G4,0.20)}
+                              onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(G4,0.10)}>
+                              +Slot
+                            </button>
+                          )}
+                          <button onClick={()=>setDeleting(job.id)}
+                            style={{ fontSize:10, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
+                            onMouseEnter={e=>e.currentTarget.style.background='rgba(139,90,26,0.25)'}
+                            onMouseLeave={e=>e.currentTarget.style.background='rgba(139,90,26,0.12)'}>
+                            {isBase ? 'Hide' : 'Delete'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
                   )
                 })}
               </tbody>
@@ -599,24 +1030,103 @@ export default function CRUDJobsLogic() {
                   ℹ️ Editing a base job creates an admin override saved to local storage.
                 </div>
               )}
+<<<<<<< HEAD
               <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
                 <div><label style={lbl}>Job Title</label><input type="text" value={form.title} onChange={e=>F('title',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
                 <div><label style={lbl}>Client</label>
                   <select value={form.client} onChange={e=>F('client',e.target.value)} style={{ ...inp, background:D3, cursor:'pointer' }}>
-                    <option value="">— Select client —</option>
-                    {registeredClients.map(c=><option key={c} value={c}>{c}</option>)}
-                    <option value="__other__">Other</option>
-                  </select>
+=======
+
+              <div style={{ display:'flex', flexDirection:'column', gap:18, marginTop:16 }}>
+                <div>
+                  <label style={labelStyle}>Job Title</label>
+                  <input type="text" value={form.title} onChange={e=>F('title',e.target.value)} style={inputStyle}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                 </div>
+
+                {/* ── CLIENT DROPDOWN — API-driven ── */}
+                <div>
+                  <label style={labelStyle}>
+                    Client
+                    {!clientsLoaded && <span style={{ color:W28, fontWeight:400, marginLeft:8, fontSize:9 }}>Loading…</span>}
+                    {clientsLoaded && clients.filter(c=>c.email).length > 0 && (
+                      <span style={{ color:GL, fontWeight:400, marginLeft:8, fontSize:9 }}>
+                        ● {clients.filter(c=>c.email).length} registered
+                      </span>
+                    )}
+                  </label>
+                  <select value={form.client} onChange={e=>F('client',e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
+                    <option value="">— Select client —</option>
+                    {/* Registered (API) clients shown first with a marker */}
+                    {clients.filter(c => c.email).length > 0 && (
+                      <optgroup label="── Registered Clients ──">
+                        {clients.filter(c => c.email).map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* Fallback / additional clients */}
+                    <optgroup label="── Other Clients ──">
+                      {clients.filter(c => !c.email).map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    <option value="__other__">Other (type below)</option>
+                  </select>
+                  {/* Allow typing a custom client name if Other is selected */}
+                  {form.client === '__other__' && (
+                    <input
+                      type="text"
+                      placeholder="Enter client name…"
+                      style={{ ...inputStyle, marginTop:8 }}
+                      onChange={e => F('client', e.target.value)}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL}
+                      onBlur={e=>e.currentTarget.style.borderColor=BB}
+                    />
+                  )}
+                </div>
+<<<<<<< HEAD
                 <div><label style={lbl}>Category</label>
                   <select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inp, background:D3, cursor:'pointer' }}>
+=======
+
+                <div>
+                  <label style={labelStyle}>Category</label>
+                  <select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
                     <option value="">— Select —</option>
                     {CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+<<<<<<< HEAD
                   <div><label style={lbl}>Venue</label><input type="text" value={form.venue} onChange={e=>F('venue',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
                   <div><label style={lbl}>City</label><input type="text" value={form.city} onChange={e=>F('city',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
+=======
+                  <div>
+                    <label style={labelStyle}>Venue</label>
+                    <input type="text" value={form.venue} onChange={e=>F('venue',e.target.value)} style={inputStyle}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>City</label>
+                    <input type="text" value={form.city} onChange={e=>F('city',e.target.value)} style={inputStyle}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <div>
+                    <label style={labelStyle}>Start Date *</label>
+                    <input type="date" value={form.date} onChange={e=>F('date',e.target.value)} style={inputStyle}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>End Date</label>
+                    <input type="date" value={form.startDate||''} min={form.date||''} onChange={e=>F('startDate',e.target.value)} style={inputStyle}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
                 </div>
                 <div><label style={lbl}>Date</label><input type="date" value={form.date} onChange={e=>F('date',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
@@ -633,6 +1143,7 @@ export default function CRUDJobsLogic() {
                   <div><label style={lbl}>Filled Slots</label><input type="number" min={0} max={form.totalSlots} value={form.filledSlots} onChange={e=>F('filledSlots',+e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
                 )}
 
+<<<<<<< HEAD
                 {/* ── TERMS & CONDITIONS — REQUIRED ── */}
                 <div>
                   <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:7 }}>
@@ -661,6 +1172,97 @@ export default function CRUDJobsLogic() {
                   )}
                 </div>
 
+=======
+                {/* ── PROMOTER REQUIREMENTS ── */}
+                <div style={{ marginTop:4 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                    <div style={{ flex:1, height:1, background:BB }} />
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontFamily:FD, whiteSpace:'nowrap' }}>Promoter Requirements</span>
+                    <div style={{ flex:1, height:1, background:BB }} />
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                    <div>
+                      <label style={labelStyle}>Gender Preference</label>
+                      <select value={reqGender} onChange={e=>setReqGender(e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
+                        {['Any Gender','Female','Male','Non-binary Inclusive'].map(o=><option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Languages Required</label>
+                      <input type="text" value={reqLanguages} onChange={e=>setReqLanguages(e.target.value)} placeholder="e.g. English, Zulu" style={inputStyle}
+                        onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Minimum Height (cm)</label>
+                      <input type="number" value={reqMinHeight} onChange={e=>setReqMinHeight(e.target.value)} placeholder="e.g. 165" style={inputStyle}
+                        onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Minimum Age</label>
+                      <input type="number" value={reqMinAge} onChange={e=>setReqMinAge(e.target.value)} placeholder="e.g. 21" style={inputStyle}
+                        onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Experience Required</label>
+                      <select value={reqExperience} onChange={e=>setReqExperience(e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
+                        {['None','6 months+','1 year+','2+ years','3+ years'].map(o=><option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Attire / Uniform</label>
+                      <select value={reqAttire} onChange={e=>setReqAttire(e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
+                        {['Smart Casual','Formal','Brand Uniform Provided','All Black','Brand Specific'].map(o=><option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginTop:14 }}>
+                    <label style={labelStyle}>Additional Requirements</label>
+                    <input type="text" value={reqOther} onChange={e=>setReqOther(e.target.value)} placeholder="e.g. Own transport, Food handling cert" style={inputStyle}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  {/* Preview tags */}
+                  {[reqGender !== 'Any Gender' && reqGender, reqLanguages, reqMinHeight && `Min ${reqMinHeight}cm`, reqMinAge && `${reqMinAge}+`, reqExperience !== 'None' && reqExperience, reqAttire !== 'Smart Casual' && reqAttire, reqOther].filter(Boolean).length > 0 && (
+                    <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:6 }}>
+                      {[reqGender !== 'Any Gender' && reqGender, reqLanguages, reqMinHeight && `Min ${reqMinHeight}cm`, reqMinAge && `${reqMinAge}+`, reqExperience !== 'None' && reqExperience, reqAttire !== 'Smart Casual' && reqAttire, reqOther].filter(Boolean).map((tag,i)=>(
+                        <span key={i} style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.1), border:`1px solid ${hex2rgba(GL,0.3)}`, padding:'3px 10px', borderRadius:3, fontFamily:FD }}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── TERMS & CONDITIONS ── */}
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                    <div style={{ flex:1, height:1, background:BB }} />
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontFamily:FD, whiteSpace:'nowrap' }}>Terms & Conditions</span>
+                    <div style={{ flex:1, height:1, background:BB }} />
+                  </div>
+                  <div style={{ padding:'12px 16px', background:hex2rgba(GL,0.04), border:`1px solid ${BB}`, borderRadius:3, marginBottom:14 }}>
+                    <p style={{ fontSize:11, color:W55, lineHeight:1.7, fontFamily:FD }}>
+                      Standard Honey Group T&Cs apply to all promoters. You may add campaign-specific terms below.
+                    </p>
+                  </div>
+                  <label style={labelStyle}>Campaign-Specific Terms (Optional)</label>
+                  <textarea value={termsText} onChange={e=>setTermsText(e.target.value)} rows={4}
+                    placeholder="Enter any additional terms specific to this job, e.g. promoter must not consume product during shift, promoter is liable for equipment…"
+                    style={{ ...inputStyle, resize:'vertical' as const, lineHeight:1.6 }}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB}
+                  />
+                  <label style={{ display:'flex', alignItems:'flex-start', gap:10, cursor:'pointer', marginTop:12, padding:'12px 14px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>
+                    <input type="checkbox" checked={termsAgreed} onChange={e=>setTermsAgreed(e.target.checked)}
+                      style={{ marginTop:2, accentColor:GL, width:15, height:15, flexShrink:0, cursor:'pointer' }} />
+                    <span style={{ fontSize:12, color:W55, lineHeight:1.6, fontFamily:FD }}>
+                      I confirm this job complies with Honey Group platform standards and all applicable South African labour regulations.
+                    </span>
+                  </label>
+                </div>
+
+                {saveError && (
+                  <div style={{ padding:'10px 14px', background:'rgba(139,90,26,0.2)', border:'1px solid rgba(139,90,26,0.6)', borderRadius:3, fontSize:12, color:'#E8C090', fontFamily:FD }}>
+                    ⚠ {saveError}
+                  </div>
+                )}
+>>>>>>> 63baf9ead37b6d5dbca76f29b3ceb65da30be77d
                 <Btn onClick={save} disabled={saving}>{saving?'Saving…':modal==='create'?'Create Job':'Save Changes'}</Btn>
               </div>
             </div>

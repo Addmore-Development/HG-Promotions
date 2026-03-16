@@ -27,14 +27,21 @@ model User {
   dateOfBirth      DateTime?
   gender           String?
   address          String?
+  cipcDocUrl      String?
+  taxPinUrl       String?
+  bizBankProofUrl String?
+  vatNumber       String?
+  industry        String?
+  website         String?
+  contactName     String?
   height           Int?
   clothingSize     String?
   shoeSize         String?
   bankName         String?
   accountNumber    String?
   branchCode       String?
-  idFrontUrl       String?
-  idBackUrl        String?
+  headshotUrl      String?
+  fullBodyPhotoUrl String?
   profilePhotoUrl  String?
   cvUrl            String?
   createdJobs  Job[]         @relation("JobCreator")
