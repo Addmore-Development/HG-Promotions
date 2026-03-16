@@ -19,6 +19,28 @@ const FB           = "'DM Sans', system-ui, sans-serif"
 
 type Role = 'promoter' | 'business'
 
+const INDUSTRY_OPTIONS = [
+  'FMCG / Beverages', 'FMCG / Food', 'Retail', 'Telecoms', 'Automotive',
+  'Financial Services', 'Healthcare / Pharma', 'Fitness & Wellness',
+  'Fashion & Beauty', 'Quick Service Restaurant', 'Events & Entertainment',
+  'Technology', 'Government / NGO', 'Real Estate', 'Education', 'Other',
+]
+
+const PROMOTER_CATEGORIES = [
+  'Brand Activation', 'Sampling & Demonstrations', 'In-Store Promotions',
+  'Events & Exhibitions', 'Field Marketing', 'Merchandising',
+  'Customer Service', 'Hospitality', 'Fitness & Wellness', 'Fashion & Beauty',
+  'Financial Services', 'Telecoms', 'Other',
+]
+
+const EXPERIENCE_OPTIONS = [
+  'No experience — willing to learn',
+  '6 months – 1 year',
+  '1 – 2 years',
+  '2 – 3 years',
+  '3+ years',
+]
+
 const DASHBOARD_ROUTE: Record<Role, string> = {
   promoter: '/promoter/dashboard',
   business: '/business/dashboard',
@@ -362,12 +384,20 @@ export default function RegisterPage() {
   const [regNumber,    setRegNumber]    = useState('')
   const [vatNumber,    setVatNumber]    = useState('')
   const [bizAddress,   setBizAddress]   = useState('')
+  const [bizIndustry,  setBizIndustry]  = useState('')
   const [bizEmail,     setBizEmail]     = useState('')
   const [bizPassword,  setBizPassword]  = useState('')
   const [bizConfirmPw, setBizConfirmPw] = useState('')
   const [cipcDoc,      setCipcDoc]      = useState<File | null>(null)
   const [taxPin,       setTaxPin]       = useState<File | null>(null)
   const [bizBankProof, setBizBankProof] = useState<File | null>(null)
+
+  // Promoter preferences
+  const [promoCategory,   setPromoCategory]   = useState('')
+  const [promoExperience, setPromoExperience] = useState('')
+  const [promoGender,     setPromoGender]     = useState('')
+  const [promoHeight,     setPromoHeight]     = useState('')
+  const [promoClothing,   setPromoClothing]   = useState('')
 
   const isPromoter  = role === 'promoter'
   const TOTAL_STEPS = 3
@@ -402,6 +432,7 @@ export default function RegisterPage() {
         if (!validateSAPhone(bizPhone)) errs.bizPhone = 'Enter a valid SA phone number'
         if (!validateCIPC(regNumber)) errs.regNumber = 'Format: 2024/000000/07'
         if (!bizAddress.trim()) errs.bizAddress = 'Required'
+        if (!bizIndustry.trim()) errs.bizIndustry = 'Please select your industry'
       }
       if (step === 1) {
         if (!cipcDoc)      errs.cipcDoc      = 'CIPC registration document is required'
@@ -441,6 +472,11 @@ export default function RegisterPage() {
             consentPopia: true,
             idNumber,
             city:         address,
+            gender:       promoGender       || undefined,
+            height:       promoHeight ? parseInt(promoHeight) : undefined,
+            clothingSize: promoClothing     || undefined,
+            experience:   promoExperience   || undefined,
+            industry:     promoCategory     || undefined,
           }),
         })
         const promoterData = await promoterRegRes.json()
@@ -477,6 +513,7 @@ export default function RegisterPage() {
             companyReg:   regNumber,
             vatNumber,
             city:         bizAddress,
+            industry:     bizIndustry,
           }),
         })
         const bizData = await bizRegRes.json()
@@ -593,6 +630,47 @@ export default function RegisterPage() {
               <Field label="SA Phone Number" placeholder="+27 71 000 0000" value={phone} onChange={v => setPhone(formatSAPhone(v))} focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)} error={errors.phone} hint="South African mobile number" />
               <Field label="SA ID Number" placeholder="8001015009087" value={idNumber} onChange={setIdNumber} focused={focused === 'idNumber'} onFocus={() => setFocused('idNumber')} onBlur={() => setFocused(null)} error={errors.idNumber} hint="13-digit South African ID number" />
               <Field label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address} onChange={setAddress} focused={focused === 'address'} onFocus={() => setFocused('address')} onBlur={() => setFocused(null)} error={errors.address} />
+
+              <SectionDivider label="Professional Profile" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Category / Type of Work</label>
+                  <select value={promoCategory} onChange={e => setPromoCategory(e.target.value)} style={selectStyle}>
+                    <option value="">— Select category —</option>
+                    {PROMOTER_CATEGORIES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Experience Level</label>
+                  <select value={promoExperience} onChange={e => setPromoExperience(e.target.value)} style={selectStyle}>
+                    <option value="">— Select experience —</option>
+                    {EXPERIENCE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Gender</label>
+                  <select value={promoGender} onChange={e => setPromoGender(e.target.value)} style={selectStyle}>
+                    <option value="">— Select —</option>
+                    {['Male', 'Female', 'Non-binary', 'Prefer not to say'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Height (cm)</label>
+                  <input type="number" value={promoHeight} onChange={e => setPromoHeight(e.target.value)} placeholder="e.g. 170" min="140" max="220"
+                    style={{ width: '100%', background: 'rgba(196,151,58,0.03)', border: `1px solid ${BLACK_BORDER}`, padding: '13px 16px', fontFamily: FB, fontSize: 14, color: WHITE, outline: 'none' }}
+                    onFocus={e => e.currentTarget.style.borderColor = GOLD}
+                    onBlur={e => e.currentTarget.style.borderColor = BLACK_BORDER} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Clothing Size</label>
+                <select value={promoClothing} onChange={e => setPromoClothing(e.target.value)} style={selectStyle}>
+                  <option value="">— Select size —</option>
+                  {['XS (32–34)', 'S (34–36)', 'M (36–38)', 'L (38–40)', 'XL (40–42)', 'XXL (42–44)'].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
             </div>
           )}
 
@@ -673,6 +751,16 @@ export default function RegisterPage() {
                 <Field label="VAT Number (Optional)" placeholder="4410000000" value={vatNumber} onChange={setVatNumber} focused={focused === 'vatNumber'} onFocus={() => setFocused('vatNumber')} onBlur={() => setFocused(null)} />
               </div>
               <Field label="Business Address" placeholder="1 Business Park, Sandton, 2196" value={bizAddress} onChange={setBizAddress} focused={focused === 'bizAddress'} onFocus={() => setFocused('bizAddress')} onBlur={() => setFocused(null)} error={errors.bizAddress} />
+              <div>
+                <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+                  Industry / Sector <span style={{ color: GOLD }}>*</span>
+                </label>
+                <select value={bizIndustry} onChange={e => setBizIndustry(e.target.value)} style={selectStyle}>
+                  <option value="">— Select your industry —</option>
+                  {INDUSTRY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                {errors.bizIndustry && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: 5 }}>{errors.bizIndustry}</p>}
+              </div>
             </div>
           )}
 
