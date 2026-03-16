@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ALL_JOBS, getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/JobsPage';
+import { ALL_JOBS, getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
-const GL = '#E8A820'
-const G  = '#D4880A'
-const G3 = '#C07818'
-const G5 = '#6B3F10'
-const B  = '#0C0A07'
-const D1 = '#141008'
-const D2 = '#1A1408'
-const W  = '#FAF3E8'
+const GL  = '#E8A820'
+const G   = '#D4880A'
+const G3  = '#C07818'
+const G5  = '#6B3F10'
+const B   = '#0C0A07'
+const D1  = '#141008'
+const D2  = '#1A1408'
+const W   = '#FAF3E8'
 const W85 = 'rgba(250,243,232,0.85)'
 const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
@@ -127,7 +127,7 @@ function GlitterField() {
   )
 }
 
-// ── Single Job Card (compact, for the full grid) ──────────────────────────────
+// ── Single Job Card ───────────────────────────────────────────────────────────
 function JobCard({ job, index, isLoggedIn, onLock, onView }: {
   job: ReturnType<typeof getActiveJobs>[0]
   index: number
@@ -168,7 +168,7 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
           display: 'flex', flexDirection: 'column',
         }}
       >
-        {/* Top bar */}
+        {/* Top accent bar */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0,
           height: isFeatured ? 3 : 2,
@@ -177,7 +177,6 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
             : `linear-gradient(90deg, ${G5}, ${accent}88, ${G5})`,
         }} />
 
-        {/* Featured glow */}
         {isFeatured && (
           <div style={{
             position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)',
@@ -188,7 +187,7 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
         )}
 
         <div style={{ padding: '20px 20px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Tag + date */}
+          {/* Tag + slots left */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{
               fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase',
@@ -270,7 +269,10 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
   )
 }
 
-// ── Jobs Section — full 24 jobs in a scrollable grid ─────────────────────────
+// ── Jobs Section ──────────────────────────────────────────────────────────────
+// ✓ City buttons: All / Johannesburg / Cape Town / Durban / Pretoria
+// ✓ Type buttons: All Types / Brand Activation / Sampling / In-Store / Events & Hosting
+// ✗ "Show All N Jobs" button REMOVED — only "Open Full Jobs Board" below
 function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
   jobs: ReturnType<typeof getActiveJobs>
   isLoggedIn: boolean
@@ -279,7 +281,6 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
 }) {
   const [cityFilter, setCityFilter] = useState('All')
   const [typeFilter, setTypeFilter] = useState('All')
-  const [showAll,    setShowAll   ] = useState(false)
 
   const cities = ['All', 'Johannesburg', 'Cape Town', 'Durban', 'Pretoria']
   const types  = ['All', 'Brand Activation', 'Sampling', 'In-Store', 'Events & Hosting']
@@ -290,14 +291,16 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
     return cm && tm
   })
 
-  const visible = showAll ? filtered : filtered.slice(0, 8)
+  // Always cap at 8 on landing page — no show-all toggle
+  const visible = filtered.slice(0, 8)
 
   return (
     <div style={{ position: 'relative' }}>
       <GlitterField />
 
-      {/* Filter pills */}
+      {/* Filter bar */}
       <div style={{ position: 'relative', zIndex: 2, marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* City filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {cities.map(c => (
             <button key={c} onClick={() => setCityFilter(c)} style={{
@@ -313,7 +316,11 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
             </button>
           ))}
         </div>
+
+        {/* Divider */}
         <div style={{ width: 1, height: 16, background: JBB, flexShrink: 0 }} />
+
+        {/* Type filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {types.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)} style={{
@@ -329,12 +336,14 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
             </button>
           ))}
         </div>
+
+        {/* Position count */}
         <div style={{ marginLeft: 'auto', fontSize: 10, color: JB6, fontFamily: FD }}>
           {filtered.length} position{filtered.length !== 1 ? 's' : ''}
         </div>
       </div>
 
-      {/* Grid */}
+      {/* 4-col grid */}
       <div style={{
         position: 'relative', zIndex: 1,
         display: 'grid',
@@ -353,27 +362,7 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
         ))}
       </div>
 
-      {/* Show more / less */}
-      {filtered.length > 8 && (
-        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
-          <button
-            onClick={() => setShowAll(!showAll)}
-            style={{
-              padding: '10px 32px',
-              background: 'rgba(12,10,7,0.6)',
-              border: `1px solid ${JBB}`,
-              color: B, fontFamily: FD, fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.18em', textTransform: 'uppercase',
-              cursor: 'pointer', transition: 'all 0.25s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(12,10,7,0.82)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(12,10,7,0.6)'}
-          >
-            {showAll ? `▲ Show Less` : `▼ Show All ${filtered.length} Jobs`}
-          </button>
-        </div>
-      )}
-
+      {/* No results */}
       {filtered.length === 0 && (
         <div style={{ padding: '40px 0', textAlign: 'center', color: JB6, fontFamily: FD, fontSize: 13 }}>
           No jobs match your filters.
@@ -477,7 +466,7 @@ function FeatureSlideshow() {
   )
 }
 
-// ── About Section ─────────────────────────────────────────────────────────────
+// ── About Capabilities ────────────────────────────────────────────────────────
 function AboutCapabilities({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
   const [hoveredCap, setHoveredCap] = useState<number | null>(null)
   const caps = [
@@ -579,7 +568,6 @@ export default function LandingPage() {
     if (s) { try { setSession(JSON.parse(s)) } catch {} }
   }, [])
 
-  // Load all 24 jobs + any admin-created ones
   useEffect(() => {
     const load = () => setAllJobs(getActiveJobs(getAllJobsWithAdminJobs()))
     load()
@@ -697,7 +685,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── JOBS SECTION — all 24 jobs, 4-col grid with filters ── */}
+      {/* ── JOBS SECTION ── */}
       <section
         ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el }}
         className="reveal"
@@ -706,16 +694,16 @@ export default function LandingPage() {
         {/* Depth texture */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)' }} />
 
-        {/* Star bands — top-left */}
+        {/* Star sparkles — top-left */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-          {[{top:12,left:16,size:28,opacity:0.55,delay:'0s',dur:'2.6s'},{top:10,left:64,size:16,opacity:0.40,delay:'0.5s',dur:'3.2s'},{top:38,left:36,size:12,opacity:0.35,delay:'1.0s',dur:'2.9s'},{top:8,left:108,size:10,opacity:0.28,delay:'0.3s',dur:'3.7s'},{top:60,left:14,size:20,opacity:0.45,delay:'1.4s',dur:'2.4s'},{top:52,left:72,size:8,opacity:0.25,delay:'0.8s',dur:'4.0s'},{top:80,left:44,size:14,opacity:0.32,delay:'2.0s',dur:'3.0s'},{top:28,left:148,size:7,opacity:0.22,delay:'1.7s',dur:'3.5s'}].map((s,i)=>(
+          {[{top:12,left:16,size:28,opacity:0.55,delay:'0s',dur:'2.6s'},{top:10,left:64,size:16,opacity:0.40,delay:'0.5s',dur:'3.2s'},{top:38,left:36,size:12,opacity:0.35,delay:'1.0s',dur:'2.9s'},{top:8,left:108,size:10,opacity:0.28,delay:'0.3s',dur:'3.7s'},{top:60,left:14,size:20,opacity:0.45,delay:'1.4s',dur:'2.4s'},{top:52,left:72,size:8,opacity:0.25,delay:'0.8s',dur:'4.0s'},{top:80,left:44,size:14,opacity:0.32,delay:'2.0s',dur:'3.0s'},{top:28,left:148,size:7,opacity:0.22,delay:'1.7s',dur:'3.5s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', top:s.top, left:s.left, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
 
-        {/* Star bands — bottom-right */}
+        {/* Star sparkles — bottom-right */}
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-          {[{bottom:12,right:16,size:28,opacity:0.55,delay:'0.2s',dur:'2.6s'},{bottom:10,right:64,size:16,opacity:0.40,delay:'0.7s',dur:'3.2s'},{bottom:38,right:36,size:12,opacity:0.35,delay:'1.2s',dur:'2.9s'},{bottom:60,right:14,size:20,opacity:0.45,delay:'1.6s',dur:'2.4s'},{bottom:80,right:44,size:14,opacity:0.32,delay:'2.1s',dur:'3.0s'}].map((s,i)=>(
+          {[{bottom:12,right:16,size:28,opacity:0.55,delay:'0.2s',dur:'2.6s'},{bottom:10,right:64,size:16,opacity:0.40,delay:'0.7s',dur:'3.2s'},{bottom:38,right:36,size:12,opacity:0.35,delay:'1.2s',dur:'2.9s'},{bottom:60,right:14,size:20,opacity:0.45,delay:'1.6s',dur:'2.4s'},{bottom:80,right:44,size:14,opacity:0.32,delay:'2.1s',dur:'3.0s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', bottom:s.bottom, right:s.right, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
@@ -756,7 +744,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* All jobs grid with filters */}
+          {/* Jobs grid — city + type filters, NO show-all button */}
           <JobsSection
             jobs={allJobs}
             isLoggedIn={!!session}
@@ -764,7 +752,7 @@ export default function LandingPage() {
             onView={(id) => navigate(`/jobs/${id}`)}
           />
 
-          {/* View all CTA */}
+          {/* Single CTA — "Open Full Jobs Board" only */}
           <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 1, height: 32, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
             <button onClick={() => navigate('/jobs')}

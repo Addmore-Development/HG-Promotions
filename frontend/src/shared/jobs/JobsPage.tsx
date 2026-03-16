@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /* ─── TOKENS — gold/amber/brown only ────────────────────────────────────────── */
@@ -6,12 +6,12 @@ const B   = '#080808'
 const BC  = '#161616'
 const BC2 = '#111111'
 const BB  = 'rgba(212,136,10,0.16)'
-const GL  = '#E8A820'   // bright gold
-const G   = '#C4973A'   // mid gold
-const G2  = '#AB8D3F'   // luxor gold
-const G3  = '#D4880A'   // amber
-const G4  = '#8B5A1A'   // dark amber
-const G5  = '#6B3F10'   // deep brown
+const GL  = '#E8A820'
+const G   = '#C4973A'
+const G2  = '#AB8D3F'
+const G3  = '#D4880A'
+const G4  = '#8B5A1A'
+const G5  = '#6B3F10'
 
 const W   = '#FAF3E8'
 const WM  = 'rgba(250,243,232,0.65)'
@@ -20,8 +20,6 @@ const WD  = 'rgba(250,243,232,0.28)'
 const FD = "'Playfair Display', Georgia, serif"
 const FB = "'DM Sans', system-ui, sans-serif"
 
-/* ─── WARM ACCENT ROTATION (no blue/red/green) ───────────────────────────────
-   Every job gets one of these — cycles through so cards look distinct         */
 const ACCENT_PALETTE = [GL, G3, G2, G, G4, GL, G3, G2, G, G4, GL, G3, G2, G, G4, GL, G3, G2, G, G4, GL, G3, G2, G]
 
 /* ─── ALL 24 BASE JOBS ───────────────────────────────────────────────────────── */
@@ -364,13 +362,10 @@ export const ALL_JOBS = [
   },
 ]
 
-/* ─── Merge admin-created jobs from localStorage ─────────────────────────────
-   Admin jobs are stored with key 'hg_admin_jobs'.
-   They are prepended (newest first) before the base 24.                        */
+/* ─── Merge admin-created jobs from localStorage ─────────────────────────────── */
 export function getAllJobsWithAdminJobs(): typeof ALL_JOBS {
   try {
     const stored = JSON.parse(localStorage.getItem('hg_admin_jobs') || '[]') as any[]
-    // Pick an accent from the palette based on index
     const adminJobs = stored.map((j: any, idx: number) => ({
       ...j,
       companyColor: ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
@@ -396,14 +391,12 @@ export function getActiveJobs(allJobs: typeof ALL_JOBS) {
     })
 }
 
-
 /* ─── STATUS BADGE ─────────────────────────────────────────────────────────── */
 function StatusBadge({ status }: { status: string }) {
-  // All warm colors
   const map: Record<string, { color: string; bg: string }> = {
-    'open':         { color: GL,  bg: 'rgba(232,168,32,0.12)' },
-    'filling fast': { color: G3,  bg: 'rgba(212,136,10,0.12)' },
-    'closed':       { color: G4,  bg: 'rgba(139,90,26,0.18)'  },
+    'open':         { color: GL, bg: 'rgba(232,168,32,0.12)' },
+    'filling fast': { color: G3, bg: 'rgba(212,136,10,0.12)' },
+    'closed':       { color: G4, bg: 'rgba(139,90,26,0.18)'  },
   }
   const s = map[status] || map['open']
   return (
@@ -412,7 +405,6 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   )
 }
-
 
 /* ─── TERMS MODAL ──────────────────────────────────────────────────────────── */
 function TermsModal({ job, onAccept, onClose }: { job: typeof ALL_JOBS[0]; onAccept: () => void; onClose: () => void }) {
@@ -427,7 +419,7 @@ function TermsModal({ job, onAccept, onClose }: { job: typeof ALL_JOBS[0]; onAcc
           <div style={{ fontSize: 9, letterSpacing: '0.35em', textTransform: 'uppercase', color: G, marginBottom: 8 }}>Terms & Conditions — Read Before Accepting</div>
           <h2 style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, lineHeight: 1.3, marginBottom: 10 }}>{job.title}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px' }}>
-            {[['Company', job.company], ['Pay', `${job.pay} ${job.payPer}`], ['Location', job.location], ['Duration', job.duration]].map(([l,v]) => (
+            {[['Company', job.company], ['Pay', `${job.pay} ${job.payPer}`], ['Location', job.location], ['Duration', job.duration]].map(([l, v]) => (
               <div key={l} style={{ fontSize: 11, color: WM }}><span style={{ color: WD }}>{l}: </span>{v}</div>
             ))}
           </div>
@@ -466,7 +458,7 @@ function TermsModal({ job, onAccept, onClose }: { job: typeof ALL_JOBS[0]; onAcc
 
 /* ─── PAYMENT MODAL ────────────────────────────────────────────────────────── */
 function PaymentModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; onClose: () => void; onSuccess: () => void }) {
-  const [step, setStep] = useState<'select'|'processing'|'done'>('select')
+  const [step, setStep]     = useState<'select'|'processing'|'done'>('select')
   const [method, setMethod] = useState<'card'|'eft'|'wallet'>('card')
   const [cardNum, setCardNum] = useState('')
   const [expiry, setExpiry]   = useState('')
@@ -559,7 +551,6 @@ function PaymentModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; on
   )
 }
 
-
 /* ─── REPOST MODAL ─────────────────────────────────────────────────────────── */
 function RepostModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; onClose: () => void; onSuccess: (newDate: string, newId: string) => void }) {
   const [newDate, setNewDate] = useState('')
@@ -611,17 +602,19 @@ function RepostModal({ job, onClose, onSuccess }: { job: typeof ALL_JOBS[0]; onC
 
 /* ─── JOB CARD ─────────────────────────────────────────────────────────────── */
 function JobCard({ job, onView, onApply, onRepost, appliedIds, session }: {
-  job: any; onView: (id: string) => void; onApply: (job: any) => void
+  job: any
+  onView: (id: string) => void
+  onApply: (job: any) => void
   onRepost: (job: any) => void
-  appliedIds: Set<string>; session: { role: string; name: string } | null
+  appliedIds: Set<string>
+  session: { role: string; name: string } | null
 }) {
   const [hovered, setHovered] = useState(false)
-  const filled = job.slots - job.slotsLeft
-  const pct    = Math.round((filled / job.slots) * 100)
+  const filled     = job.slots - job.slotsLeft
+  const pct        = Math.round((filled / job.slots) * 100)
   const almostFull = job.slotsLeft <= 2
   const isApplied  = appliedIds.has(job.id)
-  // Use job's accentLine, fallback to G
-  const accent = job.accentLine || G
+  const accent     = job.accentLine || G
 
   return (
     <div>
@@ -639,7 +632,6 @@ function JobCard({ job, onView, onApply, onRepost, appliedIds, session }: {
         <div style={{ position:'relative', padding:'24px 24px 20px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
             <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-              {/* Company avatar — always amber/gold, never colored */}
               <div style={{ width:38, height:38, borderRadius:'50%', background:`rgba(196,151,58,0.16)`, border:`1px solid rgba(196,151,58,0.35)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:accent, flexShrink:0, fontFamily:FD }}>
                 {(job.companyInitial || job.company?.charAt(0) || '?')}
               </div>
@@ -699,17 +691,15 @@ function JobCard({ job, onView, onApply, onRepost, appliedIds, session }: {
       </div>
 
       {/* Action row */}
-      <div style={{ display:'flex', gap:4, marginTop:4 }}>
-        {session && (
+      {session && (
+        <div style={{ display:'flex', gap:4, marginTop:4 }}>
           <button onClick={()=>onRepost(job)}
             style={{ flex:1, padding:'8px', background:'transparent', border:`1px solid ${BB}`, color:WD, fontFamily:FB, fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=accent;e.currentTarget.style.color=accent}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=BB;e.currentTarget.style.color=WD}}>
             ↻ Repost Job
           </button>
-        )}
-      </div>
-      </div>
+        </div>
       )}
     </div>
   )
@@ -734,21 +724,17 @@ export default function JobsPage() {
   const [repostJob,  setRepostJob ] = useState<any>(null)
   const [toast,      setToast     ] = useState('')
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set())
-
-  // All jobs including admin-created ones from localStorage
-  const [allJobs, setAllJobs] = useState<any[]>([])
+  const [allJobs,    setAllJobs   ] = useState<any[]>([])
 
   useEffect(() => {
     const s = localStorage.getItem('hg_session')
     if (s) { try { setSession(JSON.parse(s)) } catch {} }
   }, [])
 
-  // Load jobs on mount and whenever localStorage changes (storage event)
   useEffect(() => {
     const load = () => setAllJobs(getAllJobsWithAdminJobs())
     load()
     window.addEventListener('storage', load)
-    // Also poll every 2 seconds to catch same-tab updates
     const interval = setInterval(load, 2000)
     return () => { window.removeEventListener('storage', load); clearInterval(interval) }
   }, [])
@@ -758,7 +744,7 @@ export default function JobsPage() {
   const handleApply  = (job: any) => { if (!session) { navigate('/login'); return }; setTermsJob(job) }
   const handleRepost = (job: any) => { if (!session) { navigate('/login'); return }; setRepostJob(job) }
 
-  const handleTermsAccepted = () => { if (!termsJob) return; setPaymentJob(termsJob); setTermsJob(null) }
+  const handleTermsAccepted  = () => { if (!termsJob) return; setPaymentJob(termsJob); setTermsJob(null) }
   const handlePaymentSuccess = () => {
     if (!paymentJob) return
     setAppliedIds(prev => new Set([...prev, paymentJob.id]))
@@ -775,7 +761,7 @@ export default function JobsPage() {
   const filtered = activeJobs
     .filter(j => typeFilter==='All Types' || j.type===typeFilter)
     .filter(j => cityFilter==='All Cities' || j.location.toLowerCase().includes(cityFilter.toLowerCase()))
-    .filter(j => !searchQ || [j.title,j.company,j.location].some(s=>s.toLowerCase().includes(searchQ.toLowerCase())))
+    .filter(j => !searchQ || [j.title,j.company,j.location].some((s:string)=>s.toLowerCase().includes(searchQ.toLowerCase())))
     .sort((a,b) => {
       if (sortBy==='Soonest Date') return new Date(a.jobDate).getTime()-new Date(b.jobDate).getTime()
       if (sortBy==='Highest Pay')  return parseInt(b.pay.replace(/\D/g,''))-parseInt(a.pay.replace(/\D/g,''))
@@ -816,7 +802,7 @@ export default function JobsPage() {
             </button>
           ) : (
             <>
-              <button onClick={()=>navigate('/login')}  style={{ padding:'9px 20px', background:'transparent', border:`1px solid ${BB}`, color:WM, fontFamily:FB, fontSize:11, cursor:'pointer' }}>Log In</button>
+              <button onClick={()=>navigate('/login')}    style={{ padding:'9px 20px', background:'transparent', border:`1px solid ${BB}`, color:WM, fontFamily:FB, fontSize:11, cursor:'pointer' }}>Log In</button>
               <button onClick={()=>navigate('/register')} style={{ padding:'9px 20px', background:G, border:'none', color:B, fontFamily:FB, fontSize:11, fontWeight:700, cursor:'pointer' }}>Register</button>
             </>
           )}
