@@ -48,16 +48,31 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     const {
       fullName, phone, city, province, gender, dateOfBirth,
       address, height, clothingSize, shoeSize, bankName, accountNumber, branchCode,
+      // Business-specific fields
+      contactName, vatNumber, industry, website,
     } = req.body;
 
     const updated = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
-        fullName, phone, city, province, gender,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-        address,
-        height: height ? parseInt(height) : undefined,
-        clothingSize, shoeSize, bankName, accountNumber, branchCode,
+        ...(fullName    !== undefined && { fullName }),
+        ...(phone       !== undefined && { phone }),
+        ...(city        !== undefined && { city }),
+        ...(province    !== undefined && { province }),
+        ...(gender      !== undefined && { gender }),
+        ...(address     !== undefined && { address }),
+        ...(dateOfBirth !== undefined && { dateOfBirth: new Date(dateOfBirth) }),
+        ...(height      !== undefined && { height: parseInt(height) }),
+        ...(clothingSize !== undefined && { clothingSize }),
+        ...(shoeSize    !== undefined && { shoeSize }),
+        ...(bankName    !== undefined && { bankName }),
+        ...(accountNumber !== undefined && { accountNumber }),
+        ...(branchCode  !== undefined && { branchCode }),
+        // Business fields
+        ...(contactName !== undefined && { contactName }),
+        ...(vatNumber   !== undefined && { vatNumber }),
+        ...(industry    !== undefined && { industry }),
+        ...(website     !== undefined && { website }),
       },
     });
 
