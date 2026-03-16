@@ -41,7 +41,6 @@ interface Job {
   lat?: number; lng?: number
   source: JobSource
   applications?: any[]
-  // base job extras for display
   pay?: string; payPer?: string; jobDate?: string
   location?: string; type?: string; duration?: string
   tags?: string[]; accentLine?: string
@@ -58,6 +57,13 @@ interface PromoterMatch {
 interface ShortlistEntry {
   jobId: string; promoterId: string; promoterName: string; notifiedAt: string
   message: string; type: 'shortlisted' | 'not_needed'
+}
+
+// ─── Client entry from API ────────────────────────────────────────────────────
+interface ClientEntry {
+  id: string
+  name: string
+  email: string
 }
 
 const STATUS_COLOR: Record<JobStatus, string> = {
@@ -106,7 +112,6 @@ function baseJobsToAdminJobs(): Job[] {
     city:        j.location.split(',').slice(-1)[0]?.trim() || '',
     category:    j.type,
     source:      'base' as JobSource,
-    // keep original fields for rich display
     pay:         j.pay,
     payPer:      j.payPer,
     jobDate:     j.jobDate,
@@ -182,6 +187,20 @@ const EMPTY_JOB: Omit<Job, 'id'|'applications'|'source'> = {
   hourlyRate:120, totalSlots:4, filledSlots:0, status:'open', city:'', category:'',
 }
 
+// ─── Fallback hardcoded clients (used if API is unreachable) ──────────────────
+const FALLBACK_CLIENTS: ClientEntry[] = [
+  { id:'f1', name:'Red Bull SA',         email:'' },
+  { id:'f2', name:'AB InBev',            email:'' },
+  { id:'f3', name:'Nike SA',             email:'' },
+  { id:'f4', name:'Vodacom',             email:'' },
+  { id:'f5', name:'Nedbank',             email:'' },
+  { id:'f6', name:'Castle Lager SA',     email:'' },
+  { id:'f7', name:'Standard Bank SA',    email:'' },
+  { id:'f8', name:'MTN SA',              email:'' },
+  { id:'f9', name:'Coca-Cola SA',        email:'' },
+  { id:'f10',name:'KFC South Africa',    email:'' },
+]
+
 export default function CRUDJobsLogic() {
   const [jobs,          setJobs         ] = useState<Job[]>([])
   const [loading,       setLoading      ] = useState(true)
@@ -194,6 +213,10 @@ export default function CRUDJobsLogic() {
   const [deleting,      setDeleting     ] = useState<string|null>(null)
   const [saving,        setSaving       ] = useState(false)
 
+  // ── API-driven clients ────────────────────────────────────────────────────────
+  const [clients,       setClients      ] = useState<ClientEntry[]>(FALLBACK_CLIENTS)
+  const [clientsLoaded, setClientsLoaded] = useState(false)
+
   // Promoters panel
   const [promoterJob,   setPromoterJob  ] = useState<Job|null>(null)
   const [matchedPromos, setMatchedPromos] = useState<PromoterMatch[]>([])
@@ -201,11 +224,40 @@ export default function CRUDJobsLogic() {
   const [shortlistMsg,  setShortlistMsg ] = useState('')
   const [notifications, setNotifications] = useState<ShortlistEntry[]>([])
 
+  // ── Load approved business clients from API ───────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('hg_token')
+    if (!token) return
+    fetch(`${API_URL}/admin/registrations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const bizClients: ClientEntry[] = data
+          .filter((u: any) => u.role?.toUpperCase() === 'BUSINESS' && u.status === 'approved')
+          .map((u: any) => ({
+            id:    u.id,
+            name:  u.fullName,
+            email: u.email,
+          }))
+        // Merge API clients with fallback — API clients listed first
+        const apiNames = new Set(bizClients.map(c => c.name.toLowerCase()))
+        const merged = [
+          ...bizClients,
+          ...FALLBACK_CLIENTS.filter(f => !apiNames.has(f.name.toLowerCase())),
+        ]
+        setClients(merged)
+        setClientsLoaded(true)
+      })
+      .catch(() => {
+        setClients(FALLBACK_CLIENTS)
+        setClientsLoaded(true)
+      })
+  }, [])
+
   // ── Load & merge all job sources ──────────────────────────────────────────────
   const loadJobs = useCallback(async () => {
-    // Always start with the 24 base jobs
     const base = baseJobsToAdminJobs()
-
     try {
       const res = await fetch(`${API_URL}/jobs?status=all`, { headers: authHeader() as any })
       if (res.ok) {
@@ -229,7 +281,6 @@ export default function CRUDJobsLogic() {
           source:      'api' as JobSource,
           applications: j.applications || [],
         }))
-        // API jobs take priority — replace any base jobs with same ID
         const apiIds = new Set(apiJobs.map(j => j.id))
         const mergedBase = base.filter(b => !apiIds.has(b.id))
         setJobs([...apiJobs, ...mergedBase])
@@ -237,7 +288,6 @@ export default function CRUDJobsLogic() {
         setJobs(base)
       }
     } catch {
-      // API offline — show all base jobs
       setJobs(base)
     }
     setLoading(false)
@@ -245,17 +295,15 @@ export default function CRUDJobsLogic() {
 
   useEffect(() => { loadJobs() }, [loadJobs])
 
-  // ── Sync open jobs back to localStorage so landing page & public board are live
+  // ── Sync open jobs to localStorage so landing page & public board are live ────
   useEffect(() => {
     const publicJobs = jobs
       .filter(j => j.status === 'open')
       .map((j, idx) => {
-        // Base jobs already have rich display fields
         if (j.source === 'base') {
           const base = ALL_JOBS.find(b => b.id === j.id)
           if (base) return base
         }
-        // API / admin-created jobs — build display shape
         return {
           id: j.id, title: j.title, company: j.client,
           companyInitial: j.client.charAt(0),
@@ -300,18 +348,15 @@ export default function CRUDJobsLogic() {
       }
 
       if (editing && editing.source !== 'base') {
-        // Update existing API job
         const res = await fetch(`${API_URL}/jobs/${editing.id}`, { method:'PUT', headers: authHeader() as any, body: JSON.stringify(payload) })
         if (res.ok) { await loadJobs(); closeModal() }
       } else if (editing && editing.source === 'base') {
-        // Override a base job in localStorage as an admin customisation
         const stored: any[] = JSON.parse(localStorage.getItem('hg_admin_jobs') || '[]')
         const updated = stored.map((j: any) => j.id === editing.id ? { ...j, ...payload, id: editing.id } : j)
         localStorage.setItem('hg_admin_jobs', JSON.stringify(updated))
         setJobs(prev => prev.map(j => j.id === editing.id ? { ...j, ...form, source:'admin' } : j))
         closeModal()
       } else {
-        // Create new
         const res = await fetch(`${API_URL}/jobs`, { method:'POST', headers: authHeader() as any, body: JSON.stringify(payload) })
         if (res.ok) { await loadJobs(); closeModal() }
       }
@@ -323,7 +368,6 @@ export default function CRUDJobsLogic() {
   const handleDelete = async (id: string) => {
     const job = jobs.find(j => j.id === id)
     if (job?.source === 'base') {
-      // Soft-remove base job from visible list only (can't delete from source)
       setJobs(prev => prev.filter(j => j.id !== id))
     } else {
       try {
@@ -334,7 +378,6 @@ export default function CRUDJobsLogic() {
     setDeleting(null)
   }
 
-  // ── Toggle base job status ─────────────────────────────────────────────────────
   const toggleBaseStatus = (job: Job, newStatus: JobStatus) => {
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: newStatus } : j))
   }
@@ -445,8 +488,6 @@ export default function CRUDJobsLogic() {
   const inputStyle: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
   const labelStyle: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
 
-  const registeredClients = ['Red Bull SA','AB InBev','Nike SA','Vodacom','Nedbank','Distell','SABMiller SA','Castle Lager SA','Standard Bank SA','MTN SA','Heineken SA','Woolworths SA','Tiger Brands','Coca-Cola SA','KFC South Africa','Old Mutual SA','Shoprite Holdings','Pick n Pay SA']
-
   return (
     <AdminLayout>
       <div style={{ padding:'40px 48px' }}>
@@ -488,13 +529,11 @@ export default function CRUDJobsLogic() {
             ))}
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-            {/* Source filter */}
             <div style={{ display:'flex', gap:4 }}>
               {(['all','base','api'] as const).map(s=>(
                 <FilterBtn key={s} label={s==='all'?'All Sources':s==='base'?`Base (${counts.base})`:`API (${counts.api})`} active={sourceFilter===s} color={G3} onClick={()=>setSourceFilter(s)} />
               ))}
             </div>
-            {/* Search */}
             <div style={{ position:'relative' }}>
               <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W28, fontSize:12, pointerEvents:'none' }}>⌕</span>
               <input placeholder="Search jobs…" value={search} onChange={e=>setSearch(e.target.value)}
@@ -525,16 +564,16 @@ export default function CRUDJobsLogic() {
           <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
               <colgroup>
-                <col style={{ width:'6%'  }} />{/* ID */}
-                <col style={{ width:'20%' }} />{/* Title */}
-                <col style={{ width:'11%' }} />{/* Client */}
-                <col style={{ width:'12%' }} />{/* Location */}
-                <col style={{ width:'8%'  }} />{/* Date */}
-                <col style={{ width:'7%'  }} />{/* Pay */}
-                <col style={{ width:'6%'  }} />{/* Slots */}
-                <col style={{ width:'7%'  }} />{/* Status */}
-                <col style={{ width:'5%'  }} />{/* Source */}
-                <col style={{ width:'18%' }} />{/* Actions */}
+                <col style={{ width:'6%'  }} />
+                <col style={{ width:'20%' }} />
+                <col style={{ width:'11%' }} />
+                <col style={{ width:'12%' }} />
+                <col style={{ width:'8%'  }} />
+                <col style={{ width:'7%'  }} />
+                <col style={{ width:'6%'  }} />
+                <col style={{ width:'7%'  }} />
+                <col style={{ width:'5%'  }} />
+                <col style={{ width:'18%' }} />
               </colgroup>
               <thead>
                 <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
@@ -546,23 +585,16 @@ export default function CRUDJobsLogic() {
               <tbody>
                 {filtered.map((job, i) => {
                   const isBase = job.source === 'base'
-                  // bright muted text colour — clearly readable
                   const DIM = 'rgba(250,243,232,0.60)'
                   return (
                     <tr key={job.id}
                       style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s', background:isBase?hex2rgba(GL,0.01):'transparent' }}
                       onMouseEnter={e=>e.currentTarget.style.background=BB2}
                       onMouseLeave={e=>e.currentTarget.style.background=isBase?hex2rgba(GL,0.01):'transparent'}>
-
-                      {/* ID */}
                       <td style={{ padding:'16px 16px', fontSize:10, color:DIM, fontFamily:MONO, verticalAlign:'top', paddingTop:18 }}>{job.id}</td>
-
-                      {/* Title / Tags */}
                       <td style={{ padding:'16px 16px', verticalAlign:'top' }}>
                         <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, lineHeight:1.3, marginBottom:3 }}>{job.title}</div>
-                        {job.category && (
-                          <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginBottom:5 }}>{job.category}</div>
-                        )}
+                        {job.category && <div style={{ fontSize:10, color:DIM, fontFamily:FD, marginBottom:5 }}>{job.category}</div>}
                         {job.tags && job.tags.length > 0 && (
                           <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                             {job.tags.slice(0,3).map((t,ti)=>(
@@ -571,17 +603,11 @@ export default function CRUDJobsLogic() {
                           </div>
                         )}
                       </td>
-
-                      {/* Client */}
                       <td style={{ padding:'16px 16px', fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'top', paddingTop:18 }}>{job.client}</td>
-
-                      {/* Location */}
                       <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
                         <div style={{ fontSize:12, color:W, fontFamily:FD, fontWeight:600 }}>{job.city || job.location?.split(',').slice(-1)[0]?.trim()}</div>
                         <div style={{ fontSize:11, color:DIM, fontFamily:FD, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
                       </td>
-
-                      {/* Date */}
                       <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
                         <div style={{ fontSize:12, color:'rgba(250,243,232,0.80)', fontFamily:FD, fontWeight:600 }}>
                           {job.jobDate || job.date ? new Date(job.jobDate||job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}) : '—'}
@@ -590,49 +616,31 @@ export default function CRUDJobsLogic() {
                           {isBase && job.duration ? job.duration : `${job.startTime}–${job.endTime}`}
                         </div>
                       </td>
-
-                      {/* Pay */}
                       <td style={{ padding:'16px 16px', fontSize:14, color:GL, fontWeight:700, fontFamily:FD, verticalAlign:'top', paddingTop:18, whiteSpace:'nowrap' }}>
                         {isBase ? job.pay : `R${job.hourlyRate}/hr`}
                       </td>
-
-                      {/* Slots */}
                       <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
                         <div style={{ fontSize:13, color:W, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
                         <div style={{ marginTop:6, height:3, background:'rgba(212,136,10,0.22)', borderRadius:2, width:44 }}>
                           <div style={{ height:'100%', borderRadius:2, background:STATUS_COLOR[job.status], width:`${job.totalSlots>0?(job.filledSlots/job.totalSlots)*100:0}%`, transition:'width 0.3s' }} />
                         </div>
                       </td>
-
-                      {/* Status */}
-                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
-                        <StatusBadge status={job.status} />
-                      </td>
-
-                      {/* Source */}
-                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}>
-                        <SourceBadge source={job.source} />
-                      </td>
-
-                      {/* Actions — single row of compact pills */}
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}><StatusBadge status={job.status} /></td>
+                      <td style={{ padding:'16px 16px', verticalAlign:'top', paddingTop:18 }}><SourceBadge source={job.source} /></td>
                       <td style={{ padding:'12px 16px', verticalAlign:'middle' }}>
                         <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-                          {/* Edit */}
                           <button onClick={()=>openEdit(job)}
                             style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
                             onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.20)}
                             onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(GL,0.10)}>
                             Edit
                           </button>
-                          {/* Staff */}
                           <button onClick={()=>openPromoterPanel(job)}
                             style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
                             onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G4,0.20)}
                             onMouseLeave={e=>e.currentTarget.style.background=hex2rgba(G4,0.10)}>
                             Staff
                           </button>
-
-                          {/* Cancel base */}
                           {isBase && job.status==='open' && (
                             <button onClick={()=>toggleBaseStatus(job,'cancelled')}
                               style={{ fontSize:10, color:'rgba(250,243,232,0.60)', background:'rgba(250,243,232,0.05)', border:`1px solid rgba(250,243,232,0.18)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
@@ -641,7 +649,6 @@ export default function CRUDJobsLogic() {
                               Cancel
                             </button>
                           )}
-                          {/* Reopen base */}
                           {isBase && job.status==='cancelled' && (
                             <button onClick={()=>toggleBaseStatus(job,'open')}
                               style={{ fontSize:10, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
@@ -650,7 +657,6 @@ export default function CRUDJobsLogic() {
                               Reopen
                             </button>
                           )}
-                          {/* Open slot */}
                           {job.status==='filled' && !isBase && (
                             <button onClick={()=>markSlotOpen(job)}
                               style={{ fontSize:10, color:G4, background:hex2rgba(G4,0.10), border:`1px solid ${hex2rgba(G4,0.35)}`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
@@ -659,7 +665,6 @@ export default function CRUDJobsLogic() {
                               +Slot
                             </button>
                           )}
-                          {/* Hide / Delete */}
                           <button onClick={()=>setDeleting(job.id)}
                             style={{ fontSize:10, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, cursor:'pointer', fontFamily:FD, padding:'5px 12px', borderRadius:3, whiteSpace:'nowrap' as const, transition:'all 0.15s' }}
                             onMouseEnter={e=>e.currentTarget.style.background='rgba(139,90,26,0.25)'}
@@ -730,14 +735,49 @@ export default function CRUDJobsLogic() {
                   <input type="text" value={form.title} onChange={e=>F('title',e.target.value)} style={inputStyle}
                     onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                 </div>
+
+                {/* ── CLIENT DROPDOWN — API-driven ── */}
                 <div>
-                  <label style={labelStyle}>Client</label>
+                  <label style={labelStyle}>
+                    Client
+                    {!clientsLoaded && <span style={{ color:W28, fontWeight:400, marginLeft:8, fontSize:9 }}>Loading…</span>}
+                    {clientsLoaded && clients.filter(c=>c.email).length > 0 && (
+                      <span style={{ color:GL, fontWeight:400, marginLeft:8, fontSize:9 }}>
+                        ● {clients.filter(c=>c.email).length} registered
+                      </span>
+                    )}
+                  </label>
                   <select value={form.client} onChange={e=>F('client',e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>
                     <option value="">— Select client —</option>
-                    {registeredClients.map(c=><option key={c} value={c}>{c}</option>)}
-                    <option value="__other__">Other</option>
+                    {/* Registered (API) clients shown first with a marker */}
+                    {clients.filter(c => c.email).length > 0 && (
+                      <optgroup label="── Registered Clients ──">
+                        {clients.filter(c => c.email).map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* Fallback / additional clients */}
+                    <optgroup label="── Other Clients ──">
+                      {clients.filter(c => !c.email).map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                    <option value="__other__">Other (type below)</option>
                   </select>
+                  {/* Allow typing a custom client name if Other is selected */}
+                  {form.client === '__other__' && (
+                    <input
+                      type="text"
+                      placeholder="Enter client name…"
+                      style={{ ...inputStyle, marginTop:8 }}
+                      onChange={e => F('client', e.target.value)}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL}
+                      onBlur={e=>e.currentTarget.style.borderColor=BB}
+                    />
+                  )}
                 </div>
+
                 <div>
                   <label style={labelStyle}>Category</label>
                   <select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inputStyle, background:D3, cursor:'pointer' }}>

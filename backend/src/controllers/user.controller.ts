@@ -2,15 +2,20 @@ import { Request, Response } from 'express';
 import { prisma } from '../config';
 import { AuthRequest } from '../middleware/auth';
 import { auditLog } from '../utils/auditLogger';
-import { uploadToS3, mockS3Url } from '../services/s3.service';
+import { uploadToS3 } from '../services/s3.service';
+import * as fs from 'fs';
+import * as path from 'path';
 import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 export const uploadMiddleware = upload.fields([
-  { name: 'profilePhoto', maxCount: 1 },
-  { name: 'cv', maxCount: 1 },
-  { name: 'headshot', maxCount: 1 },
+  { name: 'profilePhoto',  maxCount: 1 },
+  { name: 'cv',            maxCount: 1 },
+  { name: 'headshot',      maxCount: 1 },
   { name: 'fullBodyPhoto', maxCount: 1 },
+  { name: 'cipcDoc',       maxCount: 1 },
+  { name: 'taxPin',        maxCount: 1 },
+  { name: 'bizBankProof',  maxCount: 1 },
 ]);
 
 
@@ -80,13 +85,22 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
         cv:            'cvUrl',
         headshot:      'headshotUrl',
         fullBodyPhoto: 'fullBodyPhotoUrl',
+        cipcDoc:       'cipcDocUrl',
+        taxPin:        'taxPinUrl',
+        bizBankProof:  'bizBankProofUrl',
       };
 
       if (fieldMap[field]) {
-        const url = isDev
-          ? mockS3Url(`users/${userId}`, `${field}-${Date.now()}`)
-          : await uploadToS3(key, file.buffer, file.mimetype);
-
+        let url: string;
+        if (isDev) {
+          const uploadDir = path.join(process.cwd(), 'uploads', userId);
+          fs.mkdirSync(uploadDir, { recursive: true });
+          const filename = `${field}-${Date.now()}${path.extname(file.originalname) || ''}`;
+          fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
+          url = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${userId}/${filename}`;
+        } else {
+          url = await uploadToS3(key, file.buffer, file.mimetype);
+        }
         updates[fieldMap[field]] = url;
       }
     }
@@ -96,7 +110,7 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
     await auditLog({ userId, action: 'UPLOAD_DOCUMENTS', entity: 'User', entityId: userId, meta: { fields: Object.keys(updates) } });
 
     // Auto-flag for review if core docs uploaded
-    if (user.headshotUrl && user.fullBodyPhotoUrl) {
+    if ((user.headshotUrl && user.fullBodyPhotoUrl) || user.cipcDocUrl) {
       await prisma.user.update({ where: { id: userId }, data: { onboardingStatus: 'documents_submitted' } });
     }
 
@@ -106,6 +120,61 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: 'Document upload failed' });
   }
 };
+
+export const uploadDocumentsByUserId = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    if (!userId) { res.status(400).json({ error: 'userId is required' }); return; }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const files = req.files as Record<string, Express.Multer.File[]>;
+    const updates: Record<string, string> = {};
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    for (const [field, fileArr] of Object.entries(files)) {
+      const file = fileArr[0];
+      const key = `users/${userId}/${field}-${Date.now()}`;
+      const fieldMap: Record<string, string> = {
+        profilePhoto:  'profilePhotoUrl',
+        cv:            'cvUrl',
+        headshot:      'headshotUrl',
+        fullBodyPhoto: 'fullBodyPhotoUrl',
+        cipcDoc:       'cipcDocUrl',
+        taxPin:        'taxPinUrl',
+        bizBankProof:  'bizBankProofUrl',
+      };
+      if (fieldMap[field]) {
+        let url: string;
+        if (isDev) {
+          const uploadDir = path.join(process.cwd(), 'uploads', userId);
+          fs.mkdirSync(uploadDir, { recursive: true });
+          const filename = `${field}-${Date.now()}${path.extname(file.originalname) || ''}`;
+          fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
+          url = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${userId}/${filename}`;
+        } else {
+          url = await uploadToS3(key, file.buffer, file.mimetype);
+        }
+        updates[fieldMap[field]] = url;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const updated = await prisma.user.update({ where: { id: userId }, data: updates });
+      await auditLog({ userId, action: 'UPLOAD_DOCUMENTS', entity: 'User', entityId: userId, meta: { fields: Object.keys(updates) } });
+      if ((updated.headshotUrl && updated.fullBodyPhotoUrl) || updated.cipcDocUrl) {
+        await prisma.user.update({ where: { id: userId }, data: { onboardingStatus: 'documents_submitted' } });
+      }
+    }
+
+    res.json({ message: 'Documents uploaded', urls: updates });
+  } catch (err) {
+    console.error('[User] public document upload error:', err);
+    res.status(500).json({ error: 'Document upload failed' });
+  }
+};
+
 
 
 export const getUserById = async (req: Request, res: Response): Promise<void> => {

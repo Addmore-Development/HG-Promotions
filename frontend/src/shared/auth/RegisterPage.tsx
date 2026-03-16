@@ -428,35 +428,74 @@ export default function RegisterPage() {
       const { authService } = await import('../services/authService')
 
       if (isPromoter) {
-        await authService.register({
-          name:         `${firstName} ${lastName}`,
-          email:        email.toLowerCase(),
-          password,
-          role:         'PROMOTER',
-          phone:        phone.replace(/\s/g, ''),
-          consentPopia: true,
-          idNumber,
-          city:         address,
+        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+        const promoterRegRes = await fetch(`${API}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name:         `${firstName} ${lastName}`,
+            email:        email.toLowerCase(),
+            password,
+            role:         'PROMOTER',
+            phone:        phone.replace(/\s/g, ''),
+            consentPopia: true,
+            idNumber,
+            city:         address,
+          }),
         })
-        const { usersService } = await import('../services/usersService')
-        const formData = new FormData()
-        if (bankProof)    formData.append('cv',            bankProof)
-        if (headshotFile) formData.append('headshot',      headshotFile)
-        if (fullBodyFile) formData.append('fullBodyPhoto', fullBodyFile)
+        const promoterData = await promoterRegRes.json()
+        if (!promoterRegRes.ok) throw new Error(promoterData.error || 'Registration failed')
+        const promoterUserId = promoterData.userId || ''
+        // Upload promoter documents using the public registration route
         if (bankProof || headshotFile || fullBodyFile) {
-          await usersService.uploadDocuments(email.toLowerCase(), formData)
+          try {
+            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const formData = new FormData()
+            if (bankProof)    formData.append('cv',            bankProof)
+            if (headshotFile) formData.append('headshot',      headshotFile)
+            if (fullBodyFile) formData.append('fullBodyPhoto', fullBodyFile)
+            await fetch(`${API}/users/register-documents/${promoterUserId}`, {
+              method: 'POST',
+              body: formData,
+            })
+          } catch { /* non-fatal — docs can be uploaded later */ }
         }
       } else {
-        await authService.register({
-          name:         companyName,
-          email:        bizEmail.toLowerCase(),
-          password:     bizPassword,
-          role:         'BUSINESS',
-          phone:        bizPhone.replace(/\s/g, ''),
-          consentPopia: true,
-          companyName,
-          companyReg:   regNumber,
+        const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+        const bizRegRes = await fetch(`${API}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name:         companyName,
+            email:        bizEmail.toLowerCase(),
+            password:     bizPassword,
+            role:         'BUSINESS',
+            phone:        bizPhone.replace(/\s/g, ''),
+            consentPopia: true,
+            companyName,
+            contactName,
+            companyReg:   regNumber,
+            vatNumber,
+            city:         bizAddress,
+          }),
         })
+        const bizData = await bizRegRes.json()
+        if (!bizRegRes.ok) throw new Error(bizData.error || 'Registration failed')
+        const bizUserId = bizData.userId || ''
+        // Upload business documents using the public registration route
+        if (cipcDoc || taxPin || bizBankProof) {
+          try {
+            const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const bizDocs = new FormData()
+            if (cipcDoc)      bizDocs.append('cipcDoc',      cipcDoc)
+            if (taxPin)       bizDocs.append('taxPin',       taxPin)
+            if (bizBankProof) bizDocs.append('bizBankProof', bizBankProof)
+            await fetch(`${API}/users/register-documents/${bizUserId}`, {
+              method: 'POST',
+              body: bizDocs,
+            })
+          } catch { /* non-fatal — docs can be uploaded later */ }
+        }
       }
 
       setDone(true)

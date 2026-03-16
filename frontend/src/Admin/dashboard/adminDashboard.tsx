@@ -36,6 +36,8 @@ const C_INACTIVE = '#E8D5A8'
 const FD   = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 // ─── Client Categories & Specs ────────────────────────────────────────────────
 const CLIENT_CATEGORIES = [
   'FMCG / Beverages', 'FMCG / Food', 'Retail', 'Telecoms', 'Automotive',
@@ -198,25 +200,6 @@ function statusBorder(s: string): string {
 function normalizeStatus(s: string) { return s === 'pending_review' ? 'pending' : s || 'pending' }
 function isPending(s: string)       { return s === 'pending' || s === 'pending_review' }
 
-function loadRealRegistrations() {
-  try {
-    const stored: any[] = JSON.parse(localStorage.getItem('hg_users') || '[]')
-    return stored.map((u: any, idx: number) => ({
-      id: `LIVE-${idx + 1}`,
-      name: u.fullName || u.contactName || u.companyName || u.email,
-      email: u.email, role: u.role as string,
-      date: u.createdAt ? String(u.createdAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
-      status: normalizeStatus(String(u.status || 'pending')),
-      city: u.city || u.location || (u.address ? u.address.split(',').pop()?.trim() : '') || 'Not specified',
-      phone: u.phone || u.contactPhone || 'Not provided',
-      source: 'real', _rawStatus: u.status || 'pending',
-      details: u.role === 'promoter'
-        ? { gender: u.gender || 'N/A', height: u.height || 'N/A', idNumber: u.idNumber || 'N/A', experience: u.experience || 'N/A' }
-        : { regNumber: u.regNumber || 'N/A', industry: u.industry || 'N/A', website: u.website || 'N/A', contactPerson: u.contactName || u.fullName || 'N/A', companyName: u.companyName || 'N/A' },
-    }))
-  } catch { return [] }
-}
-
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_LOGINS = [
   { id:'L001', name:'Ayanda Dlamini', email:'ayanda@email.com', role:'promoter', time:'2026-03-11T08:02:00', ip:'196.25.1.4'  },
@@ -378,7 +361,6 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
         </div>
 
         <div style={{ padding:'0 36px 36px', display:'flex', flexDirection:'column', gap:16 }}>
-
           {step === 'info' && (
             <>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
@@ -491,34 +473,130 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose:()=>void; onApprove:()=>void; onReject:()=>void }) {
+  const [fullData, setFullData] = useState<any>(null)
   const isPromoter = item.role === 'promoter'
   const pending    = isPending(item.status)
   const accent     = isPromoter ? G3 : GL
+
+  // Fetch full user data from API when modal opens
+  useEffect(() => {
+    if (item.source !== 'real' || !item.id) return
+    const token = localStorage.getItem('hg_token')
+    if (!token) return
+    fetch(`${API_URL}/users/${item.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setFullData(data) })
+      .catch(() => {})
+  }, [item.id])
+
+  const d = fullData || item._raw || {}
+
+  const infoRows = isPromoter
+    ? [
+        { label: 'Email',         value: d.email || item.email },
+        { label: 'Phone',         value: d.phone || item.phone || 'Not provided' },
+        { label: 'ID Number',     value: d.idNumber || 'Not provided' },
+        { label: 'City',          value: d.city || item.city || 'Not specified' },
+        { label: 'Address',       value: d.address || 'Not provided' },
+        { label: 'Bank',          value: d.bankName ? `${d.bankName} — ${d.accountNumber || 'N/A'}` : 'Not provided' },
+        { label: 'Applied',       value: item.date },
+      ]
+    : [
+        { label: 'Email',         value: d.email || item.email },
+        { label: 'Phone',         value: d.phone || item.phone || 'Not provided' },
+        { label: 'Company Name',  value: d.fullName || item.name },
+        { label: 'Contact Person',value: d.contactName || item._raw?.contactName || 'Not provided' },
+        { label: 'Reg Number',    value: d.address || 'Not provided' },
+        { label: 'VAT Number',    value: d.vatNumber || 'N/A' },
+        { label: 'City',          value: d.city || item.city || 'Not specified' },
+        { label: 'Applied',       value: item.date },
+      ]
+
+  const docs = isPromoter
+    ? [
+        { label: 'Headshot',       url: d.headshotUrl },
+        { label: 'Full Body Photo',url: d.fullBodyPhotoUrl },
+        { label: 'Bank Proof',     url: d.cvUrl },
+      ]
+    : [
+        { label: 'CIPC Document',  url: d.cipcDocUrl },
+        { label: 'Tax PIN',        url: d.taxPinUrl },
+        { label: 'Bank Proof',     url: d.bizBankProofUrl },
+      ]
+
+  const hasDocs = docs.some(doc => doc.url)
+
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, padding:24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background:D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:520, position:'relative', maxHeight:'90vh', overflowY:'auto', borderRadius:4 }}>
+      <div style={{ background:D2, border:`1px solid ${BB}`, padding:'44px', width:'100%', maxWidth:540, position:'relative', maxHeight:'90vh', overflowY:'auto', borderRadius:4 }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${accent},${G5})` }} />
         <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18, fontFamily:FD }}>✕</button>
         <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>{isPromoter?'Promoter Application':'Business Application'}</div>
         <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:8 }}>{item.name}</div>
-        <div style={{ marginBottom:16, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ marginBottom:20, display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           <Badge label={item.status} color={statusColor(item.status)} bg={statusBg(item.status)} border={statusBorder(item.status)} />
           {item.source==='real' && <span style={{ fontSize:10, color:GL, fontWeight:700, fontFamily:FD }}>● Live</span>}
         </div>
-        {[{label:'Email',value:item.email},{label:'Phone',value:item.phone},{label:'City',value:item.city},{label:'Applied',value:item.date}].map((r:any)=>(
+
+        {/* Info rows */}
+        <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginBottom:12, fontWeight:700, fontFamily:FD }}>
+          {isPromoter ? 'Promoter Details' : 'Business Details'}
+        </div>
+        {infoRows.map((r:any) => (
           <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
             <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{r.label}</span>
             <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{r.value}</span>
           </div>
         ))}
-        <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:20, marginBottom:12, fontWeight:700, fontFamily:FD }}>{isPromoter?'Promoter Profile':'Business Profile'}</div>
-        {Object.entries(item.details).map(([k,v])=>(
-          <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
-            <span style={{ fontSize:12, color:W55, textTransform:'capitalize', fontFamily:FD }}>{k.replace(/([A-Z])/g,' $1')}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{String(v)}</span>
-          </div>
-        ))}
+
+        {/* Documents section */}
+        {item.source === 'real' && (
+          <>
+            <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:24, marginBottom:12, fontWeight:700, fontFamily:FD }}>
+              Documents
+            </div>
+            {!fullData && (
+              <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 0' }}>Loading documents…</div>
+            )}
+            {fullData && !hasDocs && (
+              <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 16px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>
+                No documents uploaded yet.
+              </div>
+            )}
+            {fullData && hasDocs && (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {docs.filter(doc => doc.url).map(doc => (
+                  <a
+                    key={doc.label}
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    style={{
+                      display:'flex', alignItems:'center', justifyContent:'space-between',
+                      padding:'12px 16px',
+                      background:hex2rgba(GL,0.06),
+                      border:`1px solid ${hex2rgba(GL,0.25)}`,
+                      borderRadius:3,
+                      textDecoration:'none',
+                      transition:'all 0.18s',
+                    }}
+                    onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.12)}}
+                    onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.06)}}
+                  >
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:16 }}>{doc.url?.match(/\.(jpg|jpeg|png|webp)/i) ? '🖼️' : '📄'}</span>
+                      <span style={{ fontSize:12, color:W, fontWeight:600, fontFamily:FD }}>{doc.label}</span>
+                    </div>
+                    <span style={{ fontSize:10, color:GL, fontWeight:700, fontFamily:FD, letterSpacing:'0.1em' }}>↓ Download</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {pending && <div style={{ display:'flex', gap:12, marginTop:28 }}><Btn onClick={onApprove} color={C_ACTIVE}>✓ Approve</Btn><Btn onClick={onReject} color={G2} outline>✗ Reject</Btn></div>}
         {!pending && item.status==='approved' && <div style={{ marginTop:28, padding:'12px 16px', background:hex2rgba(C_ACTIVE,0.08), border:`1px solid ${hex2rgba(C_ACTIVE,0.35)}`, fontSize:12, color:GL, fontFamily:FD, borderRadius:3 }}>✓ This account has been approved.</div>}
         {!pending && item.status==='rejected' && <div style={{ marginTop:28, padding:'12px 16px', background:hex2rgba(G5,0.4), border:`1px solid ${hex2rgba(G2,0.35)}`, fontSize:12, color:C_REJECTED, fontFamily:FD, borderRadius:3 }}>✗ This account has been rejected.</div>}
@@ -607,7 +685,6 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
   const greeting = h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night'
   const unread = msgs.filter(m=>!m.read).length
 
-  // Live jobs count from the merged jobs source
   const activeJobs = getActiveJobs(getAllJobsWithAdminJobs())
 
   const stats = [
@@ -643,7 +720,6 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
         </div>
       </div>
 
-      {/* Stats — 5 cards */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:32 }}>
         {stats.map((s,i) => (
           <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} onClick={()=>onRoute(s.id)} />
@@ -651,7 +727,6 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
-        {/* Quick Actions */}
         <div style={{ background:'rgba(20,16,5,0.6)', padding:28 }}>
           <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:18, fontWeight:700, fontFamily:FD }}>Quick Actions</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
@@ -667,7 +742,6 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
           </div>
         </div>
 
-        {/* Live Activity */}
         <div style={{ background:'rgba(20,16,5,0.6)', padding:28 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
             <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>Live Activity</div>
@@ -1202,11 +1276,55 @@ export default function AdminDashboard() {
   const [msgs,       setMsgs  ] = useState<any[]>(INIT_MESSAGES)
   const [detailItem, setDetail] = useState<any>(null)
 
-  useEffect(()=>{
-    const real = loadRealRegistrations()
-    const realEmails = new Set(real.map((r:any)=>r.email))
-    setRegs([...real,...MOCK_REGISTRATIONS.filter(m=>!realEmails.has(m.email))])
-  },[])
+  // ── Load registrations from API, fall back to mock data ────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('hg_token')
+    if (!token) {
+      setRegs(MOCK_REGISTRATIONS)
+      return
+    }
+    fetch(`${API_URL}/admin/registrations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const apiRegs = data.map((u: any) => ({
+          id:     u.id,
+          name:   u.fullName,
+          email:  u.email,
+          role:   u.role?.toLowerCase() === 'business' ? 'business' : 'promoter',
+          date:   u.createdAt ? String(u.createdAt).slice(0, 10) : new Date().toISOString().slice(0, 10),
+          status: u.status === 'pending_review' ? 'pending' : (u.status || 'pending'),
+          city:   u.city || 'Not specified',
+          phone:  u.phone || 'Not provided',
+          source: 'real',
+          _rawStatus: u.status || 'pending_review',
+          // Pass raw API data through so DetailModal can access all fields
+          _raw: u,
+          details: u.role?.toLowerCase() === 'business'
+            ? {
+                companyName:   u.fullName || 'N/A',
+                regNumber:     u.companyReg || 'N/A',
+                vatNumber:     u.vatNumber || 'N/A',
+                industry:      u.industry || 'N/A',
+                website:       u.website || 'N/A',
+                contactPerson: u.contactName || u.fullName || 'N/A',
+                address:       u.city || 'N/A',
+              }
+            : {
+                gender:     u.gender || 'N/A',
+                height:     u.height ? `${u.height}cm` : 'N/A',
+                idNumber:   u.idNumber || 'N/A',
+                experience: u.experience || 'N/A',
+                city:       u.city || 'N/A',
+              },
+        }))
+        // API registrations take priority — deduplicate by email against mock data
+        const apiEmails = new Set(apiRegs.map((r: any) => r.email))
+        setRegs([...apiRegs, ...MOCK_REGISTRATIONS.filter(m => !apiEmails.has(m.email))])
+      })
+      .catch(() => setRegs(MOCK_REGISTRATIONS))
+  }, [])
 
   useEffect(()=>{
     const t = setInterval(()=>setTime(new Date()),1000)
@@ -1226,14 +1344,17 @@ export default function AdminDashboard() {
     navigate('/admin?tab='+id)
   }
 
-  const updateStatus = (id:string, status:'approved'|'rejected')=>{
-    setRegs(p=>p.map(r=>{
-      if(r.id!==id) return r
-      if(r.source==='real'){
-        try{ const u:any[]=JSON.parse(localStorage.getItem('hg_users')||'[]'); localStorage.setItem('hg_users',JSON.stringify(u.map((x:any)=>x.email===r.email?{...x,status}:x))) }catch{}
-      }
-      return{...r,status}
-    }))
+  // ── Approve / Reject via API ───────────────────────────────────────────────
+  const updateStatus = (id: string, status: 'approved' | 'rejected') => {
+    const token = localStorage.getItem('hg_token')
+    if (token) {
+      fetch(`${API_URL}/admin/users/${id}/approve`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: status }),
+      }).catch(console.error)
+    }
+    setRegs(p => p.map(r => r.id !== id ? r : { ...r, status }))
     setDetail(null)
   }
 

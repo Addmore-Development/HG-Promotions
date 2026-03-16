@@ -8,7 +8,13 @@ import { auditLog } from '../utils/auditLogger';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password, role, consentPopia } = req.body;
+    const {
+      name, email, password, role, consentPopia,
+      // Promoter fields
+      phone, idNumber, city,
+      // Business fields
+      companyName, contactName, companyReg, vatNumber,
+    } = req.body;
 
     if (!name || !email || !password) {
       res.status(400).json({ error: 'name, email and password are required' });
@@ -28,22 +34,39 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const hashed = await bcrypt.hash(password, 12);
+    const normalizedRole = (role?.toUpperCase() || 'PROMOTER') as any;
+    const isBusiness = normalizedRole === 'BUSINESS';
+
     const user = await prisma.user.create({
       data: {
-        fullName: name,
+        // For business: store company name as fullName, contact person in contactName
+        fullName:         isBusiness ? (companyName || name) : name,
         email,
-        password: hashed,
-        role: (role?.toUpperCase() || 'PROMOTER') as any,
-        consentPopia: !!consentPopia,
-        status: 'pending_review',
+        password:         hashed,
+        role:             normalizedRole,
+        consentPopia:     !!consentPopia,
+        status:           'pending_review',
         onboardingStatus: 'pending_review',
+
+        // Shared fields
+        phone:            phone    || null,
+        city:             city     || null,
+
+        // Promoter-specific
+        idNumber:         !isBusiness ? (idNumber || null) : null,
+
+        // Business-specific — stored in available schema fields
+        contactName:      isBusiness ? (contactName || name) : null,  // contact person name
+        vatNumber:        isBusiness ? (vatNumber || null) : null,
+        // companyReg stored in address field for business users
+        address:          isBusiness ? (companyReg || null) : null,
       },
     });
 
     await auditLog({ userId: user.id, action: 'REGISTER', entity: 'User', entityId: user.id });
 
     res.status(201).json({
-      message: 'Registration successful  pending admin review',
+      message: 'Registration successful — pending admin review',
       userId: user.id,
     });
   } catch (err) {
@@ -79,13 +102,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json({
       token,
       user: {
-        id: user.id,
-        name: user.fullName,
-        email: user.email,
-        role: user.role,
-        status: user.status,
+        id:               user.id,
+        name:             user.fullName,
+        email:            user.email,
+        role:             user.role,
+        status:           user.status,
         onboardingStatus: user.onboardingStatus,
-        profilePhotoUrl: user.profilePhotoUrl,
+        profilePhotoUrl:  user.profilePhotoUrl,
       },
     });
   } catch (err) {
