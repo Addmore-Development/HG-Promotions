@@ -7,8 +7,6 @@ import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 export const uploadMiddleware = upload.fields([
-  { name: 'idFront', maxCount: 1 },
-  { name: 'idBack', maxCount: 1 },
   { name: 'profilePhoto', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
   { name: 'headshot', maxCount: 1 },
@@ -25,7 +23,7 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
         city: true, province: true, gender: true, dateOfBirth: true,
         address: true, height: true, clothingSize: true, shoeSize: true,
         bankName: true, accountNumber: true, branchCode: true,
-        idFrontUrl: true, idBackUrl: true, profilePhotoUrl: true, cvUrl: true,
+        profilePhotoUrl: true, cvUrl: true,
         headshotUrl: true, fullBodyPhotoUrl: true,
         status: true, onboardingStatus: true, reliabilityScore: true, consentPopia: true,
         role: true, createdAt: true,
@@ -78,8 +76,6 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
       const file = fileArr[0];
       const key = `users/${userId}/${field}-${Date.now()}`;
       const fieldMap: Record<string, string> = {
-        idFront:       'idFrontUrl',
-        idBack:        'idBackUrl',
         profilePhoto:  'profilePhotoUrl',
         cv:            'cvUrl',
         headshot:      'headshotUrl',
@@ -100,7 +96,7 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
     await auditLog({ userId, action: 'UPLOAD_DOCUMENTS', entity: 'User', entityId: userId, meta: { fields: Object.keys(updates) } });
 
     // Auto-flag for review if core docs uploaded
-    if (user.idFrontUrl && user.idBackUrl && user.profilePhotoUrl) {
+    if (user.headshotUrl && user.fullBodyPhotoUrl) {
       await prisma.user.update({ where: { id: userId }, data: { onboardingStatus: 'documents_submitted' } });
     }
 
