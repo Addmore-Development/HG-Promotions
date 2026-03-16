@@ -371,7 +371,7 @@ This creates all the tables in your production database.
 
 ---
 
-### ⚠️ Free Tier Warning
+###  Free Tier Warning
 
 Free Render services **spin down after 15 minutes of inactivity**. The first request after sleeping takes 30–60 seconds. To avoid this:
 - Upgrade to the **Starter plan ($7/month)**
@@ -666,11 +666,11 @@ npx prisma migrate reset
 
 | Service | URL |
 |---|---|
-| 🌐 Frontend | `https://_____________.vercel.app` |
-| ⚙️ Backend API | `https://_____________.onrender.com` |
-| 🏥 API Health Check | `https://_____________.onrender.com/api/health` |
-| 🗄️ Render Dashboard | https://dashboard.render.com |
-| ▲ Vercel Dashboard | https://vercel.com/dashboard |
+|  Frontend | `https://_____________.vercel.app` |
+|  Backend API | `https://_____________.onrender.com` |
+|  API Health Check | `https://_____________.onrender.com/api/health` |
+|  Render Dashboard | https://dashboard.render.com |
+|  Vercel Dashboard | https://vercel.com/dashboard |
 
 ---
 
