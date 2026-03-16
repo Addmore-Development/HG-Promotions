@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { showToast } from '../../shared/utils/toast';
+import { jobsService } from '../../shared/services/jobsService'; // <-- import the service
 
 const G   = '#D4880A';
 const GL  = '#E8A820';
@@ -35,25 +36,25 @@ const SA_CITIES = [
   'stellenbosch', 'paarl', 'bellville', 'mitchells plain',
   'khayelitsha', 'tygervalley', 'hillbrow', 'braamfontein', 'rosebank',
   'fourways', 'alexandra', 'lenasia',
-]
+];
 
 function extractCityTokens(cityValue: string): string[] {
-  if (!cityValue) return []
-  const lower = cityValue.toLowerCase()
-  const knownMatch = SA_CITIES.find(c => lower.includes(c))
-  if (knownMatch) return [knownMatch]
+  if (!cityValue) return [];
+  const lower = cityValue.toLowerCase();
+  const knownMatch = SA_CITIES.find(c => lower.includes(c));
+  if (knownMatch) return [knownMatch];
   return cityValue
     .split(',')
     .map(s => s.trim().toLowerCase())
-    .filter(s => s.length > 2 && !/^\d+$/.test(s))
+    .filter(s => s.length > 2 && !/^\d+$/.test(s));
 }
 
 function jobMatchesPromoterCity(job: any, promoterCityRaw: string): boolean {
-  if (!promoterCityRaw) return false
-  const tokens = extractCityTokens(promoterCityRaw)
-  if (tokens.length === 0) return false
-  const jobText = [job.address || '', job.venue || '', job.city || ''].join(' ').toLowerCase()
-  return tokens.some(token => jobText.includes(token))
+  if (!promoterCityRaw) return false;
+  const tokens = extractCityTokens(promoterCityRaw);
+  if (tokens.length === 0) return false;
+  const jobText = [job.address || '', job.venue || '', job.city || ''].join(' ').toLowerCase();
+  return tokens.some(token => jobText.includes(token));
 }
 
 export const ViewAcceptJobs: React.FC = () => {
@@ -70,14 +71,28 @@ export const ViewAcceptJobs: React.FC = () => {
 
   const loadData = async () => {
     if (!user) return;
-    const [jobsRes, meRes, appsRes] = await Promise.all([
-      fetch(`${API}/jobs`,            { headers: authHdr() as any }),
-      fetch(`${API}/auth/me`,         { headers: authHdr() as any }),
+
+    // Use jobsService to fetch available jobs – it already handles transformation & auth
+    const [jobsData, meRes, appsRes] = await Promise.all([
+      jobsService.getAvailableJobs(),                         // ✅ now using the service
+      fetch(`${API}/auth/me`, { headers: authHdr() as any }),
       fetch(`${API}/applications/my`, { headers: authHdr() as any }),
     ]);
-    if (jobsRes.ok)  setJobs(await jobsRes.json());
-    if (meRes.ok)    setProfile(await meRes.json());
-    if (appsRes.ok)  setApplications(await appsRes.json());
+
+    setJobs(jobsData); // jobsService returns the already transformed Job[] (with nested coordinates)
+
+    if (meRes.ok) {
+      const profileData = await meRes.json();
+      console.log('Profile data:', profileData);
+      setProfile(profileData);
+    }
+
+    if (appsRes.ok) {
+      const appsData = await appsRes.json();
+      console.log('Applications data:', appsData);
+      setApplications(appsData);
+    }
+
     setLoading(false);
   };
 
@@ -151,11 +166,11 @@ export const ViewAcceptJobs: React.FC = () => {
   const getAppForJob = (jobId: string) => applications.find(a => a.jobId === jobId);
 
   const cityDisplayName = (() => {
-    if (!promoterCityRaw) return ''
-    const tokens = extractCityTokens(promoterCityRaw)
-    if (tokens.length === 0) return promoterCityRaw
-    return tokens[0].replace(/\b\w/g, (c: string) => c.toUpperCase())
-  })()
+    if (!promoterCityRaw) return '';
+    const tokens = extractCityTokens(promoterCityRaw);
+    if (tokens.length === 0) return promoterCityRaw;
+    return tokens[0].replace(/\b\w/g, (c: string) => c.toUpperCase());
+  })();
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: WD, padding: '60px 0', justifyContent: 'center' }}>
