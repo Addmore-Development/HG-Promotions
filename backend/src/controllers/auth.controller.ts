@@ -12,8 +12,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name, email, password, role, consentPopia,
       // Promoter fields
       phone, idNumber, city,
+      gender, height, clothingSize, experience, industry: promoterIndustry,
       // Business fields
       companyName, contactName, companyReg, vatNumber,
+      industry: bizIndustry,
     } = req.body;
 
     if (!name || !email || !password) {
@@ -39,7 +41,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const user = await prisma.user.create({
       data: {
-        // For business: store company name as fullName, contact person in contactName
         fullName:         isBusiness ? (companyName || name) : name,
         email,
         password:         hashed,
@@ -48,18 +49,22 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         status:           'pending_review',
         onboardingStatus: 'pending_review',
 
-        // Shared fields
-        phone:            phone    || null,
-        city:             city     || null,
+        // Shared
+        phone:            phone || null,
+        city:             city  || null,
 
         // Promoter-specific
-        idNumber:         !isBusiness ? (idNumber || null) : null,
+        idNumber:         !isBusiness ? (idNumber     || null) : null,
+        gender:           !isBusiness ? (gender       || null) : null,
+        height:           !isBusiness && height ? parseInt(height) : null,
+        clothingSize:     !isBusiness ? (clothingSize || null) : null,
+        industry:         !isBusiness ? (promoterIndustry || null) : (bizIndustry || null),
+        province:         !isBusiness ? (experience     || null) : null,  // stores experience level for promoters
 
-        // Business-specific — stored in available schema fields
-        contactName:      isBusiness ? (contactName || name) : null,  // contact person name
-        vatNumber:        isBusiness ? (vatNumber || null) : null,
-        // companyReg stored in address field for business users
-        address:          isBusiness ? (companyReg || null) : null,
+        // Business-specific
+        contactName:      isBusiness ? (contactName || name) : null,
+        vatNumber:        isBusiness ? (vatNumber   || null) : null,
+        address:          isBusiness ? (companyReg  || null) : null,
       },
     });
 
@@ -132,10 +137,31 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
         phone: true,
         city: true,
         province: true,
+        address: true,
         reliabilityScore: true,
-        profilePhotoUrl: true,
         consentPopia: true,
         createdAt: true,
+        // Business fields
+        contactName: true,
+        vatNumber: true,
+        industry: true,
+        website: true,
+        // Documents
+        profilePhotoUrl: true,
+        cipcDocUrl: true,
+        taxPinUrl: true,
+        bizBankProofUrl: true,
+        // Promoter fields
+        idNumber: true,
+        gender: true,
+        height: true,
+        clothingSize: true,
+        shoeSize: true,
+        bankName: true,
+        accountNumber: true,
+        headshotUrl: true,
+        fullBodyPhotoUrl: true,
+        cvUrl: true,
       },
     });
 
