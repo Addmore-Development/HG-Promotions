@@ -448,7 +448,7 @@ export default function RegisterPage() {
         }
       } else {
         await authService.register({
-          name:         contactName,
+          name:         companyName,
           email:        bizEmail.toLowerCase(),
           password:     bizPassword,
           role:         'BUSINESS',
