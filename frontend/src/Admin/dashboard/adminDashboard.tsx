@@ -21,17 +21,18 @@ const GM = '#221C0A'
 const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
 
-const W   = '#FAF3E8'
-const W85 = 'rgba(250,243,232,0.85)'
-const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
-const WM  = 'rgba(250,243,232,0.75)'
+// ─── Updated text colors — softer white, brighter greys ───────────────────────
+const W   = '#CEC5B2'                   // warm mid-cream — no longer blinding
+const W85 = 'rgba(210,198,180,0.95)'   // near-full warm grey
+const W55 = 'rgba(192,178,158,0.80)'   // bright readable mid-grey
+const W28 = 'rgba(172,158,136,0.65)'   // visible dark-grey (was nearly invisible)
+const WM  = 'rgba(200,188,168,0.88)'   // modal body text
 
 const C_ACTIVE   = '#C07818'
 const C_PENDING  = '#E8A820'
-const C_REJECTED = '#E8D5A8'
+const C_REJECTED = '#C8B898'
 const C_NEW      = '#F0C050'
-const C_INACTIVE = '#E8D5A8'
+const C_INACTIVE = '#C8B898'
 
 const FD   = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
@@ -327,7 +328,7 @@ function StatCard({ label, value, sub, color, onClick }: { label:string; value:a
       <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${color},${hex2rgba(color,0.4)})` }} />
       <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:W55, marginBottom:10, fontFamily:FD }}>{label}</div>
       <div style={{ fontFamily:FD, fontSize:38, fontWeight:700, color:W, lineHeight:1 }}>{value}</div>
-      {sub && <div style={{ fontSize:11, color, marginTop:8, fontWeight:700, fontFamily:FD }}>{sub}</div>}
+      {sub && <div style={{ fontSize:11, color:color, marginTop:8, fontWeight:700, fontFamily:FD }}>{sub}</div>}
     </div>
   )
 }
@@ -577,7 +578,7 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose
         {infoRows.map((r:any) => (
           <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
             <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{r.label}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{r.value}</span>
+            <span style={{ fontSize:12, color:W85, fontWeight:700, fontFamily:FD }}>{r.value}</span>
           </div>
         ))}
 
@@ -595,7 +596,7 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose
                     onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.06)}}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <span style={{ fontSize:16 }}>{doc.url?.match(/\.(jpg|jpeg|png|webp)/i) ? '🖼️' : '📄'}</span>
-                      <span style={{ fontSize:12, color:W, fontWeight:600, fontFamily:FD }}>{doc.label}</span>
+                      <span style={{ fontSize:12, color:W85, fontWeight:600, fontFamily:FD }}>{doc.label}</span>
                     </div>
                     <span style={{ fontSize:10, color:GL, fontWeight:700, fontFamily:FD, letterSpacing:'0.1em' }}>↓ Download</span>
                   </a>
@@ -666,7 +667,7 @@ function ClientModal({ client, onClose }: { client:any; onClose:()=>void }) {
         ].map((r:any)=>(
           <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
             <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{r.label}</span>
-            <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{r.value}</span>
+            <span style={{ fontSize:12, color:W85, fontWeight:700, fontFamily:FD }}>{r.value}</span>
           </div>
         ))}
         {client.categorySpecs && Object.keys(client.categorySpecs).length > 0 && (
@@ -675,7 +676,7 @@ function ClientModal({ client, onClose }: { client:any; onClose:()=>void }) {
             {Object.entries(client.categorySpecs).map(([k,v]:any)=>(
               <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:`1px solid ${BB}` }}>
                 <span style={{ fontSize:12, color:W55, textTransform:'capitalize', fontFamily:FD }}>{k}</span>
-                <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{String(v)}</span>
+                <span style={{ fontSize:12, color:W85, fontWeight:700, fontFamily:FD }}>{String(v)}</span>
               </div>
             ))}
           </>
@@ -820,7 +821,7 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
             {['Name','Role','City','Date','Status','Source','Actions'].map(h=>(
-              <th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD }}>{h}</th>
+              <th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W55, fontFamily:FD }}>{h}</th>
             ))}
           </tr></thead>
           <tbody>
@@ -840,7 +841,7 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
                 <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{r.city}</td>
                 <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{r.date}</td>
                 <td style={{ padding:'14px 18px' }}><Badge label={r.status} color={statusColor(r.status)} bg={statusBg(r.status)} border={statusBorder(r.status)} /></td>
-                <td style={{ padding:'14px 18px' }}><span style={{ fontSize:10, fontWeight:700, color:r.source==='real'?GL:W28, fontFamily:FD }}>{r.source==='real'?'● Live':'○ Demo'}</span></td>
+                <td style={{ padding:'14px 18px' }}><span style={{ fontSize:10, fontWeight:700, color:r.source==='real'?GL:W55, fontFamily:FD }}>{r.source==='real'?'● Live':'○ Demo'}</span></td>
                 <td style={{ padding:'14px 18px' }}>
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                     <button onClick={()=>onDetail(r)} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700 }}>View →</button>
@@ -855,14 +856,13 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
             ))}
           </tbody>
         </table>
-        {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>No registrations match your filters.</div>}
+        {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No registrations match your filters.</div>}
       </div>
     </div>
   )
 }
 
 // ─── Clients Tab ──────────────────────────────────────────────────────────────
-// Now receives clients + setClients as props — no longer owns its own state
 function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React.Dispatch<React.SetStateAction<any[]>> }) {
   const [statusF,  setStatusF ] = useState('all')
   const [cityF,    setCityF   ] = useState('all')
@@ -900,7 +900,7 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
           <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>
             Businesses registered on the platform who book promoters.
             {' '}<span style={{ color:GL, fontWeight:700 }}>{clients.filter(c=>c.source==='api'||c.source==='local').length} live</span>
-            {' '}· <span style={{ color:W28 }}>{clients.filter(c=>c.status==='new').length} pending approval</span>
+            {' '}· <span style={{ color:W55 }}>{clients.filter(c=>c.status==='new').length} pending approval</span>
           </p>
         </div>
         <Btn onClick={()=>setAddOpen(true)}>+ Add Client</Btn>
@@ -930,7 +930,7 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
             <option value="totalHours">Most Hours</option>
           </select>
           <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W28, fontSize:12, pointerEvents:'none' }}>⌕</span>
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W55, fontSize:12, pointerEvents:'none' }}>⌕</span>
             <input placeholder="Search clients…" value={search} onChange={e=>setSearch(e.target.value)}
               style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 14px 7px 30px', color:W, fontFamily:FD, fontSize:11, outline:'none', borderRadius:3, width:200 }}
               onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
@@ -941,10 +941,10 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
       <div style={{ borderRadius:4, overflow:'hidden', border:`1px solid ${BB}` }}>
         <div style={{ display:'grid', gridTemplateColumns:COLS, background:D1, padding:'11px 24px', gap:0 }}>
           {['Business','Contact','Industry / City','Registered','Jobs','Status',''].map(h=>(
-            <div key={h} style={{ fontSize:8.5, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:W28, fontFamily:FD, paddingRight:12 }}>{h}</div>
+            <div key={h} style={{ fontSize:8.5, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:W55, fontFamily:FD, paddingRight:12 }}>{h}</div>
           ))}
         </div>
-        {filtered.length===0&&<div style={{ padding:'48px 24px', textAlign:'center', color:W28, fontSize:13, background:D2, fontFamily:FD }}>No clients match your filters.</div>}
+        {filtered.length===0&&<div style={{ padding:'48px 24px', textAlign:'center', color:W55, fontSize:13, background:D2, fontFamily:FD }}>No clients match your filters.</div>}
         {filtered.map((c,i)=>{
           const accent = avatarAccents[i%avatarAccents.length]
           return (
@@ -956,12 +956,12 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
                 <div style={{ width:40, height:40, borderRadius:8, flexShrink:0, background:`linear-gradient(145deg,${G5}CC,${hex2rgba(accent,0.28)})`, border:`1px solid ${hex2rgba(accent,0.32)}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:700, color:accent, fontFamily:FD }}>{c.name.charAt(0)}</div>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:W, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontFamily:FD }}>{c.name}</div>
-                  <div style={{ fontSize:10.5, color:W28, marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontFamily:FD }}>{c.email}</div>
+                  <div style={{ fontSize:10.5, color:W55, marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontFamily:FD }}>{c.email}</div>
                 </div>
               </div>
               <div style={{ paddingRight:16 }}>
                 <div style={{ fontSize:12, color:W85, fontWeight:600, fontFamily:FD }}>{c.contact}</div>
-                <div style={{ fontSize:10.5, color:W28, marginTop:2, fontFamily:FD }}>{c.phone}</div>
+                <div style={{ fontSize:10.5, color:W55, marginTop:2, fontFamily:FD }}>{c.phone}</div>
               </div>
               <div style={{ paddingRight:16 }}>
                 <div style={{ fontSize:10.5, color:GL, fontWeight:700, marginBottom:3, fontFamily:FD }}>{c.industry}</div>
@@ -973,7 +973,7 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
               </div>
               <div style={{ paddingRight:16 }}>
                 <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, lineHeight:1 }}>{c.jobsRun}</div>
-                <div style={{ fontSize:10, color:W28, marginTop:3, fontFamily:FD }}>{c.totalHours}h</div>
+                <div style={{ fontSize:10, color:W55, marginTop:3, fontFamily:FD }}>{c.totalHours}h</div>
               </div>
               <div style={{ paddingRight:12 }}>
                 <Badge label={c.status} color={statusColor(c.status)} bg={statusBg(c.status)} border={statusBorder(c.status)} />
@@ -988,8 +988,8 @@ function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React
         })}
       </div>
 
-      <div style={{ marginTop:12, fontSize:11, color:W28, fontFamily:FD }}>
-        Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{clients.length}</strong> clients
+      <div style={{ marginTop:12, fontSize:11, color:W55, fontFamily:FD }}>
+        Showing <strong style={{ color:W85 }}>{filtered.length}</strong> of <strong style={{ color:W85 }}>{clients.length}</strong> clients
       </div>
 
       {viewing  && <ClientModal client={viewing} onClose={()=>setViewing(null)} />}
@@ -1004,7 +1004,6 @@ function LoginsTab() {
   const [roleF,  setRoleF ] = useState('all')
   const [dateF,  setDateF ] = useState('all')
 
-  // Merge localStorage login activity on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem('hg_login_activity')
@@ -1056,7 +1055,7 @@ function LoginsTab() {
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Comms · Activity</div>
         <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Login Activity</h1>
-        <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>All non-admin logins · <strong style={{ color:W }}>{logins.length}</strong> events recorded</p>
+        <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>All non-admin logins · <strong style={{ color:W85 }}>{logins.length}</strong> events recorded</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:1, background:BB, marginBottom:24 }}>
         {[
@@ -1074,7 +1073,7 @@ function LoginsTab() {
       <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4 }}>
         <table style={{ width:'100%', borderCollapse:'collapse' }}>
           <thead><tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
-            {['User','Role','Time','IP Address'].map(h=><th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD }}>{h}</th>)}
+            {['User','Role','Time','IP Address'].map(h=><th key={h} style={{ padding:'12px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W55, fontFamily:FD }}>{h}</th>)}
           </tr></thead>
           <tbody>
             {filtered.map((l,i)=>(
@@ -1085,12 +1084,12 @@ function LoginsTab() {
                 <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
                   {l.time ? new Date(l.time).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'}
                 </td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W28, fontFamily:MONO }}>{l.ip || '—'}</td>
+                <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:MONO }}>{l.ip || '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>No login activity recorded yet.</div>}
+        {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No login activity recorded yet.</div>}
       </div>
     </div>
   )
@@ -1204,7 +1203,7 @@ function ReportsTab({ regs }: { regs:any[] }) {
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
           <span style={{ fontSize:18, color:GL }}>◈</span>
           <div style={{ fontSize:10, letterSpacing:'0.25em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>Promoter Payout Calculator</div>
-          <span style={{ fontSize:9, color:W28, marginLeft:8, padding:'2px 8px', border:`1px solid ${BB}`, letterSpacing:'0.1em', borderRadius:3, fontFamily:FD }}>Estimate only · Promoters</span>
+          <span style={{ fontSize:9, color:W55, marginLeft:8, padding:'2px 8px', border:`1px solid ${BB}`, letterSpacing:'0.1em', borderRadius:3, fontFamily:FD }}>Estimate only · Promoters</span>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, alignItems:'flex-end' }}>
           {[{label:'Hourly Rate (R)',val:hourlyRate,set:setHourlyRate},{label:'Hours per Shift',val:hours,set:setHours},{label:'No. of Promoters',val:numPromos,set:setNumPromos}].map(f=>(
@@ -1324,7 +1323,7 @@ function SettingsTab() {
             <div key={row.label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 0', borderBottom:`1px solid ${BB}` }}>
               <div>
                 <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{row.label}</div>
-                <div style={{ fontSize:11, color:W28, marginTop:2, fontFamily:FD }}>{row.desc}</div>
+                <div style={{ fontSize:11, color:W55, marginTop:2, fontFamily:FD }}>{row.desc}</div>
               </div>
               <Toggle val={row.val} set={row.set} />
             </div>
@@ -1347,13 +1346,11 @@ export default function AdminDashboard() {
   const [msgs,       setMsgs   ] = useState<any[]>(INIT_MESSAGES)
   const [detailItem, setDetail ] = useState<any>(null)
 
-  // ── Clock ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  // ── Load registrations from API, fall back to mock ───────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
     if (!token) { setRegs(MOCK_REGISTRATIONS); return }
@@ -1382,7 +1379,6 @@ export default function AdminDashboard() {
       .catch(() => setRegs(MOCK_REGISTRATIONS))
   }, [])
 
-  // ── Load BUSINESS users → merge into clients list ────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
     if (!token) return
@@ -1398,13 +1394,9 @@ export default function AdminDashboard() {
           return [...apiClients, ...prev.filter(c => !apiEmails.has(c.email?.toLowerCase()))]
         })
       })
-      .catch(() => {
-        // API offline — fall back to localStorage
-        syncLocalBizRegs()
-      })
+      .catch(() => { syncLocalBizRegs() })
   }, [])
 
-  // ── Helper: sync business registrations from localStorage ────────────────────
   const syncLocalBizRegs = () => {
     try {
       const stored = localStorage.getItem('hg_registrations')
@@ -1421,15 +1413,13 @@ export default function AdminDashboard() {
     } catch { /* silent */ }
   }
 
-  // ── Watch localStorage for real-time registrations (RegisterPage writes here) ─
   useEffect(() => {
-    syncLocalBizRegs() // run on mount
+    syncLocalBizRegs()
     const onStorage = () => syncLocalBizRegs()
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  // ── Routing ──────────────────────────────────────────────────────────────────
   const handleRoute = (id: string) => {
     const external: Record<string, string> = {
       users:      '/admin/users',
@@ -1443,7 +1433,6 @@ export default function AdminDashboard() {
     navigate('/admin?tab=' + id)
   }
 
-  // ── Approve / Reject ─────────────────────────────────────────────────────────
   const updateStatus = (id: string, status: 'approved' | 'rejected') => {
     const token = localStorage.getItem('hg_token')
     if (token) {
@@ -1453,9 +1442,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ decision: status }),
       }).catch(console.error)
     }
-    // Update registrations list
     setRegs(p => p.map(r => r.id !== id ? r : { ...r, status }))
-    // Sync client status if this is a business user
     setClients(prev => prev.map(c =>
       c.id !== id ? c : { ...c, status: status === 'approved' ? 'active' : 'inactive' }
     ))
