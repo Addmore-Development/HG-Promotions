@@ -6,6 +6,7 @@ const BLK  = '#050402'
 const BLK1 = '#0A0804'
 const BLK2 = '#100C05'
 const BLK3 = '#181206'
+const BLK4 = '#201608'
 const GL   = '#E8A820'
 const GD   = '#C07818'
 const GD2  = '#8B5A1A'
@@ -30,7 +31,9 @@ function authHdr() {
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-function StatCard({ label, value, sub, color, delay = 0 }: { label: string; value: string | number; sub?: string; color?: string; delay?: number }) {
+function StatCard({ label, value, sub, color, delay = 0 }: {
+  label: string; value: string | number; sub?: string; color?: string; delay?: number
+}) {
   const c = color || GL
   return (
     <div className="biz-page" style={{ animationDelay: `${delay}ms`, background: BLK2, border: `1px solid ${BB}`, padding: '24px 22px', position: 'relative', overflow: 'hidden', borderRadius: 3 }}>
@@ -46,16 +49,15 @@ export default function BusinessDashboard() {
   const navigate = useNavigate()
   const [session,     setSession]     = useState<any>(null)
   const [jobs,        setJobs]        = useState<any[]>([])
-  const [loading,     setLoading]      = useState(true)
-  const [time,        setTime]         = useState(new Date())
-  const [companyName, setCompanyName]  = useState('')
+  const [loading,     setLoading]     = useState(true)
+  const [time,        setTime]        = useState(new Date())
+  const [companyName, setCompanyName] = useState('')
 
   useEffect(() => {
     const s = localStorage.getItem('hg_session')
     if (s) {
       const parsed = JSON.parse(s)
       setSession(parsed)
-      // Fetch profile from API to get the stored company name (fullName)
       const token = localStorage.getItem('hg_token')
       if (token) {
         fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -79,20 +81,22 @@ export default function BusinessDashboard() {
     load()
   }, [])
 
-  const displayName = companyName || session?.companyName || session?.name || session?.email || 'My Business'
-  const h = time.getHours()
-  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+  const displayName  = companyName || session?.companyName || session?.name || session?.email || 'My Business'
+  const h            = time.getHours()
+  const greeting     = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 
-  const openJobs  = jobs.filter(j => j.status === 'OPEN').length
-  const filledJobs = jobs.filter(j => j.status === 'FILLED').length
+  const openJobs       = jobs.filter(j => j.status === 'OPEN').length
+  const filledJobs     = jobs.filter(j => j.status === 'FILLED').length
   const totalAllocated = jobs.reduce((acc, j) => acc + (j.filledSlots || 0), 0)
 
-  const recentJobs = [...jobs].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 6)
+  const recentJobs = [...jobs]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 6)
 
   const quickActions = [
-    { label: 'View Jobs',      icon: '◎', path: '/business/jobs',      color: GL  },
-    { label: 'Live Tracking',  icon: '⊙', path: '/business/tracking',  color: GD  },
-    { label: 'Payroll',        icon: '◆', path: '/business/payroll',   color: GD2 },
+    { label: 'View Jobs',     icon: '◎', path: '/business/jobs',     color: GL  },
+    { label: 'Live Tracking', icon: '⊙', path: '/business/tracking', color: GD  },
+    { label: 'Payroll',       icon: '◆', path: '/business/payroll',  color: GD2 },
   ]
 
   return (
@@ -101,37 +105,52 @@ export default function BusinessDashboard() {
       <div className="biz-page" style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>Business Portal</div>
+            <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, marginBottom: 8, fontWeight: 700, fontFamily: FD }}>
+              Business Portal
+            </div>
             <h1 style={{ fontFamily: FD, fontSize: 'clamp(24px,3vw,38px)', fontWeight: 700, color: W, lineHeight: 1.1 }}>
               {greeting},<br />
               <span style={{ color: GL }}>{displayName}</span>
             </h1>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: FD, fontSize: 24, color: GL }}>{time.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}</div>
-            <div style={{ fontSize: 11, color: W4, marginTop: 4, fontFamily: FB }}>{time.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            <div style={{ fontFamily: FD, fontSize: 24, color: GL }}>
+              {time.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <div style={{ fontSize: 11, color: W4, marginTop: 4, fontFamily: FB }}>
+              {time.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 28 }}>
-        <StatCard label="Total Jobs"       value={jobs.length}        sub="All campaigns"           color={GL}  delay={0}   />
-        <StatCard label="Open Jobs"        value={openJobs}           sub="Accepting promoters"     color={GL}  delay={60}  />
-        <StatCard label="Filled Jobs"      value={filledJobs}         sub="Fully staffed"           color={GD}  delay={120} />
-        <StatCard label="Promoters Placed" value={totalAllocated}     sub="Across all jobs"         color={GD2} delay={180} />
+        <StatCard label="Total Jobs"       value={jobs.length}    sub="All campaigns"       color={GL}  delay={0}   />
+        <StatCard label="Open Jobs"        value={openJobs}       sub="Accepting promoters" color={GL}  delay={60}  />
+        <StatCard label="Filled Jobs"      value={filledJobs}     sub="Fully staffed"       color={GD}  delay={120} />
+        <StatCard label="Promoters Placed" value={totalAllocated} sub="Across all jobs"     color={GD2} delay={180} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB, marginBottom: 0 }}>
-        {/* Quick actions */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB }}>
+
+        {/* Quick Actions */}
         <div style={{ background: BLK2, padding: 24 }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 18 }}>Quick Actions</div>
+          <div style={{ fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 18 }}>
+            Quick Actions
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {quickActions.map(a => (
               <button key={a.path} onClick={() => navigate(a.path)}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: BLK3, border: `1px solid ${BB}`, cursor: 'pointer', transition: 'all 0.2s', borderRadius: 2 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = BLK4; (e.currentTarget as HTMLElement).style.borderColor = hex2rgba(a.color, 0.4) }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = BLK3; (e.currentTarget as HTMLElement).style.borderColor = BB }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: BLK3, border: `1px solid ${BB}`, cursor: 'pointer', transition: 'all 0.2s', borderRadius: 2, width: '100%' }}
+                onMouseEnter={e => {
+                  ;(e.currentTarget as HTMLElement).style.background    = BLK4
+                  ;(e.currentTarget as HTMLElement).style.borderColor   = hex2rgba(a.color, 0.4)
+                }}
+                onMouseLeave={e => {
+                  ;(e.currentTarget as HTMLElement).style.background    = BLK3
+                  ;(e.currentTarget as HTMLElement).style.borderColor   = BB
+                }}>
                 <span style={{ fontSize: 16, color: a.color }}>{a.icon}</span>
                 <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 700, color: W }}>{a.label}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 14, color: a.color }}>→</span>
@@ -140,10 +159,12 @@ export default function BusinessDashboard() {
           </div>
         </div>
 
-        {/* Recent jobs */}
+        {/* Recent Jobs */}
         <div style={{ background: BLK2, padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>Recent Jobs</div>
+            <div style={{ fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD }}>
+              Recent Jobs
+            </div>
             <button onClick={() => navigate('/business/jobs')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontSize: 11, color: W4, transition: 'color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.color = GL)}
@@ -155,7 +176,9 @@ export default function BusinessDashboard() {
           {loading ? (
             <div style={{ color: W4, fontFamily: FD, fontSize: 12 }}>Loading…</div>
           ) : recentJobs.length === 0 ? (
-            <div style={{ color: W4, fontFamily: FD, fontSize: 13 }}>No jobs yet. Contact your account manager to get started.</div>
+            <div style={{ color: W4, fontFamily: FD, fontSize: 13 }}>
+              No jobs yet. Contact your account manager to get started.
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {recentJobs.map(job => {
@@ -178,6 +201,7 @@ export default function BusinessDashboard() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   )
