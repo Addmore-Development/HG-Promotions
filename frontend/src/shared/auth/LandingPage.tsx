@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ALL_JOBS, getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
+import { getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
 
 // ── Color tokens ──────────────────────────────────────────────────────────────
 const GL  = '#E8A820'
@@ -11,16 +11,10 @@ const B   = '#0C0A07'
 const D1  = '#141008'
 const D2  = '#1A1408'
 const W   = '#FAF3E8'
-const W85 = 'rgba(250,243,232,0.85)'
 const W55 = 'rgba(250,243,232,0.55)'
 const W28 = 'rgba(250,243,232,0.28)'
-const W12 = 'rgba(250,243,232,0.12)'
 const BB  = 'rgba(212,136,10,0.16)'
-
-const JB  = 'rgba(12,10,7,0.82)'
 const JB6 = 'rgba(12,10,7,0.60)'
-const JB4 = 'rgba(12,10,7,0.40)'
-const JB2 = 'rgba(12,10,7,0.18)'
 const JBB = 'rgba(12,10,7,0.22)'
 
 const FD = "'Work Sans', 'worksans', sans-serif"
@@ -78,8 +72,9 @@ const GLOBAL_CSS = `
 `
 
 // ── Reveal hook ───────────────────────────────────────────────────────────────
+// Returns a callback ref so the element type is always HTMLElement (never null at assignment)
 function useReveal() {
-  const ref = useRef<HTMLElement>(null)
+  const ref = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const el = ref.current; if (!el) return
     const obs = new IntersectionObserver(([e]) => {
@@ -88,7 +83,9 @@ function useReveal() {
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
-  return ref
+  // Return a callback ref — accepts HTMLElement | null safely
+  const setRef = (el: HTMLElement | null) => { ref.current = el }
+  return setRef
 }
 
 // ── Glitter Field ─────────────────────────────────────────────────────────────
@@ -135,7 +132,6 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
   onLock: () => void
   onView: (id: string) => void
 }) {
-  const [hovered, setHovered] = useState(false)
   const fillPct = Math.round(((job.slots - job.slotsLeft) / job.slots) * 100)
   const isFeatured = index === 0
   const accent = job.accentLine || GL
@@ -148,8 +144,6 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
         animation: `card-rise 0.6s ${Math.min(index * 0.06, 0.5)}s cubic-bezier(0.22,1,0.36,1) both`,
         minWidth: 0,
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       <div
         className="card-inner"
@@ -168,98 +162,48 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
           display: 'flex', flexDirection: 'column',
         }}
       >
-        {/* Top accent bar */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
-          height: isFeatured ? 3 : 2,
-          background: isFeatured
-            ? `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})`
-            : `linear-gradient(90deg, ${G5}, ${accent}88, ${G5})`,
-        }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: isFeatured ? 3 : 2, background: isFeatured ? `linear-gradient(90deg, ${G5}, ${GL}, #F5C842, ${GL}, ${G5})` : `linear-gradient(90deg, ${G5}, ${accent}88, ${G5})` }} />
 
         {isFeatured && (
-          <div style={{
-            position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)',
-            width: 200, height: 120,
-            background: 'radial-gradient(ellipse, rgba(232,168,32,0.1) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
+          <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 200, height: 120, background: 'radial-gradient(ellipse, rgba(232,168,32,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
         )}
 
         <div style={{ padding: '20px 20px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Tag + slots left */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{
-              fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase',
-              color: isFeatured ? GL : W28, fontFamily: FD,
-              padding: isFeatured ? '3px 8px' : '0',
-              background: isFeatured ? 'rgba(232,168,32,0.1)' : 'transparent',
-              border: isFeatured ? `1px solid rgba(232,168,32,0.2)` : 'none',
-            }}>
+            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: isFeatured ? GL : W28, fontFamily: FD, padding: isFeatured ? '3px 8px' : '0', background: isFeatured ? 'rgba(232,168,32,0.1)' : 'transparent', border: isFeatured ? `1px solid rgba(232,168,32,0.2)` : 'none' }}>
               {isFeatured ? '★ Featured' : job.type}
             </span>
             <span style={{ fontSize: 8, color: W28, fontFamily: FD }}>{job.slotsLeft} left</span>
           </div>
 
-          {/* Company */}
           <div style={{ fontSize: 10, color: isFeatured ? GL : G3, fontWeight: 700, letterSpacing: '0.04em', fontFamily: FD, marginBottom: 4 }}>{job.company}</div>
 
-          {/* Title */}
-          <h3 style={{
-            fontFamily: FD, fontSize: isFeatured ? 16 : 13,
-            fontWeight: 800, lineHeight: 1.2, color: W,
-            marginBottom: 8,
-            fontStyle: isFeatured ? 'italic' : 'normal',
-            flex: 1,
-          }}>{job.title}</h3>
+          <h3 style={{ fontFamily: FD, fontSize: isFeatured ? 16 : 13, fontWeight: 800, lineHeight: 1.2, color: W, marginBottom: 8, fontStyle: isFeatured ? 'italic' : 'normal', flex: 1 }}>{job.title}</h3>
 
-          {/* Pay */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
             <span style={{ fontFamily: FD, fontSize: isFeatured ? 26 : 20, fontWeight: 900, color: GL, lineHeight: 1 }}>{job.pay}</span>
             <span style={{ fontSize: 10, color: W28, fontFamily: FD }}>{job.payPer}</span>
           </div>
 
-          {/* Location */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 8, color: GL }}>◎</span>
             <span style={{ fontSize: 10, color: W55, fontFamily: FD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.location}</span>
           </div>
 
-          {/* Slots bar */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ height: 2, background: 'rgba(250,243,232,0.07)', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${fillPct}%`,
-                background: `linear-gradient(90deg, ${G5}, ${accent})`,
-                transition: 'width 0.7s ease',
-              }} />
+              <div style={{ height: '100%', width: `${fillPct}%`, background: `linear-gradient(90deg, ${G5}, ${accent})`, transition: 'width 0.7s ease' }} />
             </div>
           </div>
 
-          {/* CTA */}
           {isLoggedIn ? (
-            <button onClick={() => onView(job.id)} style={{
-              width: '100%', padding: '9px',
-              border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.45)' : BB}`,
-              background: isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent',
-              color: GL, fontFamily: FD, fontSize: 9, fontWeight: 700,
-              letterSpacing: '0.16em', textTransform: 'uppercase',
-              cursor: 'pointer', transition: 'all 0.2s',
-            }}
+            <button onClick={() => onView(job.id)} style={{ width: '100%', padding: '9px', border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.45)' : BB}`, background: isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent', color: GL, fontFamily: FD, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,168,32,0.14)'; e.currentTarget.style.borderColor = GL }}
               onMouseLeave={e => { e.currentTarget.style.background = isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent'; e.currentTarget.style.borderColor = isFeatured ? 'rgba(232,168,32,0.45)' : BB }}>
               View Details →
             </button>
           ) : (
-            <button onClick={onLock} style={{
-              width: '100%', padding: '9px',
-              border: `1px solid ${BB}`,
-              background: 'transparent',
-              color: W55, fontFamily: FD, fontSize: 9,
-              fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase',
-              cursor: 'pointer', transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}>
+            <button onClick={onLock} style={{ width: '100%', padding: '9px', border: `1px solid ${BB}`, background: 'transparent', color: W55, fontFamily: FD, fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <span style={{ fontSize: 9 }}>⬡</span> Login to Apply
             </button>
           )}
@@ -270,9 +214,6 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
 }
 
 // ── Jobs Section ──────────────────────────────────────────────────────────────
-// ✓ City buttons: All / Johannesburg / Cape Town / Durban / Pretoria
-// ✓ Type buttons: All Types / Brand Activation / Sampling / In-Store / Events & Hosting
-// ✗ "Show All N Jobs" button REMOVED — only "Open Full Jobs Board" below
 function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
   jobs: ReturnType<typeof getActiveJobs>
   isLoggedIn: boolean
@@ -291,78 +232,42 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
     return cm && tm
   })
 
-  // Always cap at 8 on landing page — no show-all toggle
   const visible = filtered.slice(0, 8)
 
   return (
     <div style={{ position: 'relative' }}>
       <GlitterField />
 
-      {/* Filter bar */}
       <div style={{ position: 'relative', zIndex: 2, marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* City filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {cities.map(c => (
-            <button key={c} onClick={() => setCityFilter(c)} style={{
-              padding: '5px 12px',
-              background: cityFilter === c ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)',
-              border: `1px solid ${cityFilter === c ? JBB : 'rgba(12,10,7,0.3)'}`,
-              color: cityFilter === c ? B : JB6,
-              fontFamily: FD, fontSize: 9, fontWeight: cityFilter === c ? 700 : 500,
-              cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase',
-              transition: 'all 0.18s', borderRadius: 2,
-            }}>
+            <button key={c} onClick={() => setCityFilter(c)} style={{ padding: '5px 12px', background: cityFilter === c ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)', border: `1px solid ${cityFilter === c ? JBB : 'rgba(12,10,7,0.3)'}`, color: cityFilter === c ? B : JB6, fontFamily: FD, fontSize: 9, fontWeight: cityFilter === c ? 700 : 500, cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.18s', borderRadius: 2 }}>
               {c}
             </button>
           ))}
         </div>
 
-        {/* Divider */}
         <div style={{ width: 1, height: 16, background: JBB, flexShrink: 0 }} />
 
-        {/* Type filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {types.map(t => (
-            <button key={t} onClick={() => setTypeFilter(t)} style={{
-              padding: '5px 12px',
-              background: typeFilter === t ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)',
-              border: `1px solid ${typeFilter === t ? JBB : 'rgba(12,10,7,0.3)'}`,
-              color: typeFilter === t ? B : JB6,
-              fontFamily: FD, fontSize: 9, fontWeight: typeFilter === t ? 700 : 500,
-              cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase',
-              transition: 'all 0.18s', borderRadius: 2,
-            }}>
+            <button key={t} onClick={() => setTypeFilter(t)} style={{ padding: '5px 12px', background: typeFilter === t ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)', border: `1px solid ${typeFilter === t ? JBB : 'rgba(12,10,7,0.3)'}`, color: typeFilter === t ? B : JB6, fontFamily: FD, fontSize: 9, fontWeight: typeFilter === t ? 700 : 500, cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.18s', borderRadius: 2 }}>
               {t === 'All' ? 'All Types' : t}
             </button>
           ))}
         </div>
 
-        {/* Position count */}
         <div style={{ marginLeft: 'auto', fontSize: 10, color: JB6, fontFamily: FD }}>
           {filtered.length} position{filtered.length !== 1 ? 's' : ''}
         </div>
       </div>
 
-      {/* 4-col grid */}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 8,
-      }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {visible.map((job, i) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            index={i}
-            isLoggedIn={isLoggedIn}
-            onLock={onLock}
-            onView={onView}
-          />
+          <JobCard key={job.id} job={job} index={i} isLoggedIn={isLoggedIn} onLock={onLock} onView={onView} />
         ))}
       </div>
 
-      {/* No results */}
       {filtered.length === 0 && (
         <div style={{ padding: '40px 0', textAlign: 'center', color: JB6, fontFamily: FD, fontSize: 13 }}>
           No jobs match your filters.
@@ -373,9 +278,7 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
 }
 
 // ── Login Prompt Modal ────────────────────────────────────────────────────────
-function LoginPromptModal({ onClose, onLogin, onRegister }: {
-  onClose: () => void; onLogin: () => void; onRegister: () => void
-}) {
+function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => void; onLogin: () => void; onRegister: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
@@ -384,18 +287,14 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: {
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: `rgba(212,136,10,0.12)`, border: `1px solid rgba(232,168,32,0.35)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 26, animation: 'float 3s ease-in-out infinite' }}>⬡</div>
         <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 12, fontFamily: FD }}>Members Only</div>
         <h2 style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: W, marginBottom: 14, lineHeight: 1.2 }}>Unlock Job Details</h2>
-        <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, marginBottom: 36, fontFamily: FD }}>
-          Create a free account or sign in to view full job details, requirements, and apply for promoter positions.
-        </p>
+        <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, marginBottom: 36, fontFamily: FD }}>Create a free account or sign in to view full job details, requirements, and apply for promoter positions.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <button onClick={onRegister}
-            style={{ width: '100%', padding: '15px', background: GL, border: 'none', color: B, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
+          <button onClick={onRegister} style={{ width: '100%', padding: '15px', background: GL, border: 'none', color: B, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
             onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
             Create Free Account
           </button>
-          <button onClick={onLogin}
-            style={{ width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${BB}`, color: W55, fontFamily: FD, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
+          <button onClick={onLogin} style={{ width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${BB}`, color: W55, fontFamily: FD, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W55 }}>
             Already Have an Account
@@ -410,27 +309,9 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: {
 // ── Feature Cards ─────────────────────────────────────────────────────────────
 function FeatureSlideshow() {
   const features = [
-    {
-      tag: 'Smart Dispatch', icon: '◎', title: 'Right person, right place.',
-      body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.',
-      stat: '280+', statLabel: 'Active Promoters',
-      bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
-      border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '-3deg', translateY: '12px', zIndex: 1,
-    },
-    {
-      tag: 'Geo-Verified Shifts', icon: '⬡', title: 'Attendance you can trust.',
-      body: 'Promoters check in only when within 5m of the venue. GPS verification plus mandatory selfie — no proxy clock-ins, ever.',
-      stat: '98%', statLabel: 'Shift Attendance',
-      bg: `linear-gradient(160deg, #3D2E0A 0%, #2A1E05 100%)`,
-      border: '#AB8D3F', accent: '#AB8D3F', rotate: '0deg', translateY: '0px', zIndex: 3,
-    },
-    {
-      tag: 'Smart Payroll', icon: '◈', title: 'Calculate pay in minutes.',
-      body: 'Hours × Rate calculations done instantly. View earnings per promoter and per campaign. Admin approves — no direct payments on-platform.',
-      stat: '12', statLabel: 'Cities Covered',
-      bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`,
-      border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '3deg', translateY: '12px', zIndex: 1,
-    },
+    { tag: 'Smart Dispatch', icon: '◎', title: 'Right person, right place.', body: 'AI-powered matching filters promoters by location, reliability score, and physical attributes — filling your brand activations with precision.', stat: '280+', statLabel: 'Active Promoters', bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`, border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '-3deg', translateY: '12px', zIndex: 1 },
+    { tag: 'Geo-Verified Shifts', icon: '⬡', title: 'Attendance you can trust.', body: 'Promoters check in only when within 5m of the venue. GPS verification plus mandatory selfie — no proxy clock-ins, ever.', stat: '98%', statLabel: 'Shift Attendance', bg: `linear-gradient(160deg, #3D2E0A 0%, #2A1E05 100%)`, border: '#AB8D3F', accent: '#AB8D3F', rotate: '0deg', translateY: '0px', zIndex: 3 },
+    { tag: 'Smart Payroll', icon: '◈', title: 'Calculate pay in minutes.', body: 'Hours × Rate calculations done instantly. View earnings per promoter and per campaign. Admin approves — no direct payments on-platform.', stat: '12', statLabel: 'Cities Covered', bg: `linear-gradient(160deg, #1E1608 0%, #120D03 100%)`, border: 'rgba(232,168,32,0.30)', accent: GL, rotate: '3deg', translateY: '12px', zIndex: 1 },
   ]
 
   return (
@@ -466,54 +347,6 @@ function FeatureSlideshow() {
   )
 }
 
-// ── About Capabilities ────────────────────────────────────────────────────────
-function AboutCapabilities({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
-  const [hoveredCap, setHoveredCap] = useState<number | null>(null)
-  const caps = [
-    { label: 'Promoter Onboarding', icon: '◉' }, { label: 'Geo Check-In / Out', icon: '⬡' },
-    { label: 'Live Operations Map', icon: '◎' }, { label: 'Smart Job Allocation', icon: '◈' },
-    { label: 'Payroll Calculations', icon: '◆' }, { label: 'Document Vault', icon: '▣' },
-    { label: 'Supervisor Monitoring', icon: '◉' }, { label: 'Client Reports', icon: '◎' },
-    { label: 'SMS Notifications', icon: '⬡' }, { label: 'Reliability Scoring', icon: '◈' },
-    { label: 'Earnings Export', icon: '◆' }, { label: 'POPIA Compliance', icon: '▣' },
-  ]
-  return (
-    <div>
-      <div style={{ position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${BB}` }}>
-        <div style={{ position: 'absolute', top: '-0.15em', left: '-0.05em', fontSize: 'clamp(180px, 24vw, 300px)', fontWeight: 900, fontFamily: FD, color: 'transparent', WebkitTextStroke: `1px rgba(232,168,32,0.06)`, lineHeight: 1, pointerEvents: 'none', userSelect: 'none', zIndex: 0 }}>HG</div>
-        <div style={{ position: 'relative', zIndex: 1, padding: '64px 0 56px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-            <div style={{ width: 40, height: 1, background: GL }} />
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Est. 2018 · South Africa</span>
-          </div>
-          <h2 style={{ fontFamily: "'Bodoni Moda', Georgia, serif", fontSize: 'clamp(42px, 5.5vw, 80px)', fontWeight: 900, fontStyle: 'italic', lineHeight: 0.92, letterSpacing: '-0.03em', color: W }}>
-            One platform.<br />
-            <span style={{ color: 'transparent', WebkitTextStroke: `2px ${GL}` }}>Infinite scale.</span>
-          </h2>
-        </div>
-      </div>
-      <div style={{ padding: '56px 0 72px', position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 48 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.44em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Full Suite</div>
-          <div style={{ fontSize: 'clamp(22px,3vw,36px)', fontWeight: 900, color: W, fontFamily: FD, letterSpacing: '-0.02em' }}>Platform <span style={{ color: GL, fontStyle: 'italic' }}>Capabilities</span></div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: `1px solid ${BB}` }}>
-          {caps.map((cap, i) => (
-            <div key={i}
-              style={{ padding: '22px 24px', borderRight: (i + 1) % 4 !== 0 ? `1px solid ${BB}` : 'none', borderBottom: i < 8 ? `1px solid ${BB}` : 'none', display: 'flex', alignItems: 'center', gap: 14, background: hoveredCap === i ? `rgba(171,141,63,0.08)` : (i === 3 || i === 8) ? `rgba(232,168,32,0.04)` : 'transparent', transition: 'background 0.25s, transform 0.2s', cursor: 'default', transform: hoveredCap === i ? 'translateX(4px)' : 'translateX(0)', position: 'relative' }}
-              onMouseEnter={() => setHoveredCap(i)}
-              onMouseLeave={() => setHoveredCap(null)}>
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: hoveredCap === i ? 3 : 0, background: GL, transition: 'width 0.2s ease' }} />
-              <span style={{ fontSize: 14, color: hoveredCap === i ? GL : W28, transition: 'color 0.2s', flexShrink: 0 }}>{cap.icon}</span>
-              <span style={{ fontSize: 12, color: hoveredCap === i ? W : W55, fontFamily: FD, transition: 'color 0.2s', fontWeight: hoveredCap === i ? 600 : 400 }}>{cap.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Image Triptych ────────────────────────────────────────────────────────────
 function ImageTriptych() {
   return (
@@ -541,12 +374,19 @@ function ImageTriptych() {
 // ── Main Landing Page ─────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate()
-  const [scrolled, setScrolled] = useState(false)
   const [showLoginPrompt, setLoginPrompt] = useState(false)
   const [session, setSession] = useState<{ role: string; name: string; email: string } | null>(null)
   const [heroSlide, setHeroSlide] = useState(0)
   const heroSlideRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [allJobs, setAllJobs] = useState<ReturnType<typeof getActiveJobs>>([])
+
+  // Use separate refs for section elements — avoids the RefObject<HTMLElement | null> conflict
+  const secFeaturesRef = useRef<HTMLElement | null>(null)
+  const secJobsRef     = useRef<HTMLElement | null>(null)
+
+  // Callback refs returned from useReveal
+  const rFeatures = useReveal()
+  const rJobs     = useReveal()
 
   const heroMedia = [
     { type: 'image', src: '/1_hero.jpg' },
@@ -583,19 +423,7 @@ export default function LandingPage() {
     navigate(map[session.role] || '/')
   }
 
-  const secFeatures = useRef<HTMLElement>(null)
-  const secJobs     = useRef<HTMLElement>(null)
-
-  const rFeatures = useReveal()
-  const rJobs     = useReveal()
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 60)
-    window.addEventListener('scroll', fn)
-    return () => window.removeEventListener('scroll', fn)
-  }, [])
-
-  const scrollTo = (ref: React.RefObject<HTMLElement>) => ref.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollTo = (ref: React.RefObject<HTMLElement | null>) => ref.current?.scrollIntoView({ behavior: 'smooth' })
 
   const tickerItems = ['Brand Activations', 'In-Store Demos', 'Event Staffing', 'Field Marketing', 'Geo-Verified Shifts', 'Live Payroll Calc', 'Supervisor Monitoring', 'Nationwide Coverage']
 
@@ -609,7 +437,7 @@ export default function LandingPage() {
           <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
         </div>
         <ul style={{ display: 'flex', gap: 52, listStyle: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          {[{ label: 'Jobs', ref: secJobs }, { label: 'Features', ref: secFeatures }].map(({ label, ref }) => (
+          {[{ label: 'Jobs', ref: secJobsRef }, { label: 'Features', ref: secFeaturesRef }].map(({ label, ref }) => (
             <li key={label}>
               <button onClick={() => scrollTo(ref)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W, transition: 'color 0.2s', padding: 0 }}
                 onMouseEnter={e => e.currentTarget.style.color = GL}
@@ -687,21 +515,21 @@ export default function LandingPage() {
 
       {/* ── JOBS SECTION ── */}
       <section
-        ref={(el) => { (rJobs as any).current = el; (secJobs as any).current = el }}
+        ref={(el) => {
+          rJobs(el)
+          secJobsRef.current = el
+        }}
         className="reveal"
         style={{ padding: '48px 80px 56px', background: '#AB8D3F', borderBottom: `1px solid rgba(120,75,0,0.4)`, position: 'relative', overflow: 'hidden' }}
       >
-        {/* Depth texture */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)' }} />
 
-        {/* Star sparkles — top-left */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
           {[{top:12,left:16,size:28,opacity:0.55,delay:'0s',dur:'2.6s'},{top:10,left:64,size:16,opacity:0.40,delay:'0.5s',dur:'3.2s'},{top:38,left:36,size:12,opacity:0.35,delay:'1.0s',dur:'2.9s'},{top:8,left:108,size:10,opacity:0.28,delay:'0.3s',dur:'3.7s'},{top:60,left:14,size:20,opacity:0.45,delay:'1.4s',dur:'2.4s'},{top:52,left:72,size:8,opacity:0.25,delay:'0.8s',dur:'4.0s'},{top:80,left:44,size:14,opacity:0.32,delay:'2.0s',dur:'3.0s'},{top:28,left:148,size:7,opacity:0.22,delay:'1.7s',dur:'3.5s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', top:s.top, left:s.left, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
 
-        {/* Star sparkles — bottom-right */}
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
           {[{bottom:12,right:16,size:28,opacity:0.55,delay:'0.2s',dur:'2.6s'},{bottom:10,right:64,size:16,opacity:0.40,delay:'0.7s',dur:'3.2s'},{bottom:38,right:36,size:12,opacity:0.35,delay:'1.2s',dur:'2.9s'},{bottom:60,right:14,size:20,opacity:0.45,delay:'1.6s',dur:'2.4s'},{bottom:80,right:44,size:14,opacity:0.32,delay:'2.1s',dur:'3.0s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', bottom:s.bottom, right:s.right, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
@@ -709,7 +537,6 @@ export default function LandingPage() {
         </div>
 
         <div style={{ maxWidth: 1360, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* Section header */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
               <div>
@@ -744,15 +571,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Jobs grid — city + type filters, NO show-all button */}
-          <JobsSection
-            jobs={allJobs}
-            isLoggedIn={!!session}
-            onLock={() => setLoginPrompt(true)}
-            onView={(id) => navigate(`/jobs/${id}`)}
-          />
+          <JobsSection jobs={allJobs} isLoggedIn={!!session} onLock={() => setLoginPrompt(true)} onView={(id) => navigate(`/jobs/${id}`)} />
 
-          {/* Single CTA — "Open Full Jobs Board" only */}
           <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 1, height: 32, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
             <button onClick={() => navigate('/jobs')}
@@ -767,7 +587,10 @@ export default function LandingPage() {
 
       {/* ── FEATURES ── */}
       <section
-        ref={(el) => { (rFeatures as any).current = el; (secFeatures as any).current = el }}
+        ref={(el) => {
+          rFeatures(el)
+          secFeaturesRef.current = el
+        }}
         className="reveal"
         style={{ padding: '80px 80px 100px', background: B, borderBottom: `1px solid ${BB}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
