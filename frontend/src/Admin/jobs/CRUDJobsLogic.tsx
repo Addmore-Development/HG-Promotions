@@ -490,7 +490,10 @@ export default function CRUDJobsLogic() {
                       </div>
                     </td>
 
-                    <td style={{ padding:'14px 12px', fontSize:11, color:W85, fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.client}</td>
+                    <td style={{ padding:'14px 12px', fontSize:11, color:W85, fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {job.client}
+                      {job.clientId && <div style={{ fontSize:8, color:GL, marginTop:2 }}>Registered Business</div>}
+                    </td>
 
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
                       <div style={{ fontSize:11, color:W85, fontFamily:FD, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.city||job.location?.split(',').slice(-1)[0]?.trim()}</div>

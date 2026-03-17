@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
+// ─── Strict Brown/Gold/Yellow Palette ─────────────────────────────────────────
 const BLK  = '#050402'
 const BLK1 = '#0A0804'
 const BLK2 = '#100C05'
-const GL   = '#E8A820'
-const GD   = '#C07818'
-const GD2  = '#8B5A1A'
-const BB   = 'rgba(212,136,10,0.16)'
+const GL   = '#E8A820'      // Gold
+const GD   = '#C07818'      // Brown
+const GD2  = '#8B5A1A'      // Dark Brown
+const BB   = 'rgba(212,136,10,0.16)'  // Brown border
 const W    = '#FAF3E8'
 const W7   = 'rgba(250,243,232,0.70)'
 const W4   = 'rgba(250,243,232,0.40)'
-const TEAL = '#4AABB8'
+const TEAL = '#C07818'      // Changed to Brown (was teal)
 const FD   = "'Playfair Display', Georgia, serif"
 const FB   = "'DM Sans', system-ui, sans-serif"
 
@@ -213,9 +213,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       {todayShift && (() => {
         const todayJob = allJobs.find(j => j.id === todayShift.jobId)
         return todayJob ? (
-          <div style={{ padding: '14px 20px', background: hex2rgba(TEAL, 0.1), border: `1px solid ${hex2rgba(TEAL, 0.4)}`, borderRadius: 3, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '14px 20px', background: hex2rgba(GD, 0.1), border: `1px solid ${hex2rgba(GD, 0.4)}`, borderRadius: 3, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: TEAL, fontFamily: FD }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: GD, fontFamily: FD }}>
                 {todayShift.status === 'CHECKED_IN' ? '🟢 You are currently on shift' : '⏰ You have a shift today'}
               </div>
               <div style={{ fontSize: 11, color: W4, marginTop: 3, fontFamily: FB }}>
@@ -223,7 +223,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
             <button onClick={() => nav('shifts')}
-              style={{ padding: '10px 18px', background: TEAL, border: 'none', color: '#0C0A07', fontFamily: FD, fontSize: 10, fontWeight: 700, cursor: 'pointer', borderRadius: 3, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              style={{ padding: '10px 18px', background: GD, border: 'none', color: '#0C0A07', fontFamily: FD, fontSize: 10, fontWeight: 700, cursor: 'pointer', borderRadius: 3, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               {todayShift.status === 'CHECKED_IN' ? 'Check Out →' : 'Check In →'}
             </button>
           </div>
@@ -242,7 +242,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         {[
           { label: 'Confirmed Jobs',   value: allocatedApps.length,                                              color: GL,   tab: 'jobs'    },
           { label: 'Pending Interest', value: pendingApps.length,                                                color: GD,   tab: 'jobs'    },
-          { label: 'Shifts Done',      value: myShifts.filter(s => s.status === 'APPROVED').length,              color: TEAL, tab: 'shifts'  },
+          { label: 'Shifts Done',      value: myShifts.filter(s => s.status === 'APPROVED').length,              color: GD2,  tab: 'shifts'  },
           { label: 'Reliability',      value: profile?.reliabilityScore ? `${profile.reliabilityScore}/5` : '—', color: GL,   tab: 'profile' },
         ].map((s, i) => (
           <div key={i} onClick={() => nav(s.tab)}
@@ -393,7 +393,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 12, color: GL, fontFamily: FD, fontWeight: 700 }}>R{job.hourlyRate}/hr</div>
-                    <div style={{ fontSize: 9, color: TEAL, fontFamily: FD, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Confirmed</div>
+                    <div style={{ fontSize: 9, color: GD, fontFamily: FD, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Confirmed</div>
                     <button onClick={() => nav('shifts')}
                       style={{ marginTop: 6, padding: '4px 10px', background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, color: GL, fontFamily: FD, fontSize: 8, fontWeight: 700, cursor: 'pointer', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                       Shifts →
