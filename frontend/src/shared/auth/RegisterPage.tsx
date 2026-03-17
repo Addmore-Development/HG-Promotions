@@ -371,6 +371,12 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done,       setDone]       = useState(false)
 
+  // Local storage for offline registration
+  const [registrations, setRegistrations] = useState<any[]>(() => {
+    const saved = localStorage.getItem('pending_registrations');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // ── Promoter personal
   const [firstName,    setFirstName]    = useState('')
   const [lastName,     setLastName]     = useState('')
@@ -419,21 +425,30 @@ export default function RegisterPage() {
 
   const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}); setPromoCategories([]); setPromoLanguages([]) }
 
+  /* ─── ADD REGISTRATION TO LOCAL STORAGE ───────────────────── */
+  const addRegistration = (reg: any) => {
+    const newReg = { ...reg, id: Date.now().toString(), submittedAt: new Date().toISOString() };
+    const updated = [...registrations, newReg];
+    setRegistrations(updated);
+    localStorage.setItem('pending_registrations', JSON.stringify(updated));
+  };
+
   /* ─── VALIDATION ──────────────────────────────────────────── */
   const validateStep = (): boolean => {
     const errs: Record<string, string> = {}
+    
     if (isPromoter) {
       if (step === 0) {
         if (!firstName.trim()) errs.firstName = 'Required'
-        if (!lastName.trim())  errs.lastName  = 'Required'
+        if (!lastName.trim()) errs.lastName = 'Required'
         if (!validateSAPhone(phone)) errs.phone = 'Enter a valid SA phone number e.g. +27 71 000 0000'
         if (!validateSAID(idNumber)) errs.idNumber = 'Must be 13 digits in SA ID format (YYMMDD followed by 7 digits)'
         if (!address.trim()) errs.address = 'Required'
       }
       if (step === 1) {
-        if (!headshotFile) errs.headshot  = 'Headshot photo is required'
-        if (!fullBodyFile) errs.fullBody  = 'Full body photo is required'
-        if (!bankName.trim())  errs.bankName  = 'Required'
+        if (!headshotFile) errs.headshot = 'Headshot photo is required'
+        if (!fullBodyFile) errs.fullBody = 'Full body photo is required'
+        if (!bankName.trim()) errs.bankName = 'Required'
         if (!accountNo.trim()) errs.accountNo = 'Required'
         if (!bankProof) errs.bankProof = 'Bank proof document is required'
         // CV is optional — no validation error
@@ -454,7 +469,7 @@ export default function RegisterPage() {
         if (!bizIndustry.trim()) errs.bizIndustry = 'Please select your industry'
       }
       if (step === 1) {
-        if (!cipcDoc)      errs.cipcDoc      = 'CIPC registration document is required'
+        if (!cipcDoc) errs.cipcDoc = 'CIPC registration document is required'
         if (!bizBankProof) errs.bizBankProof = 'Bank confirmation letter is required'
       }
       if (step === 2) {
@@ -464,6 +479,7 @@ export default function RegisterPage() {
         if (bizPassword !== bizConfirmPw) errs.bizConfirmPw = 'Passwords do not match'
       }
     }
+    
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
