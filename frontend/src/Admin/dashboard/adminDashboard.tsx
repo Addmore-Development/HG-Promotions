@@ -200,6 +200,37 @@ function statusBorder(s: string): string {
 function normalizeStatus(s: string) { return s === 'pending_review' ? 'pending' : s || 'pending' }
 function isPending(s: string)       { return s === 'pending' || s === 'pending_review' }
 
+// ─── Helper: convert a business User/reg record into the client shape ─────────
+function bizToClient(u: any, source: 'api' | 'local'): any {
+  const status = u.status === 'approved' ? 'active'
+               : u.status === 'rejected' ? 'inactive'
+               : 'new'
+  return {
+    id:             u.id,
+    name:           u.companyName || u.fullName || u.name || 'Unknown',
+    contact:        u.contactName || u.fullName || u.name || 'N/A',
+    email:          u.email || '',
+    phone:          u.phone || 'Not provided',
+    industry:       u.industry || 'Other',
+    city:           u.bizAddress || u.city || 'Not specified',
+    website:        u.website || '',
+    regNumber:      u.regNumber || u.address || '',
+    vatNumber:      u.vatNumber || '',
+    registeredDate: u.createdAt   ? String(u.createdAt).slice(0, 10)
+                  : u.submittedAt ? String(u.submittedAt).slice(0, 10)
+                  : new Date().toISOString().slice(0, 10),
+    activeSince:    u.createdAt   ? String(u.createdAt).slice(0, 7)
+                  : u.submittedAt ? String(u.submittedAt).slice(0, 7)
+                  : new Date().toISOString().slice(0, 7),
+    jobsRun:        0,
+    totalHours:     0,
+    status,
+    budget:         'R 0',
+    description:    `${u.industry || 'Business'} client registered via platform.`,
+    source,
+  }
+}
+
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_LOGINS = [
   { id:'L001', name:'Ayanda Dlamini', email:'ayanda@email.com', role:'promoter', time:'2026-03-11T08:02:00', ip:'196.25.1.4'  },
@@ -331,6 +362,7 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
         activeSince: new Date().toISOString().slice(0,7),
         jobsRun: 0, totalHours: 0, status: 'new', budget: 'R 0',
         categorySpecs: specs, regulations: regs,
+        source: 'manual',
       })
       setSaving(false)
       onClose()
@@ -471,14 +503,13 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
   )
 }
 
-// ─── Modals ───────────────────────────────────────────────────────────────────
+// ─── Detail Modal ─────────────────────────────────────────────────────────────
 function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose:()=>void; onApprove:()=>void; onReject:()=>void }) {
   const [fullData, setFullData] = useState<any>(null)
   const isPromoter = item.role === 'promoter'
   const pending    = isPending(item.status)
   const accent     = isPromoter ? G3 : GL
 
-  // Fetch full user data from API when modal opens
   useEffect(() => {
     if (item.source !== 'real' || !item.id) return
     const token = localStorage.getItem('hg_token')
@@ -493,35 +524,36 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose
 
   const infoRows = isPromoter
     ? [
-        { label: 'Email',         value: d.email || item.email },
-        { label: 'Phone',         value: d.phone || item.phone || 'Not provided' },
-        { label: 'ID Number',     value: d.idNumber || 'Not provided' },
-        { label: 'City',          value: d.city || item.city || 'Not specified' },
-        { label: 'Address',       value: d.address || 'Not provided' },
-        { label: 'Bank',          value: d.bankName ? `${d.bankName} — ${d.accountNumber || 'N/A'}` : 'Not provided' },
-        { label: 'Applied',       value: item.date },
+        { label:'Email',         value: d.email || item.email },
+        { label:'Phone',         value: d.phone || item.phone || 'Not provided' },
+        { label:'ID Number',     value: d.idNumber || 'Not provided' },
+        { label:'City',          value: d.city || item.city || 'Not specified' },
+        { label:'Address',       value: d.address || 'Not provided' },
+        { label:'Bank',          value: d.bankName ? `${d.bankName} — ${d.accountNumber || 'N/A'}` : 'Not provided' },
+        { label:'Applied',       value: item.date },
       ]
     : [
-        { label: 'Email',         value: d.email || item.email },
-        { label: 'Phone',         value: d.phone || item.phone || 'Not provided' },
-        { label: 'Company Name',  value: d.fullName || item.name },
-        { label: 'Contact Person',value: d.contactName || item._raw?.contactName || 'Not provided' },
-        { label: 'Reg Number',    value: d.address || 'Not provided' },
-        { label: 'VAT Number',    value: d.vatNumber || 'N/A' },
-        { label: 'City',          value: d.city || item.city || 'Not specified' },
-        { label: 'Applied',       value: item.date },
+        { label:'Email',         value: d.email || item.email },
+        { label:'Phone',         value: d.phone || item.phone || 'Not provided' },
+        { label:'Company Name',  value: d.fullName || item.name },
+        { label:'Contact Person',value: d.contactName || item._raw?.contactName || 'Not provided' },
+        { label:'Reg Number',    value: d.address || 'Not provided' },
+        { label:'VAT Number',    value: d.vatNumber || 'N/A' },
+        { label:'Industry',      value: d.industry || 'N/A' },
+        { label:'City',          value: d.city || item.city || 'Not specified' },
+        { label:'Applied',       value: item.date },
       ]
 
   const docs = isPromoter
     ? [
-        { label: 'Headshot',       url: d.headshotUrl },
-        { label: 'Full Body Photo',url: d.fullBodyPhotoUrl },
-        { label: 'Bank Proof',     url: d.cvUrl },
+        { label:'Headshot',        url: d.headshotUrl },
+        { label:'Full Body Photo', url: d.fullBodyPhotoUrl },
+        { label:'Bank Proof',      url: d.cvUrl },
       ]
     : [
-        { label: 'CIPC Document',  url: d.cipcDocUrl },
-        { label: 'Tax PIN',        url: d.taxPinUrl },
-        { label: 'Bank Proof',     url: d.bizBankProofUrl },
+        { label:'CIPC Document',   url: d.cipcDocUrl },
+        { label:'Tax PIN',         url: d.taxPinUrl },
+        { label:'Bank Proof',      url: d.bizBankProofUrl },
       ]
 
   const hasDocs = docs.some(doc => doc.url)
@@ -539,7 +571,6 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose
           {item.source==='real' && <span style={{ fontSize:10, color:GL, fontWeight:700, fontFamily:FD }}>● Live</span>}
         </div>
 
-        {/* Info rows */}
         <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginBottom:12, fontWeight:700, fontFamily:FD }}>
           {isPromoter ? 'Promoter Details' : 'Business Details'}
         </div>
@@ -550,41 +581,18 @@ function DetailModal({ item, onClose, onApprove, onReject }: { item:any; onClose
           </div>
         ))}
 
-        {/* Documents section */}
         {item.source === 'real' && (
           <>
-            <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:24, marginBottom:12, fontWeight:700, fontFamily:FD }}>
-              Documents
-            </div>
-            {!fullData && (
-              <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 0' }}>Loading documents…</div>
-            )}
-            {fullData && !hasDocs && (
-              <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 16px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>
-                No documents uploaded yet.
-              </div>
-            )}
+            <div style={{ fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, marginTop:24, marginBottom:12, fontWeight:700, fontFamily:FD }}>Documents</div>
+            {!fullData && <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 0' }}>Loading documents…</div>}
+            {fullData && !hasDocs && <div style={{ fontSize:12, color:W28, fontFamily:FD, padding:'12px 16px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>No documents uploaded yet.</div>}
             {fullData && hasDocs && (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {docs.filter(doc => doc.url).map(doc => (
-                  <a
-                    key={doc.label}
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    style={{
-                      display:'flex', alignItems:'center', justifyContent:'space-between',
-                      padding:'12px 16px',
-                      background:hex2rgba(GL,0.06),
-                      border:`1px solid ${hex2rgba(GL,0.25)}`,
-                      borderRadius:3,
-                      textDecoration:'none',
-                      transition:'all 0.18s',
-                    }}
+                  <a key={doc.label} href={doc.url} target="_blank" rel="noopener noreferrer" download
+                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:hex2rgba(GL,0.06), border:`1px solid ${hex2rgba(GL,0.25)}`, borderRadius:3, textDecoration:'none', transition:'all 0.18s' }}
                     onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.12)}}
-                    onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.06)}}
-                  >
+                    onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background=hex2rgba(GL,0.06)}}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <span style={{ fontSize:16 }}>{doc.url?.match(/\.(jpg|jpeg|png|webp)/i) ? '🖼️' : '📄'}</span>
                       <span style={{ fontSize:12, color:W, fontWeight:600, fontFamily:FD }}>{doc.label}</span>
@@ -642,17 +650,19 @@ function ClientModal({ client, onClose }: { client:any; onClose:()=>void }) {
         <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
         <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Client Profile</div>
         <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:6 }}>{client.name}</div>
-        <div style={{ marginBottom:20, display:'flex', gap:8, flexWrap:'wrap' }}>
+        <div style={{ marginBottom:12, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <Badge label={client.status} color={accent} bg={statusBg(client.status)} border={statusBorder(client.status)} />
           <Badge label={client.industry} color={G3} bg={hex2rgba(G3,0.12)} border={hex2rgba(G3,0.38)} />
+          {client.source === 'api' && <span style={{ fontSize:9, fontWeight:700, color:GL, fontFamily:FD }}>● Live</span>}
+          {client.source === 'local' && <span style={{ fontSize:9, fontWeight:700, color:G4, fontFamily:FD }}>◎ Pending Sync</span>}
         </div>
         {client.description && <div style={{ padding:'12px 16px', background:BB2, border:`1px solid ${BB}`, marginBottom:20, fontSize:13, color:W85, lineHeight:1.6, borderRadius:3, fontFamily:FD }}>{client.description}</div>}
         {[
           {label:'Contact',value:client.contact},{label:'Email',value:client.email},{label:'Phone',value:client.phone},
-          {label:'City',value:client.city},{label:'Website',value:client.website},{label:'Reg. Number',value:client.regNumber},
-          {label:'Registered',value:client.registeredDate},{label:'Active Since',value:client.activeSince},
-          {label:'Campaigns',value:`${client.jobsRun} campaigns`},{label:'Total Hours',value:`${client.totalHours} hrs`},
-          {label:'Campaign Spend',value:client.budget},
+          {label:'City',value:client.city},{label:'Website',value:client.website||'—'},{label:'Reg. Number',value:client.regNumber||'—'},
+          {label:'VAT Number',value:client.vatNumber||'—'},{label:'Registered',value:client.registeredDate},
+          {label:'Active Since',value:client.activeSince},{label:'Campaigns',value:`${client.jobsRun} campaigns`},
+          {label:'Total Hours',value:`${client.totalHours} hrs`},{label:'Campaign Spend',value:client.budget},
         ].map((r:any)=>(
           <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${BB}` }}>
             <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{r.label}</span>
@@ -680,19 +690,18 @@ function ClientModal({ client, onClose }: { client:any; onClose:()=>void }) {
 }
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
-function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; time:Date; onRoute:(id:string)=>void }) {
+function DashboardTab({ regs, clients, msgs, time, onRoute }: { regs:any[]; clients:any[]; msgs:any[]; time:Date; onRoute:(id:string)=>void }) {
   const h = time.getHours()
   const greeting = h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night'
   const unread = msgs.filter(m=>!m.read).length
-
   const activeJobs = getActiveJobs(getAllJobsWithAdminJobs())
 
   const stats = [
-    { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3,  sub:'registered',          id:'registrations' },
-    { label:'Active Jobs',       value:activeJobs.length,                                                 color:GL,  sub:'live on jobs board',   id:'jobs'          },
-    { label:'Pending Approvals', value:regs.filter(r=>isPending(r.status)).length,                        color:G3,  sub:'need review',          id:'registrations' },
-    { label:'Unread Messages',   value:unread,                                                             color:G2,  sub:'complaints & reviews', id:'messages'      },
-    { label:'Active Clients',    value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length,        color:G4,  sub:'business clients',     id:'clients'       },
+    { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3,  sub:'registered',            id:'registrations' },
+    { label:'Active Jobs',       value:activeJobs.length,                                                 color:GL,  sub:'live on jobs board',     id:'jobs'          },
+    { label:'Pending Approvals', value:regs.filter(r=>isPending(r.status)).length,                        color:G3,  sub:'need review',            id:'registrations' },
+    { label:'Unread Messages',   value:unread,                                                             color:G2,  sub:'complaints & enquiries', id:'messages'      },
+    { label:'Active Clients',    value:clients.filter(c=>c.status==='active').length,                     color:G4,  sub:'business clients',       id:'clients'       },
   ]
 
   const quickActions = [
@@ -701,7 +710,7 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
     {label:'Live Map',      icon:'⊙', id:'map',           color:G2},
     {label:'Clients',       icon:'◉', id:'clients',       color:GL},
     {label:'Jobs',          icon:'◎', id:'jobs',          color:G4},
-    {label:'Reviews',       icon:'★', id:'reviews',       color:GL},
+    {label:'Complaints',    icon:'⚑', id:'reviews',       color:GL},
     {label:'Reports',       icon:'▤', id:'reports',       color:G3},
     {label:'Settings',      icon:'⚙', id:'settings',      color:G2},
   ]
@@ -721,9 +730,7 @@ function DashboardTab({ regs, msgs, time, onRoute }: { regs:any[]; msgs:any[]; t
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:32 }}>
-        {stats.map((s,i) => (
-          <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} onClick={()=>onRoute(s.id)} />
-        ))}
+        {stats.map((s,i) => <StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} onClick={()=>onRoute(s.id)} />)}
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB }}>
@@ -794,7 +801,8 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
       </div>
       {regs.filter(r=>r.source==='real'&&isPending(r.status)).length>0&&(
         <div style={{ padding:'12px 18px', background:hex2rgba(GL,0.06), border:`1px solid ${hex2rgba(GL,0.32)}`, marginBottom:16, fontSize:12, color:GL, display:'flex', alignItems:'center', gap:8, borderRadius:3, fontFamily:FD }}>
-          <span>⚠</span><span><strong>{regs.filter(r=>r.source==='real'&&isPending(r.status)).length}</strong> live registration{regs.filter(r=>r.source==='real'&&isPending(r.status)).length>1?'s':''} awaiting approval</span>
+          <span>⚠</span>
+          <span><strong>{regs.filter(r=>r.source==='real'&&isPending(r.status)).length}</strong> live registration{regs.filter(r=>r.source==='real'&&isPending(r.status)).length>1?'s':''} awaiting approval</span>
         </div>
       )}
       <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
@@ -822,7 +830,10 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
                 <td style={{ padding:'14px 18px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                     {r.source==='real'&&isPending(r.status)&&<div style={{ width:5, height:5, borderRadius:'50%', background:GL, flexShrink:0 }} />}
-                    <div><div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{r.name}</div><div style={{ fontSize:11, color:W55, fontFamily:FD }}>{r.email}</div></div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{r.name}</div>
+                      <div style={{ fontSize:11, color:W55, fontFamily:FD }}>{r.email}</div>
+                    </div>
                   </div>
                 </td>
                 <td style={{ padding:'14px 18px' }}><Badge label={r.role} color={r.role==='promoter'?G3:GL} bg={hex2rgba(r.role==='promoter'?G3:GL,0.12)} border={hex2rgba(r.role==='promoter'?G3:GL,0.38)} /></td>
@@ -851,13 +862,13 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
 }
 
 // ─── Clients Tab ──────────────────────────────────────────────────────────────
-function ClientsTab() {
+// Now receives clients + setClients as props — no longer owns its own state
+function ClientsTab({ clients, setClients }: { clients: any[]; setClients: React.Dispatch<React.SetStateAction<any[]>> }) {
   const [statusF,  setStatusF ] = useState('all')
   const [cityF,    setCityF   ] = useState('all')
   const [search,   setSearch  ] = useState('')
   const [viewing,  setViewing ] = useState<any>(null)
   const [sortBy,   setSortBy  ] = useState<'name'|'jobsRun'|'totalHours'|'registeredDate'>('registeredDate')
-  const [clients,  setClients ] = useState<any[]>(INITIAL_MOCK_CLIENTS)
   const [addOpen,  setAddOpen ] = useState(false)
 
   const cities = ['all',...Array.from(new Set(clients.map(c=>c.city))).sort()]
@@ -886,18 +897,24 @@ function ClientsTab() {
         <div>
           <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>People · Clients</div>
           <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Client Accounts</h1>
-          <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>Businesses registered on the platform who book promoters.</p>
+          <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>
+            Businesses registered on the platform who book promoters.
+            {' '}<span style={{ color:GL, fontWeight:700 }}>{clients.filter(c=>c.source==='api'||c.source==='local').length} live</span>
+            {' '}· <span style={{ color:W28 }}>{clients.filter(c=>c.status==='new').length} pending approval</span>
+          </p>
         </div>
         <Btn onClick={()=>setAddOpen(true)}>+ Add Client</Btn>
       </div>
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
         {[
-          {label:'Active Clients',   value:activeCount,       color:GL,    sub:`of ${clients.length} total`},
-          {label:'New This Quarter', value:newCount,           color:C_NEW, sub:'recently joined'},
-          {label:'Total Campaigns',  value:totalJobs,          color:G3,    sub:'across all clients'},
-          {label:'Total Hours',      value:`${totalHours}h`,  color:G2,    sub:'promoter hours booked'},
+          {label:'Active Clients',   value:activeCount,      color:GL,    sub:`of ${clients.length} total`},
+          {label:'New This Quarter', value:newCount,          color:C_NEW, sub:'recently joined'},
+          {label:'Total Campaigns',  value:totalJobs,         color:G3,    sub:'across all clients'},
+          {label:'Total Hours',      value:`${totalHours}h`, color:G2,    sub:'promoter hours booked'},
         ].map((s,i)=><StatCard key={i} label={s.label} value={s.value} sub={s.sub} color={s.color} />)}
       </div>
+
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, gap:12, flexWrap:'wrap' }}>
         <div style={{ display:'flex', gap:4 }}>
           {(['all','active','new','inactive'] as const).map(f=><FilterBtn key={f} label={f} active={statusF===f} color={f==='all'?GL:statusColor(f)} onClick={()=>setStatusF(f)} />)}
@@ -920,6 +937,7 @@ function ClientsTab() {
           </div>
         </div>
       </div>
+
       <div style={{ borderRadius:4, overflow:'hidden', border:`1px solid ${BB}` }}>
         <div style={{ display:'grid', gridTemplateColumns:COLS, background:D1, padding:'11px 24px', gap:0 }}>
           {['Business','Contact','Industry / City','Registered','Jobs','Status',''].map(h=>(
@@ -957,7 +975,10 @@ function ClientsTab() {
                 <div style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, lineHeight:1 }}>{c.jobsRun}</div>
                 <div style={{ fontSize:10, color:W28, marginTop:3, fontFamily:FD }}>{c.totalHours}h</div>
               </div>
-              <div style={{ paddingRight:12 }}><Badge label={c.status} color={statusColor(c.status)} bg={statusBg(c.status)} border={statusBorder(c.status)} /></div>
+              <div style={{ paddingRight:12 }}>
+                <Badge label={c.status} color={statusColor(c.status)} bg={statusBg(c.status)} border={statusBorder(c.status)} />
+                {(c.source==='api'||c.source==='local') && <div style={{ fontSize:8, color:c.source==='api'?GL:G4, marginTop:4, fontFamily:FD, fontWeight:700 }}>{c.source==='api'?'● Live':'◎ Local'}</div>}
+              </div>
               <div>
                 <button onClick={e=>{e.stopPropagation();setViewing(c)}} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700, padding:0 }}
                   onMouseEnter={e=>e.currentTarget.style.color=W} onMouseLeave={e=>e.currentTarget.style.color=GL}>View →</button>
@@ -966,9 +987,11 @@ function ClientsTab() {
           )
         })}
       </div>
+
       <div style={{ marginTop:12, fontSize:11, color:W28, fontFamily:FD }}>
         Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{clients.length}</strong> clients
       </div>
+
       {viewing  && <ClientModal client={viewing} onClose={()=>setViewing(null)} />}
       {addOpen  && <AddClientModal onClose={()=>setAddOpen(false)} onSave={c=>setClients(prev=>[c,...prev])} />}
     </div>
@@ -977,25 +1000,69 @@ function ClientsTab() {
 
 // ─── Logins Tab ───────────────────────────────────────────────────────────────
 function LoginsTab() {
-  const [roleF, setRoleF] = useState('all')
-  const [dateF, setDateF] = useState('all')
-  const dates = ['all',...Array.from(new Set(MOCK_LOGINS.map(l=>l.time.slice(0,10))))]
-  const filtered = MOCK_LOGINS.filter(l=>{
+  const [logins, setLogins] = useState<any[]>(MOCK_LOGINS)
+  const [roleF,  setRoleF ] = useState('all')
+  const [dateF,  setDateF ] = useState('all')
+
+  // Merge localStorage login activity on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('hg_login_activity')
+      if (!stored) return
+      const localLogins: any[] = JSON.parse(stored)
+      if (!localLogins.length) return
+      setLogins(prev => {
+        const existingIds = new Set(prev.map(l => l.id))
+        const fresh = localLogins.filter(l => !existingIds.has(l.id)).map(l => ({
+          id:    l.id,
+          name:  l.name,
+          email: l.email,
+          role:  l.role?.toLowerCase() || 'promoter',
+          time:  l.loginAt,
+          ip:    '—',
+        }))
+        return [...fresh, ...prev]
+      })
+    } catch { /* silent */ }
+
+    const onStorage = () => {
+      try {
+        const stored = localStorage.getItem('hg_login_activity')
+        if (!stored) return
+        const localLogins: any[] = JSON.parse(stored)
+        setLogins(prev => {
+          const existingIds = new Set(prev.map(l => l.id))
+          const fresh = localLogins.filter(l => !existingIds.has(l.id)).map(l => ({
+            id: l.id, name: l.name, email: l.email,
+            role: l.role?.toLowerCase() || 'promoter', time: l.loginAt, ip: '—',
+          }))
+          return fresh.length ? [...fresh, ...prev] : prev
+        })
+      } catch { /* silent */ }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  const dates = ['all',...Array.from(new Set(logins.map(l=>l.time?.slice(0,10)).filter(Boolean)))]
+  const filtered = logins.filter(l=>{
     const rm = roleF==='all'||l.role===roleF
-    const dm = dateF==='all'||l.time.startsWith(dateF)
+    const dm = dateF==='all'||l.time?.startsWith(dateF)
     return rm&&dm
   })
+
   return (
     <div style={{ padding:'40px 48px' }}>
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Comms · Activity</div>
         <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Login Activity</h1>
+        <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>All non-admin logins · <strong style={{ color:W }}>{logins.length}</strong> events recorded</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:1, background:BB, marginBottom:24 }}>
         {[
-          {label:'Logins Today',value:MOCK_LOGINS.filter(l=>l.time.startsWith('2026-03-11')).length,color:GL},
-          {label:'Promoters',   value:MOCK_LOGINS.filter(l=>l.role==='promoter').length,            color:G3},
-          {label:'Businesses',  value:MOCK_LOGINS.filter(l=>l.role==='business').length,            color:G2},
+          {label:'Logins Today',value:logins.filter(l=>l.time?.startsWith(new Date().toISOString().slice(0,10))).length, color:GL},
+          {label:'Promoters',   value:logins.filter(l=>l.role==='promoter').length,                                      color:G3},
+          {label:'Businesses',  value:logins.filter(l=>l.role==='business').length,                                      color:G2},
         ].map((s,i)=><StatCard key={i} label={s.label} value={s.value} color={s.color} />)}
       </div>
       <div style={{ display:'flex', gap:4, marginBottom:16, alignItems:'center' }}>
@@ -1015,12 +1082,15 @@ function LoginsTab() {
                 onMouseEnter={e=>(e.currentTarget.style.background=BB2)} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                 <td style={{ padding:'14px 18px' }}><div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{l.name}</div><div style={{ fontSize:11, color:W55, fontFamily:FD }}>{l.email}</div></td>
                 <td style={{ padding:'14px 18px' }}><Badge label={l.role} color={l.role==='promoter'?G3:GL} bg={hex2rgba(l.role==='promoter'?G3:GL,0.12)} border={hex2rgba(l.role==='promoter'?G3:GL,0.38)} /></td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{new Date(l.time).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
-                <td style={{ padding:'14px 18px', fontSize:12, color:W28, fontFamily:MONO }}>{l.ip}</td>
+                <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
+                  {l.time ? new Date(l.time).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'}
+                </td>
+                <td style={{ padding:'14px 18px', fontSize:12, color:W28, fontFamily:MONO }}>{l.ip || '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>No login activity recorded yet.</div>}
       </div>
     </div>
   )
@@ -1115,13 +1185,12 @@ function ReportsTab({ regs }: { regs:any[] }) {
     {icon:'◉',color:G4,title:'Promoter Payout',    desc:'Calculated payout amounts per promoter per campaign — for promoters only.',   btns:[['CSV','Payout CSV'],['Excel','Payout Excel']]},
   ]
   const summary = [
-    {label:'Registered Promoters',          value:regs.filter(r=>r.role==='promoter').length},
-    {label:'Active Promoters',              value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length},
-    {label:'Active Clients',                value:INITIAL_MOCK_CLIENTS.filter(c=>c.status==='active').length},
-    {label:'Active Jobs on Board',          value:activeJobs.length},
-    {label:'Pending Approvals',             value:regs.filter(r=>isPending(r.status)).length},
-    {label:'Shifts This Month',             value:42},
-    {label:'Est. Promoter Payout (Month)',  value:'R 84,200'},
+    {label:'Registered Promoters',         value:regs.filter(r=>r.role==='promoter').length},
+    {label:'Active Promoters',             value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length},
+    {label:'Active Jobs on Board',         value:activeJobs.length},
+    {label:'Pending Approvals',            value:regs.filter(r=>isPending(r.status)).length},
+    {label:'Shifts This Month',            value:42},
+    {label:'Est. Promoter Payout (Month)', value:'R 84,200'},
   ]
   const inputStyle:React.CSSProperties={ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'10px 14px', color:W, fontFamily:FD, fontSize:13, outline:'none', borderRadius:3 }
   return (
@@ -1266,26 +1335,29 @@ function SettingsTab() {
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const tab = searchParams.get('tab') || 'dashboard'
-  const [time,       setTime  ] = useState(new Date())
-  const [regs,       setRegs  ] = useState<any[]>([])
-  const [msgs,       setMsgs  ] = useState<any[]>(INIT_MESSAGES)
-  const [detailItem, setDetail] = useState<any>(null)
 
-  // ── Load registrations from API, fall back to mock data ────────────────────
+  const [time,       setTime   ] = useState(new Date())
+  const [regs,       setRegs   ] = useState<any[]>([])
+  const [clients,    setClients] = useState<any[]>(INITIAL_MOCK_CLIENTS)
+  const [msgs,       setMsgs   ] = useState<any[]>(INIT_MESSAGES)
+  const [detailItem, setDetail ] = useState<any>(null)
+
+  // ── Clock ────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // ── Load registrations from API, fall back to mock ───────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
-    if (!token) {
-      setRegs(MOCK_REGISTRATIONS)
-      return
-    }
-    fetch(`${API_URL}/admin/registrations`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    if (!token) { setRegs(MOCK_REGISTRATIONS); return }
+    fetch(`${API_URL}/admin/registrations`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
         const apiRegs = data.map((u: any) => ({
@@ -1299,52 +1371,79 @@ export default function AdminDashboard() {
           phone:  u.phone || 'Not provided',
           source: 'real',
           _rawStatus: u.status || 'pending_review',
-          // Pass raw API data through so DetailModal can access all fields
-          _raw: u,
+          _raw:   u,
           details: u.role?.toLowerCase() === 'business'
-            ? {
-                companyName:   u.fullName || 'N/A',
-                regNumber:     u.companyReg || 'N/A',
-                vatNumber:     u.vatNumber || 'N/A',
-                industry:      u.industry || 'N/A',
-                website:       u.website || 'N/A',
-                contactPerson: u.contactName || u.fullName || 'N/A',
-                address:       u.city || 'N/A',
-              }
-            : {
-                gender:     u.gender || 'N/A',
-                height:     u.height ? `${u.height}cm` : 'N/A',
-                idNumber:   u.idNumber || 'N/A',
-                experience: u.experience || 'N/A',
-                city:       u.city || 'N/A',
-              },
+            ? { companyName: u.fullName, regNumber: u.address || 'N/A', vatNumber: u.vatNumber || 'N/A', industry: u.industry || 'N/A', website: u.website || 'N/A', contactPerson: u.contactName || u.fullName }
+            : { gender: u.gender || 'N/A', height: u.height ? `${u.height}cm` : 'N/A', idNumber: u.idNumber || 'N/A', experience: u.experience || 'N/A', city: u.city || 'N/A' },
         }))
-        // API registrations take priority — deduplicate by email against mock data
         const apiEmails = new Set(apiRegs.map((r: any) => r.email))
         setRegs([...apiRegs, ...MOCK_REGISTRATIONS.filter(m => !apiEmails.has(m.email))])
       })
       .catch(() => setRegs(MOCK_REGISTRATIONS))
   }, [])
 
-  useEffect(()=>{
-    const t = setInterval(()=>setTime(new Date()),1000)
-    return ()=>clearInterval(t)
-  },[])
+  // ── Load BUSINESS users → merge into clients list ────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem('hg_token')
+    if (!token) return
+    fetch(`${API_URL}/users?role=BUSINESS`, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        if (!data.length) return
+        const apiClients = data.map(u => bizToClient(u, 'api'))
+        setClients(prev => {
+          const apiEmails = new Set(apiClients.map((c: any) => c.email.toLowerCase()))
+          return [...apiClients, ...prev.filter(c => !apiEmails.has(c.email?.toLowerCase()))]
+        })
+      })
+      .catch(() => {
+        // API offline — fall back to localStorage
+        syncLocalBizRegs()
+      })
+  }, [])
 
-  const handleRoute = (id:string)=>{
-    const external:Record<string,string> = {
-      users:     '/admin/users',
-      jobs:      '/admin/jobs',
-      map:       '/admin/map',
-      payments:  '/admin/payments',
-      onboarding:'/admin/onboarding',
-      reviews:   '/admin/reviews',
-    }
-    if(external[id]){ navigate(external[id]); return }
-    navigate('/admin?tab='+id)
+  // ── Helper: sync business registrations from localStorage ────────────────────
+  const syncLocalBizRegs = () => {
+    try {
+      const stored = localStorage.getItem('hg_registrations')
+      if (!stored) return
+      const bizRegs: any[] = JSON.parse(stored).filter((r: any) => r.role === 'BUSINESS')
+      if (!bizRegs.length) return
+      setClients(prev => {
+        const existingEmails = new Set(prev.map(c => c.email?.toLowerCase()))
+        const newOnes = bizRegs
+          .filter(r => !existingEmails.has(r.email?.toLowerCase()))
+          .map(r => bizToClient(r, 'local'))
+        return newOnes.length ? [...newOnes, ...prev] : prev
+      })
+    } catch { /* silent */ }
   }
 
-  // ── Approve / Reject via API ───────────────────────────────────────────────
+  // ── Watch localStorage for real-time registrations (RegisterPage writes here) ─
+  useEffect(() => {
+    syncLocalBizRegs() // run on mount
+    const onStorage = () => syncLocalBizRegs()
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // ── Routing ──────────────────────────────────────────────────────────────────
+  const handleRoute = (id: string) => {
+    const external: Record<string, string> = {
+      users:      '/admin/users',
+      jobs:       '/admin/jobs',
+      map:        '/admin/map',
+      payments:   '/admin/payments',
+      onboarding: '/admin/onboarding',
+      reviews:    '/admin/reviews',
+    }
+    if (external[id]) { navigate(external[id]); return }
+    navigate('/admin?tab=' + id)
+  }
+
+  // ── Approve / Reject ─────────────────────────────────────────────────────────
   const updateStatus = (id: string, status: 'approved' | 'rejected') => {
     const token = localStorage.getItem('hg_token')
     if (token) {
@@ -1354,20 +1453,32 @@ export default function AdminDashboard() {
         body: JSON.stringify({ decision: status }),
       }).catch(console.error)
     }
+    // Update registrations list
     setRegs(p => p.map(r => r.id !== id ? r : { ...r, status }))
+    // Sync client status if this is a business user
+    setClients(prev => prev.map(c =>
+      c.id !== id ? c : { ...c, status: status === 'approved' ? 'active' : 'inactive' }
+    ))
     setDetail(null)
   }
 
   return (
     <AdminLayout>
-      {tab==='dashboard'     && <DashboardTab     regs={regs} msgs={msgs} time={time} onRoute={handleRoute} />}
-      {tab==='registrations' && <RegistrationsTab regs={regs} onDetail={setDetail} onApprove={id=>updateStatus(id,'approved')} onReject={id=>updateStatus(id,'rejected')} />}
-      {tab==='clients'       && <ClientsTab />}
-      {tab==='logins'        && <LoginsTab />}
-      {tab==='messages'      && <AdminChatTab />}
-      {tab==='reports'       && <ReportsTab regs={regs} />}
-      {tab==='settings'      && <SettingsTab />}
-      {detailItem && <DetailModal item={detailItem} onClose={()=>setDetail(null)} onApprove={()=>updateStatus(detailItem.id,'approved')} onReject={()=>updateStatus(detailItem.id,'rejected')} />}
+      {tab === 'dashboard'     && <DashboardTab     regs={regs} clients={clients} msgs={msgs} time={time} onRoute={handleRoute} />}
+      {tab === 'registrations' && <RegistrationsTab regs={regs} onDetail={setDetail} onApprove={id => updateStatus(id, 'approved')} onReject={id => updateStatus(id, 'rejected')} />}
+      {tab === 'clients'       && <ClientsTab       clients={clients} setClients={setClients} />}
+      {tab === 'logins'        && <LoginsTab />}
+      {tab === 'messages'      && <AdminChatTab />}
+      {tab === 'reports'       && <ReportsTab regs={regs} />}
+      {tab === 'settings'      && <SettingsTab />}
+      {detailItem && (
+        <DetailModal
+          item={detailItem}
+          onClose={() => setDetail(null)}
+          onApprove={() => updateStatus(detailItem.id, 'approved')}
+          onReject={()  => updateStatus(detailItem.id, 'rejected')}
+        />
+      )}
     </AdminLayout>
   )
 }

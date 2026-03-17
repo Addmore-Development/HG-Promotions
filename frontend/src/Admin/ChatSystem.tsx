@@ -112,6 +112,20 @@ function seedDemoMessages() {
 }
 
 // ─── ADMIN CHAT TAB ───────────────────────────────────────────────────────────
+// Mock registered users — in production these would come from the API
+const REGISTERED_PROMOTERS = [
+  'Ayanda Dlamini', 'Thabo Nkosi', 'Sipho Mhlongo', 'Zanele Motha',
+  'Bongani Khumalo', 'Lerato Mokoena', 'Nomsa Zulu', 'Lebo Sithole',
+  'Thandeka Mahlangu', 'Sifiso Dube', 'Naledi Khumalo', 'Mpho Mokoena',
+  'Kagiso Radebe', 'Dineo Nkosi', 'Sibusiso Zulu', 'Precious Molefe',
+]
+const REGISTERED_BUSINESSES = [
+  'Red Bull SA', 'Castle Lager SA', 'AB InBev', 'Heineken SA', 'Distell',
+  'Nike SA', 'Vodacom', 'MTN SA', 'Nedbank', 'Standard Bank SA',
+  'Acme Events Corp', 'FreshBrands Ltd', 'SABMiller SA', 'Tiger Brands',
+  'Coca-Cola SA', 'KFC South Africa', 'Old Mutual SA', 'Shoprite Holdings',
+]
+
 export function AdminChatTab() {
   const [messages,       setMessages      ] = useState<ChatMessage[]>([])
   const [threads,        setThreads       ] = useState<Thread[]>([])
@@ -122,6 +136,7 @@ export function AdminChatTab() {
   const [newThreadName,  setNewThreadName ] = useState('')
   const [newThreadRole,  setNewThreadRole ] = useState<'promoter'|'business'>('promoter')
   const [showNewThread,  setShowNewThread ] = useState(false)
+  const [showDropdown,   setShowDropdown  ] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const reload = () => {
@@ -347,13 +362,40 @@ export function AdminChatTab() {
                 ))}
               </div>
             </div>
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 24, position: 'relative' }}>
               <label style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: W55, display: 'block', marginBottom: 7, fontFamily: FD }}>Name</label>
-              <input value={newThreadName} onChange={e => setNewThreadName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && startNewThread()}
-                placeholder={newThreadRole === 'promoter' ? 'Ayanda Dlamini' : 'Red Bull SA'}
-                style={{ ...inp, width: '100%' }}
-                onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
+              <div style={{ position: 'relative' }}>
+                <input value={newThreadName}
+                  onChange={e => { setNewThreadName(e.target.value); setShowDropdown(true) }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { startNewThread(); setShowDropdown(false) }
+                    if (e.key === 'Escape') setShowDropdown(false)
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  placeholder={newThreadRole === 'promoter' ? 'Search promoter name…' : 'Search business name…'}
+                  style={{ ...inp, width: '100%' }}
+                  autoComplete="off"
+                />
+                {showDropdown && (() => {
+                  const allNames = newThreadRole === 'promoter' ? REGISTERED_PROMOTERS : REGISTERED_BUSINESSES
+                  const q = newThreadName.toLowerCase()
+                  const filtered = allNames.filter(n => !q || n.toLowerCase().includes(q))
+                  if (filtered.length === 0) return null
+                  return (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: D3, border: `1px solid ${BB}`, borderTop: 'none', borderRadius: '0 0 3px 3px', maxHeight: 200, overflowY: 'auto', zIndex: 999 }}>
+                      {filtered.map(name => (
+                        <div key={name}
+                          onMouseDown={e => { e.preventDefault(); setNewThreadName(name); setShowDropdown(false) }}
+                          style={{ padding: '10px 14px', fontSize: 13, color: W55, fontFamily: FD, cursor: 'pointer', borderBottom: `1px solid ${BB}`, transition: 'all 0.12s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = BB2; e.currentTarget.style.color = W }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = W55 }}>
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
             </div>
             <button onClick={startNewThread} disabled={!newThreadName.trim()}
               style={{ width: '100%', padding: '12px', background: newThreadName.trim()?`linear-gradient(135deg,${GL},${G})`:'rgba(255,255,255,0.05)', border: 'none', color: newThreadName.trim()?B:W28, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: newThreadName.trim()?'pointer':'default', borderRadius: 3, transition: 'all 0.2s' }}>

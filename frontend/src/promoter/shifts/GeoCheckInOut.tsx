@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { showToast } from '../../shared/utils/toast';
+import { shiftsService } from '../../shared/services/shiftsService';
 
+// ... (color constants remain unchanged) ...
 const G   = '#D4880A';
 const GL  = '#E8A820';
 const G2  = '#8B5A1A';
@@ -209,7 +211,7 @@ export const GeoCheckInOut: React.FC = () => {
 
   // ── Filtered shifts ─────────────────────────────────────────────────────────
   const filteredShifts = useMemo(() => {
-    return shifts.filter(s => statusFilter === 'all' || s.status === statusFilter);
+    return shifts.filter(s => statusFilter === 'all' || s.status.toUpperCase() === statusFilter);
   }, [shifts, statusFilter]);
 
   // ── Close modal ─────────────────────────────────────────────────────────────
@@ -401,6 +403,7 @@ export const GeoCheckInOut: React.FC = () => {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
 
       {/* Header */}
+      {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
@@ -467,7 +470,16 @@ export const GeoCheckInOut: React.FC = () => {
 
       {/* Shifts list */}
       {filteredShifts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: WD, background: BC, border: `1px solid ${BB}`, borderRadius: 2 }}>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '60px',
+            color: WD,
+            background: BC,
+            border: `1px solid ${BB}`,
+            borderRadius: 2,
+          }}
+        >
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
           <p style={{ fontSize: 14, color: WM, marginBottom: 8 }}>No shifts found</p>
           <p style={{ fontSize: 12, color: WD }}>
