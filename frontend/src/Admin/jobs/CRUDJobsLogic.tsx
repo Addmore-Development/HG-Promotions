@@ -33,7 +33,7 @@ type JobStatus = 'open' | 'filled' | 'completed' | 'cancelled'
 type JobSource = 'base' | 'api' | 'admin'
 
 interface Job {
-  id: string; title: string; client: string; venue: string
+  id: string; title: string; client: string; clientId?: string; venue: string
   date: string; startDate?: string; startTime: string; endTime: string
   hourlyRate: number; totalSlots: number; filledSlots: number
   status: JobStatus; city: string; category?: string
@@ -79,7 +79,7 @@ function authHeader() {
 
 function baseJobsToAdminJobs(): Job[] {
   return ALL_JOBS.map(j => ({
-    id: j.id, title: j.title, client: j.company,
+    id: j.id, title: j.title, client: j.company, clientId: undefined,
     venue: j.location.split(',')[0]?.trim() || j.location,
     date: j.jobDate, startTime: '09:00', endTime: '17:00',
     hourlyRate: parseInt(j.pay.replace(/\D/g, '')) || 0,
@@ -142,7 +142,7 @@ function FilterBtn({ label, active, color, onClick }: { label:string; active:boo
 }
 
 const EMPTY_JOB: Omit<Job,'id'|'applications'|'source'> = {
-  title:'', client:'', venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
+  title:'', client:'', clientId:undefined, venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
   hourlyRate:120, totalSlots:4, filledSlots:0, status:'open', city:'', category:'', termsAndConditions:'',
 }
 
@@ -211,7 +211,7 @@ export default function CRUDJobsLogic() {
       if (res.ok) {
         const data:any[] = await res.json()
         const apiJobs:Job[] = data.map(j=>({
-          id:j.id,title:j.title,client:j.client,venue:j.venue,
+          id:j.id,title:j.title,client:j.client,clientId:j.clientId,venue:j.venue,
           date:j.date?.slice(0,10)||'',startTime:j.startTime||'09:00',endTime:j.endTime||'17:00',
           hourlyRate:j.hourlyRate||0,totalSlots:j.totalSlots||0,filledSlots:j.filledSlots||0,
           status:(j.status?.toLowerCase()||'open') as JobStatus,
@@ -257,6 +257,17 @@ export default function CRUDJobsLogic() {
     setSaveError(''); setSaving(true)
     try {
       const dateISO = form.date ? new Date(form.date).toISOString() : new Date().toISOString()
+      
+      // Find clientId if this is a registered business
+      let clientId = undefined
+      if (form.client !== '__other__') {
+        const selectedClient = clients.find(c => c.name === resolvedClient)
+        if (selectedClient?.email) {
+          // Only use clientId if it's a registered business with email
+          clientId = selectedClient.id
+        }
+      }
+      
       const builtTags:string[] = []
       if (reqGender&&reqGender!=='Any Gender') builtTags.push(reqGender)
       if (reqLanguages) builtTags.push(reqLanguages)
@@ -265,8 +276,10 @@ export default function CRUDJobsLogic() {
       if (reqExperience&&reqExperience!=='None') builtTags.push(reqExperience)
       if (reqAttire&&reqAttire!=='Smart Casual') builtTags.push(reqAttire)
       if (reqOther) builtTags.push(reqOther)
+      
       const payload = {
-        title:form.title, client:resolvedClient, brand:resolvedClient,
+        title:form.title, client:resolvedClient, clientId, // Include clientId for registered businesses
+        brand:resolvedClient,
         venue:form.venue||form.city,address:`${form.venue||form.city}, ${form.city}`,
         lat:cityCoords(form.city)?.[0]??-26.2041,lng:cityCoords(form.city)?.[1]??28.0473,
         date:dateISO,startTime:form.startTime,endTime:form.endTime,
@@ -277,6 +290,7 @@ export default function CRUDJobsLogic() {
           minHeight:reqMinHeight,minAge:reqMinAge,experience:reqExperience,attire:reqAttire,
           other:reqOther,tags:builtTags,termsAndConditions:termsText},
       }
+      
       if (editing&&editing.source!=='base') {
         const res = await fetch(`${API_URL}/jobs/${editing.id}`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify(payload)})
         if (res.ok) { await loadJobs(); closeModal() }
@@ -494,7 +508,10 @@ export default function CRUDJobsLogic() {
                     </td>
 
                     {/* Client */}
-                    <td style={{ padding:'14px 12px', fontSize:11, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.client}</td>
+                    <td style={{ padding:'14px 12px', fontSize:11, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {job.client}
+                      {job.clientId && <div style={{ fontSize:8, color:GL, marginTop:2 }}>Registered Business</div>}
+                    </td>
 
                     {/* Location */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
@@ -626,6 +643,13 @@ export default function CRUDJobsLogic() {
                       onFocus={e=>e.currentTarget.style.borderColor=GL}
                       onBlur={e=>e.currentTarget.style.borderColor=BB}
                     />
+                  )}
+                  {form.client !== '__other__' && form.client && (
+                    <div style={{ marginTop:8, fontSize:11, color:GL, fontFamily:FD }}>
+                      {clients.find(c => c.name === form.client)?.email 
+                        ? '✓ Registered business — jobs will appear in their dashboard' 
+                        : 'ℹ️ Unregistered client — add as a registered business for dashboard visibility'}
+                    </div>
                   )}
                 </div>
                 <div><label style={lbl}>Category</label><select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}><option value="">— Select —</option>{CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>

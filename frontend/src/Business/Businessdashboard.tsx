@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// ─── Strict Gold & Black Palette ──────────────────────────────────────────────
+// ─── Strict Brown/Gold/Yellow Palette ────────────────────────────────────────
 const BLK  = '#050402'
 const BLK1 = '#0A0804'
 const BLK2 = '#100C05'
 const BLK3 = '#181206'
 const BLK4 = '#201608'
-const GL   = '#E8A820'
-const GD   = '#C07818'
-const GD2  = '#8B5A1A'
-const GD3  = '#6B3F10'
-const BB   = 'rgba(212,136,10,0.16)'
+const GL   = '#E8A820'      // Gold
+const GD   = '#C07818'      // Brown
+const GD2  = '#8B5A1A'      // Dark Brown
+const GD3  = '#6B3F10'      // Very Dark Brown
+const BB   = 'rgba(212,136,10,0.16)'  // Brown border
 const BB2  = 'rgba(212,136,10,0.08)'
 const W    = '#FAF3E8'
 const W7   = 'rgba(250,243,232,0.70)'

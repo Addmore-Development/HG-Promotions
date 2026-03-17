@@ -98,6 +98,140 @@ function StatBox(props: { label: string; value: string | number; color: string }
   )
 }
 
+// ─── Leaflet Map Component ───────────────────────────────────────────────────
+function LiveMap({ promoters, selectedPromo, onSelectPromo }: { 
+  promoters: LivePromoter[]; 
+  selectedPromo: LivePromoter | null;
+  onSelectPromo: (p: LivePromoter) => void;
+}) {
+  const [map, setMap] = useState<any>(null)
+  const [markers, setMarkers] = useState<any[]>([])
+  const mapRef = useCallback((node: HTMLDivElement) => {
+    if (node && !map) {
+      // Dynamically import Leaflet only when component mounts
+      import('leaflet').then(L => {
+        // Initialize map centered on South Africa
+        const leafletMap = L.default.map(node).setView([-30.5595, 22.9375], 5)
+        
+        // Add tile layer (OpenStreetMap)
+        L.default.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(leafletMap)
+
+        // Add SA border highlight
+        L.default.polygon([
+          [-22.125, 16.469], // Northern border approximate
+          [-34.834, 19.999], // Southern tip
+          [-27.000, 32.875], // Eastern border
+        ], { color: GL, weight: 2, fillOpacity: 0.05 }).addTo(leafletMap)
+
+        setMap(leafletMap)
+      })
+    }
+  }, [map])
+
+  // Update markers when promoters change
+  useEffect(() => {
+    if (!map) return
+
+    import('leaflet').then(L => {
+      // Clear existing markers
+      markers.forEach(m => m.remove())
+      
+      // Create new markers
+      const newMarkers = promoters.map(p => {
+        const isSelected = selectedPromo?.userId === p.userId
+        const isStale = (Date.now() - p.timestamp) > 120000 // 2 minutes
+        
+        // Create custom icon
+        const icon = L.default.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div style="
+              width: ${isSelected ? '20px' : '16px'};
+              height: ${isSelected ? '20px' : '16px'};
+              background: ${isStale ? GD : GREEN};
+              border: 3px solid ${isSelected ? GL : 'white'};
+              border-radius: 50%;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              transition: all 0.2s;
+              cursor: pointer;
+            "></div>
+          `,
+          iconSize: [isSelected ? 20 : 16, isSelected ? 20 : 16],
+          iconAnchor: [isSelected ? 10 : 8, isSelected ? 10 : 8],
+        })
+
+        const marker = L.default.marker([p.lat, p.lng], { icon })
+          .addTo(map)
+          .on('click', () => onSelectPromo(p))
+
+        // Add popup with promoter info
+        const popupContent = `
+          <div style="font-family: ${FD}; padding: 8px;">
+            <strong style="color: ${GL};">${p.promoterName || 'Unknown'}</strong><br/>
+            <span style="font-size: 11px;">${p.jobTitle || 'On shift'}</span><br/>
+            <span style="font-size: 10px; color: ${GD};">📍 ${p.venue || 'No venue'}</span>
+          </div>
+        `
+        marker.bindPopup(popupContent)
+
+        return marker
+      })
+
+      setMarkers(newMarkers)
+
+      // Fit bounds to show all markers if there are any
+      if (newMarkers.length > 0) {
+        const group = L.default.featureGroup(newMarkers)
+        map.fitBounds(group.getBounds().pad(0.1))
+      }
+    })
+
+    return () => {
+      markers.forEach(m => m.remove())
+    }
+  }, [promoters, selectedPromo, map])
+
+  return (
+    <div style={{ marginBottom: 24, borderRadius: 4, overflow: 'hidden', border: `1px solid ${BB}` }}>
+      <div 
+        ref={mapRef}
+        style={{ height: '400px', width: '100%', background: '#1a1a1a' }}
+      />
+      <style>{`
+        .leaflet-container {
+          background: #1a1a1a !important;
+        }
+        .leaflet-tile {
+          filter: brightness(0.8) contrast(1.2) !important;
+        }
+        .leaflet-control-attribution {
+          background: rgba(0,0,0,0.7) !important;
+          color: ${W4} !important;
+          font-size: 9px !important;
+        }
+        .leaflet-control-attribution a {
+          color: ${GL} !important;
+        }
+        .leaflet-popup-content-wrapper {
+          background: ${BLK2} !important;
+          color: ${W} !important;
+          border: 1px solid ${BB} !important;
+          border-radius: 3px !important;
+        }
+        .leaflet-popup-tip {
+          background: ${BLK2} !important;
+          border: 1px solid ${BB} !important;
+        }
+        .leaflet-popup-close-button {
+          color: ${W4} !important;
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ── Detail row ────────────────────────────────────────────────────────────────
 function DetailRow(props: { label: string; value: string; accent?: string }) {
   return (
@@ -259,6 +393,8 @@ export default function BusinessTracking() {
   return (
     <div>
       <style>{'@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }'}</style>
+      {/* Add Leaflet CSS */}
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossOrigin=""/>
 
       {/* Header */}
       <div className="biz-page" style={{ marginBottom: 28 }}>
@@ -269,7 +405,7 @@ export default function BusinessTracking() {
             </div>
             <h1 style={{ fontFamily: FD, fontSize: 'clamp(22px,3vw,34px)', fontWeight: 700, color: W }}>Live Tracking</h1>
             <p style={{ fontSize: 13, color: W4, marginTop: 6, fontFamily: FB }}>
-              Real-time location of promoters on your active campaigns. Updates every 30 seconds.
+              Real-time location of promoters on your active campaigns. Updates every 15 seconds.
             </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
@@ -300,6 +436,13 @@ export default function BusinessTracking() {
         <StatBox label="Live Cost So Far"   value={'R' + totalEarningsLive} color={GL}    />
         <StatBox label="Active Jobs"        value={activeJobCount}   color={GD}    />
       </div>
+
+      {/* Live Map */}
+      <LiveMap 
+        promoters={filteredPromoters} 
+        selectedPromo={selectedPromo}
+        onSelectPromo={setSelectedPromo}
+      />
 
       {/* Job filter */}
       {jobs.length > 0 && (
@@ -338,7 +481,7 @@ export default function BusinessTracking() {
           <div style={{ fontSize: 40, marginBottom: 16 }}>{PIN_EMOJI}</div>
           <p style={{ fontFamily: FD, fontSize: 20, color: W4, marginBottom: 8 }}>No promoters on shift right now</p>
           <p style={{ fontFamily: FB, fontSize: 13, color: W2 }}>
-            When a promoter checks in, their live location will appear here and update every 30 seconds.
+            When a promoter checks in, their live location will appear here and update every 15 seconds.
           </p>
         </div>
       ) : (

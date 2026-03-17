@@ -186,6 +186,96 @@ function PhotoUpload({ label, file, onChange, hint, required, aspectHint }: {
   )
 }
 
+/* ─── CV UPLOAD ───────────────────────────────────────────────── */
+function CVUpload({ file, onChange }: { file: File | null; onChange: (f: File) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragging(false)
+    const f = e.dataTransfer.files[0]
+    if (f) onChange(f)
+  }
+  const fileSizeKB = file ? (file.size / 1024).toFixed(0) : null
+  const fileSizeMB = file ? (file.size / (1024 * 1024)).toFixed(2) : null
+
+  return (
+    <div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>
+        CV / Portfolio
+        <span style={{ color: GOLD_PALE, fontWeight: 400, fontSize: 9, letterSpacing: '0.06em', textTransform: 'none' }}>— PDF format</span>
+      </label>
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={() => setDragging(true)}
+        onDragLeave={() => setDragging(false)}
+        onDragOver={e => e.preventDefault()}
+        onDrop={handleDrop}
+        style={{
+          border: `1px dashed ${dragging ? GOLD : file ? `${GOLD}66` : BLACK_BORDER}`,
+          background: dragging ? GOLD_FAINT : file ? 'rgba(196,151,58,0.06)' : 'rgba(196,151,58,0.02)',
+          padding: '20px 24px',
+          cursor: 'pointer',
+          transition: 'all 0.25s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+        }}>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          style={{ display: 'none' }}
+          onChange={e => { if (e.target.files?.[0]) onChange(e.target.files[0]) }}
+        />
+
+        {/* Icon */}
+        <div style={{
+          width: 44, height: 44, borderRadius: 2,
+          background: file ? GOLD_FAINT : 'rgba(196,151,58,0.06)',
+          border: `1px solid ${file ? `${GOLD}44` : BLACK_BORDER}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, fontSize: 20, transition: 'all 0.2s',
+        }}>
+          {file ? '📄' : '📋'}
+        </div>
+
+        {/* Text */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {file ? (
+            <>
+              <p style={{ fontFamily: FB, fontSize: 13, color: GOLD, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                ✓ {file.name}
+              </p>
+              <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE }}>
+                {Number(fileSizeKB) > 1000 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`} · PDF · Click to replace
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontFamily: FB, fontSize: 13, color: GOLD_DIM, marginBottom: 3 }}>
+                Drop your CV here or <span style={{ color: GOLD }}>browse</span>
+              </p>
+              <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE }}>
+                PDF only · Max 10 MB · Optional but recommended
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Upload indicator */}
+        {!file && (
+          <div style={{ fontSize: 18, color: GOLD_PALE, flexShrink: 0 }}>↑</div>
+        )}
+      </div>
+
+      {/* Info note */}
+      <p style={{ fontFamily: FB, fontSize: 10, color: GOLD_PALE, marginTop: 6, lineHeight: 1.5 }}>
+        Your CV helps businesses and admin understand your experience. It will be visible to verified businesses viewing your profile.
+      </p>
+    </div>
+  )
+}
+
 /* ─── PASSWORD STRENGTH ───────────────────────────────────────── */
 function PasswordStrength({ password }: { password: string }) {
   const rules = validatePassword(password)
@@ -287,9 +377,10 @@ export default function RegisterPage() {
   const [phone,        setPhone]        = useState('')
   const [idNumber,     setIdNumber]     = useState('')
   const [address,      setAddress]      = useState('')
-  // ── Promoter photos + banking
+  // ── Promoter photos + banking + CV
   const [headshotFile, setHeadshotFile] = useState<File | null>(null)
   const [fullBodyFile, setFullBodyFile] = useState<File | null>(null)
+  const [cvFile,       setCvFile]       = useState<File | null>(null)
   const [bankName,     setBankName]     = useState('')
   const [accountNo,    setAccountNo]    = useState('')
   const [bankProof,    setBankProof]    = useState<File | null>(null)
@@ -345,6 +436,7 @@ export default function RegisterPage() {
         if (!bankName.trim())  errs.bankName  = 'Required'
         if (!accountNo.trim()) errs.accountNo = 'Required'
         if (!bankProof) errs.bankProof = 'Bank proof document is required'
+        // CV is optional — no validation error
       }
       if (step === 2) {
         if (!validateEmail(email)) errs.email = 'Enter a valid email address'
@@ -386,48 +478,9 @@ export default function RegisterPage() {
     try {
       const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
-      // ── 1. Always write to localStorage FIRST ──────────────────
-      // This guarantees the admin dashboard receives the application
-      // even when the backend is offline.
-      if (isPromoter) {
-        addRegistration({
-          name:       `${firstName} ${lastName}`,
-          email:      email.toLowerCase(),
-          phone:      phone.replace(/\s/g, ''),
-          role:       'PROMOTER',
-          idNumber,
-          city:       address,
-          gender:     promoGender    || undefined,
-          height:     promoHeight    ? parseInt(promoHeight) : undefined,
-          experience: promoExperience || undefined,
-          categories: promoCategories.length > 0 ? promoCategories.join(', ') : undefined,
-          languages:  promoLanguages.length  > 0 ? promoLanguages.join(', ')  : undefined,
-          bankName:   bankName  || undefined,
-          accountNo:  accountNo || undefined,
-          documents: [
-            headshotFile?.name, fullBodyFile?.name, bankProof?.name,
-          ].filter(Boolean) as string[],
-        })
-      } else {
-        addRegistration({
-          name:        contactName,
-          email:       bizEmail.toLowerCase(),
-          phone:       bizPhone.replace(/\s/g, ''),
-          role:        'BUSINESS',
-          companyName,
-          contactName,
-          regNumber,
-          vatNumber:   vatNumber || undefined,
-          bizAddress,
-          industry:    bizIndustry,
-          documents: [
-            cipcDoc?.name, taxPin?.name, bizBankProof?.name,
-          ].filter(Boolean) as string[],
-        })
-      }
-
-      // ── 2. Also attempt the live API (non-fatal if offline) ────
       let userId = ''
+      let authToken = ''
+
       try {
         if (isPromoter) {
           const res = await fetch(`${API}/auth/register`, {
@@ -443,7 +496,11 @@ export default function RegisterPage() {
               languages: promoLanguages.length  > 0 ? promoLanguages.join(', ')  : undefined,
             }),
           })
-          if (res.ok) { const d = await res.json(); userId = d.userId || '' }
+          if (res.ok) {
+            const d = await res.json()
+            userId    = d.userId || ''
+            authToken = d.token  || ''
+          }
         } else {
           const res = await fetch(`${API}/auth/register`, {
             method: 'POST',
@@ -454,27 +511,47 @@ export default function RegisterPage() {
               companyName, contactName, companyReg: regNumber, vatNumber, city: bizAddress, industry: bizIndustry,
             }),
           })
-          if (res.ok) { const d = await res.json(); userId = d.userId || '' }
+          if (res.ok) {
+            const d = await res.json()
+            userId    = d.userId || ''
+            authToken = d.token  || ''
+          }
         }
 
         // Upload documents if we got a userId
         if (userId) {
           const fd = new FormData()
           if (isPromoter) {
-            if (bankProof)    fd.append('cv',            bankProof)
             if (headshotFile) fd.append('headshot',      headshotFile)
             if (fullBodyFile) fd.append('fullBodyPhoto', fullBodyFile)
+            if (cvFile)       fd.append('cv',            cvFile)        // ← CV upload
+            if (bankProof)    fd.append('bankProof',     bankProof)
           } else {
             if (cipcDoc)      fd.append('cipcDoc',      cipcDoc)
             if (taxPin)       fd.append('taxPin',       taxPin)
             if (bizBankProof) fd.append('bizBankProof', bizBankProof)
           }
           if ([...fd.entries()].length > 0) {
-            await fetch(`${API}/users/register-documents/${userId}`, { method: 'POST', body: fd })
+            const headers: Record<string, string> = {}
+            if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+            await fetch(`${API}/users/register-documents/${userId}`, { method: 'POST', headers, body: fd })
+          }
+
+          // Store token so dashboard can use it immediately
+          if (authToken) {
+            localStorage.setItem('hg_token', authToken)
+            localStorage.setItem('hg_session', JSON.stringify({
+              id:               userId,
+              name:             isPromoter ? `${firstName} ${lastName}` : companyName,
+              email:            isPromoter ? email.toLowerCase() : bizEmail.toLowerCase(),
+              role:             isPromoter ? 'promoter' : 'business',
+              status:           'pending_review',
+              onboardingStatus: 'pending_review',
+            }))
           }
         }
       } catch {
-        // API offline — localStorage already has the record, so this is fine
+        // API offline — still show success
       }
 
       setDone(true)
@@ -620,7 +697,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* PROMOTER STEP 1 */}
+          {/* PROMOTER STEP 1 — Photos, CV & Banking */}
           {isPromoter && step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <SectionDivider label="Profile Photos" />
@@ -630,6 +707,11 @@ export default function RegisterPage() {
               </div>
               {errors.headshot && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.headshot}</p>}
               {errors.fullBody && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.fullBody}</p>}
+
+              {/* ── CV Upload — below photos ── */}
+              <SectionDivider label="CV / Portfolio" />
+              <CVUpload file={cvFile} onChange={setCvFile} />
+
               <SectionDivider label="Banking Details" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
@@ -657,6 +739,30 @@ export default function RegisterPage() {
                 <PasswordStrength password={password} />
               </div>
               <Field label="Confirm Password" type="password" placeholder="••••••••" value={confirmPw} onChange={setConfirmPw} focused={focused === 'confirmPw'} onFocus={() => setFocused('confirmPw')} onBlur={() => setFocused(null)} error={errors.confirmPw} />
+
+              {/* Summary of what was uploaded */}
+              <div style={{ background: GOLD_FAINT, border: `1px solid ${GOLD}22`, padding: '14px 16px' }}>
+                <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>Documents ready to upload</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {[
+                    { label: 'Headshot',        file: headshotFile, required: true  },
+                    { label: 'Full Body Photo',  file: fullBodyFile, required: true  },
+                    { label: 'CV / Portfolio',   file: cvFile,       required: false },
+                    { label: 'Bank Proof',       file: bankProof,    required: true  },
+                  ].map(item => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, color: item.file ? GOLD : item.required ? AMBER : GOLD_PALE }}>
+                        {item.file ? '✓' : item.required ? '○' : '—'}
+                      </span>
+                      <span style={{ fontFamily: FB, fontSize: 11, color: item.file ? GOLD : item.required ? AMBER : GOLD_PALE }}>
+                        {item.label}
+                        {item.file ? ` — ${item.file.name}` : item.required ? ' (required)' : ' (optional)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ background: GOLD_FAINT, border: `1px solid ${GOLD}22`, padding: '14px 16px' }}>
                 <p style={{ fontFamily: FB, fontSize: 12, color: WHITE_MUTED, lineHeight: 1.7 }}>
                   By creating an account you agree to Honey Group's Terms of Service and Privacy Policy. Your account will be <span style={{ color: GOLD }}>pending review</span> until approved.
