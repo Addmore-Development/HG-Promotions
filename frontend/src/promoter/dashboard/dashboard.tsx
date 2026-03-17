@@ -34,49 +34,34 @@ function fmtDate(d: string) {
   catch { return d }
 }
 
-// ─── SA city keywords — used to extract city name from a full address ─────────
-// "27 Kotze Street, Hillbrow, Johannesburg, 2000" → extracts "johannesburg"
-// "Sandton City, Johannesburg" → extracts "johannesburg"
+// ─── SA city extraction from full addresses ───────────────────────────────────
 const SA_CITIES = [
   'johannesburg', 'cape town', 'durban', 'pretoria', 'port elizabeth',
   'bloemfontein', 'east london', 'nelspruit', 'polokwane', 'kimberley',
-  'pietermaritzburg', 'rustenburg', 'george', 'upington', 'vanderbijlpark',
+  'pietermaritzburg', 'rustenburg', 'george', 'vanderbijlpark',
   'soweto', 'sandton', 'randburg', 'roodepoort', 'benoni', 'boksburg',
   'germiston', 'springs', 'midrand', 'centurion', 'tshwane', 'ekurhuleni',
-  'stellenbosch', 'paarl', 'worcester', 'bellville', 'mitchells plain',
+  'stellenbosch', 'paarl', 'bellville', 'mitchells plain',
   'khayelitsha', 'tygervalley', 'hillbrow', 'braamfontein', 'rosebank',
-  'fourways', 'randpark ridge', 'alexandra', 'soweto', 'lenasia',
+  'fourways', 'alexandra', 'lenasia',
 ]
 
-// Extract meaningful city tokens from a stored city value that may be a full address
 function extractCityTokens(cityValue: string): string[] {
   if (!cityValue) return []
   const lower = cityValue.toLowerCase()
-
-  // First check if it matches a known SA city directly
   const knownMatch = SA_CITIES.find(c => lower.includes(c))
   if (knownMatch) return [knownMatch]
-
-  // Otherwise split by comma and use each part as a token
   return cityValue
     .split(',')
     .map(s => s.trim().toLowerCase())
-    .filter(s => s.length > 2 && !/^\d+$/.test(s)) // skip pure numbers like postcodes
+    .filter(s => s.length > 2 && !/^\d+$/.test(s))
 }
 
-// Check if a job's location matches the promoter's city value
 function jobMatchesPromoterCity(job: any, promoterCityRaw: string): boolean {
   if (!promoterCityRaw) return false
-
   const tokens = extractCityTokens(promoterCityRaw)
   if (tokens.length === 0) return false
-
-  const jobText = [
-    job.address || '',
-    job.venue   || '',
-    job.city    || '',
-  ].join(' ').toLowerCase()
-
+  const jobText = [job.address || '', job.venue || '', job.city || ''].join(' ').toLowerCase()
   return tokens.some(token => jobText.includes(token))
 }
 
@@ -123,6 +108,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = (profile?.fullName || '').split(' ')[0] || 'Promoter'
 
+  // ── Applications split by status ──────────────────────────────────────────
+  // Each app has app.job embedded (from getMyApplications include)
+  // Fall back to allJobs lookup if needed
+  const getJobFromApp = (app: any) => {
+    if (app.job) return app.job
+    return allJobs.find(j => j.id === app.jobId)
+  }
+
   const allocatedApps = myApps.filter(a =>
     a.status === 'ALLOCATED' || a.status === 'allocated'
   )
@@ -131,13 +124,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     a.status === 'PENDING'  || a.status === 'pending'
   )
 
-  const jobForApp = (app: any) => allJobs.find(j => j.id === app.jobId || j.id === app.job?.id)
-
-  // Upcoming confirmed job
-  const upcomingJob = allocatedApps
-    .map(a => ({ app: a, job: a.job || jobForApp(a) }))
+  // Upcoming confirmed jobs — use app.job directly
+  const upcomingAllocated = allocatedApps
+    .map(a => ({ app: a, job: getJobFromApp(a) }))
     .filter(({ job }) => job && new Date(job.date) >= new Date(new Date().setHours(0, 0, 0, 0)))
-    .sort((a, b) => new Date(a.job.date).getTime() - new Date(b.job.date).getTime())[0]
+    .sort((a, b) => new Date(a.job.date).getTime() - new Date(b.job.date).getTime())
+
+  const upcomingJob = upcomingAllocated[0] || null
 
   // Today's active shift
   const todayShift = myShifts.find(s => {
@@ -151,17 +144,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   const promoterCityRaw = profile?.city || ''
 
-  // Get a display-friendly city name
   const cityDisplayName = (() => {
     if (!promoterCityRaw) return ''
     const tokens = extractCityTokens(promoterCityRaw)
     if (tokens.length === 0) return promoterCityRaw
-    // Capitalise first token
-    return tokens[0].replace(/\b\w/g, c => c.toUpperCase())
+    return tokens[0].replace(/\b\w/g, (c: string) => c.toUpperCase())
   })()
 
-  // ALL jobs in the promoter's city/area that they haven't applied to
-  const appliedJobIds = new Set(myApps.map(a => a.jobId || a.job?.id))
+  // Jobs in promoter's city that they haven't applied to
+  const appliedJobIds = new Set(myApps.map(a => a.jobId))
   const nearbyJobs = allJobs.filter(j => {
     if (appliedJobIds.has(j.id)) return false
     if (!['OPEN', 'open'].includes(j.status)) return false
@@ -182,7 +173,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     <div style={{ padding: '32px 48px' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -218,7 +209,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* Today's shift alert */}
+      {/* ── Today's shift alert ── */}
       {todayShift && (() => {
         const todayJob = allJobs.find(j => j.id === todayShift.jobId)
         return todayJob ? (
@@ -239,14 +230,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         ) : null
       })()}
 
-      {/* Account pending warning */}
+      {/* ── Account pending warning ── */}
       {profile && profile.status !== 'approved' && profile.status !== 'blacklisted' && (
         <div style={{ padding: '14px 18px', background: hex2rgba(GD2, 0.2), border: `1px solid ${hex2rgba(GD, 0.4)}`, borderRadius: 3, marginBottom: 24, fontSize: 13, color: GL, fontFamily: FB, lineHeight: 1.6 }}>
           ⏳ Your account is <strong>pending admin approval</strong>. You can browse jobs but cannot apply until approved.
         </div>
       )}
 
-      {/* Stats */}
+      {/* ── Stats ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 28 }}>
         {[
           { label: 'Confirmed Jobs',   value: allocatedApps.length,                                              color: GL,   tab: 'jobs'    },
@@ -265,7 +256,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         ))}
       </div>
 
-      {/* Two-column layout */}
+      {/* ── Two-column: Next Job + Jobs Near You ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: BB, marginBottom: 24 }}>
 
         {/* Next Confirmed Job */}
@@ -376,26 +367,37 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* My Confirmed Jobs */}
+      {/* ── My Confirmed Jobs list (all of them) ── */}
       {allocatedApps.length > 0 && (
         <div style={{ background: BLK2, padding: 28, border: `1px solid ${BB}`, borderRadius: 3 }}>
-          <h2 style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: W, marginBottom: 20 }}>My Confirmed Jobs</h2>
+          <h2 style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: W, marginBottom: 20 }}>
+            My Confirmed Jobs
+          </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {allocatedApps.slice(0, 5).map((app, i) => {
-              const job = app.job || jobForApp(app)
+            {allocatedApps.map((app, i) => {
+              // Use app.job directly — it's embedded from the API
+              const job = getJobFromApp(app)
               if (!job) return null
               return (
-                <div key={app.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: i < Math.min(allocatedApps.length, 5) - 1 ? `1px solid ${BB}` : 'none' }}>
+                <div key={app.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: i < allocatedApps.length - 1 ? `1px solid ${BB}` : 'none' }}>
                   <div style={{ width: 36, height: 36, borderRadius: 3, background: hex2rgba(GL, 0.12), border: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>✅</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 700, color: W, marginBottom: 2 }}>{job.title}</div>
                     <div style={{ fontSize: 11, color: W4, fontFamily: FB }}>
                       {job.client} · {fmtDate(job.date)} · {job.startTime}–{job.endTime}
                     </div>
+                    <div style={{ fontSize: 11, color: W4, fontFamily: FB, marginTop: 1 }}>
+                      📍 {job.venue || job.address?.split(',')[0]}
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 12, color: GL, fontFamily: FD, fontWeight: 700 }}>R{job.hourlyRate}/hr</div>
-                    <div style={{ fontSize: 9, color: TEAL, fontFamily: FD, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Confirmed</div>
+                    <div style={{ fontSize: 9, color: TEAL, fontFamily: FD, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>Confirmed</div>
+                    <button onClick={() => nav('shifts')}
+                      style={{ marginTop: 6, padding: '4px 10px', background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, color: GL, fontFamily: FD, fontSize: 8, fontWeight: 700, cursor: 'pointer', borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Shifts →
+                    </button>
                   </div>
                 </div>
               )

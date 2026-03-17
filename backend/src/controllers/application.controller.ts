@@ -29,17 +29,17 @@ export const applyToJob = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Promoter-initiated applications always start as STANDBY
     const application = await prisma.application.create({
       data: { jobId, promoterId, status: 'STANDBY' },
+      include: { job: true },
     });
 
     await auditLog({
-      userId: promoterId,
-      action: 'APPLY_STANDBY',
-      entity: 'Application',
+      userId:   promoterId,
+      action:   'APPLY_STANDBY',
+      entity:   'Application',
       entityId: application.id,
-      meta: { jobId },
+      meta:     { jobId },
     });
 
     res.status(201).json(application);
@@ -74,7 +74,6 @@ export const getApplicationsForJob = async (req: Request, res: Response): Promis
             onboardingStatus: true,
             status: true,
             createdAt: true,
-            idNumber: true,
           },
         },
       },
@@ -99,9 +98,10 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response): 
     const updated = await prisma.application.update({
       where: { id: req.params.id },
       data: { status },
+      include: { job: true },
     });
 
-    // When ALLOCATING: create shift so it appears on promoter's dashboard
+    // When ALLOCATING: create shift so it appears on promoter dashboard
     if (app.status !== 'ALLOCATED' && status === 'ALLOCATED') {
       const existingShift = await prisma.shift.findFirst({
         where: { jobId: app.jobId, promoterId: app.promoterId },
@@ -131,7 +131,6 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response): 
 
     // When DE-ALLOCATING
     if (app.status === 'ALLOCATED' && (status === 'DECLINED' || status === 'STANDBY')) {
-      // Remove the shift if it exists and hasn't been checked in yet
       await prisma.shift.deleteMany({
         where: { jobId: app.jobId, promoterId: app.promoterId, status: 'SCHEDULED' },
       });
@@ -155,7 +154,6 @@ export const updateApplicationStatus = async (req: AuthRequest, res: Response): 
   }
 };
 
-// New endpoint: allocate multiple promoters at once (business bulk confirm)
 export const bulkAllocate = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { jobId, promoterIds } = req.body as { jobId: string; promoterIds: string[] };
@@ -171,7 +169,7 @@ export const bulkAllocate = async (req: AuthRequest, res: Response): Promise<voi
     const results = [];
 
     for (const promoterId of promoterIds) {
-      // Upsert application
+      // Upsert the application to ALLOCATED
       let app = await prisma.application.findUnique({
         where: { jobId_promoterId: { jobId, promoterId } },
       });
@@ -187,7 +185,7 @@ export const bulkAllocate = async (req: AuthRequest, res: Response): Promise<voi
         });
       }
 
-      // Create shift if not exists
+      // Create shift record so it shows on promoter dashboard
       const existingShift = await prisma.shift.findFirst({
         where: { jobId, promoterId },
       });
@@ -200,7 +198,7 @@ export const bulkAllocate = async (req: AuthRequest, res: Response): Promise<voi
       results.push(app);
     }
 
-    // Update job filled slots
+    // Recount and update filledSlots
     const allocatedCount = await prisma.application.count({
       where: { jobId, status: 'ALLOCATED' },
     });
@@ -209,6 +207,7 @@ export const bulkAllocate = async (req: AuthRequest, res: Response): Promise<voi
       data: {
         filledSlots: allocatedCount,
         ...(allocatedCount >= job.totalSlots && { status: 'FILLED' }),
+        ...(allocatedCount < job.totalSlots && job.status === 'FILLED' && { status: 'OPEN' }),
       },
     });
 
@@ -231,11 +230,34 @@ export const getMyApplications = async (req: AuthRequest, res: Response): Promis
   try {
     const applications = await prisma.application.findMany({
       where: { promoterId: req.user!.id },
-      include: { job: true },
+      include: {
+        // Include FULL job data so the frontend doesn't need a separate job lookup
+        job: {
+          select: {
+            id: true,
+            title: true,
+            client: true,
+            brand: true,
+            venue: true,
+            address: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            hourlyRate: true,
+            totalSlots: true,
+            filledSlots: true,
+            status: true,
+            lat: true,
+            lng: true,
+            filters: true,
+          },
+        },
+      },
       orderBy: { appliedAt: 'desc' },
     });
     res.json(applications);
-  } catch {
+  } catch (err) {
+    console.error('[Applications] getMyApplications error:', err);
     res.status(500).json({ error: 'Failed to fetch applications' });
   }
 };
