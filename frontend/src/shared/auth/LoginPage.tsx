@@ -164,8 +164,12 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
+      // Read the role that came back from the API — stored in hg_session by authService
+      const raw = localStorage.getItem('hg_session')
+      const actualRole: string = raw ? (JSON.parse(raw).role || role) : role
+      const redirect = DASHBOARD_ROUTE[actualRole as Role] ?? DASHBOARD_ROUTE[role]
       setSuccess(true)
-      setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
+      setTimeout(() => navigate(redirect), 900)
     } catch (err: any) {
       setError(err.message || 'Login failed. Check your credentials.')
     } finally {

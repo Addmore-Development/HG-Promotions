@@ -37,6 +37,19 @@ function hex2rgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+// ─── Shared broadcast helper — keeps business dashboard in sync ───────────────
+function broadcastUserUpdate(id: string, patch: Record<string, any>) {
+  try {
+    const existing: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
+    const filtered = existing.filter((e: any) => e.id !== id)
+    localStorage.setItem('hg_client_updates', JSON.stringify([
+      { id, ...patch, updatedAt: new Date().toISOString() },
+      ...filtered.slice(0, 49),
+    ]))
+    window.dispatchEvent(new Event('storage'))
+  } catch { /* silent */ }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role   = 'promoter' | 'client' | 'admin'
 type Status = 'active' | 'inactive' | 'suspended' | 'pending'
@@ -240,6 +253,13 @@ export default function FullCRUDUsers() {
           body: JSON.stringify({ fullName:form.name, phone:form.phone, city:form.city, status:form.status }),
         }).catch(() => {})
       }
+      // Broadcast status change so affected user's dashboard refreshes
+      if (form.status !== editing.status) {
+        const apiStatus = form.status === 'active' ? 'approved'
+                        : form.status === 'inactive' ? 'rejected'
+                        : form.status
+        broadcastUserUpdate(editing.id, { status: apiStatus })
+      }
     }
     closeModal()
   }
@@ -261,13 +281,16 @@ export default function FullCRUDUsers() {
   const updateUserStatus = async (id: string, status: Status) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, status } : u))
     const token = localStorage.getItem('hg_token')
+    const apiDecision = status === 'active' ? 'approved' : 'rejected'
     if (token) {
       fetch(`${API_URL}/admin/users/${id}/approve`, {
         method: 'PUT',
         headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
-        body: JSON.stringify({ decision: status === 'active' ? 'approved' : 'rejected' }),
+        body: JSON.stringify({ decision: apiDecision }),
       }).catch(() => {})
     }
+    // Broadcast so business/promoter dashboard picks up the new status
+    broadcastUserUpdate(id, { status: apiDecision })
   }
 
   const F = (key: keyof typeof form, val: string) => setForm(prev => ({ ...prev, [key]: val }))

@@ -157,11 +157,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <div style={{ fontSize:10, color:WD, marginTop:1, fontFamily:FD }}>Super Admin</div>
             </div>
           </div>
-          <button onClick={() => navigate('/')}
+          <button onClick={() => {
+            localStorage.removeItem('hg_token')
+            localStorage.removeItem('hg_session')
+            navigate('/login')
+          }}
             style={{ fontSize:10.5, color:WD, background:'none', border:'none', cursor:'pointer', fontFamily:FD, padding:0, letterSpacing:'0.06em' }}
             onMouseEnter={e => e.currentTarget.style.color=GL}
             onMouseLeave={e => e.currentTarget.style.color=WD}
-          >← Back to site</button>
+          >← Log Out</button>
         </div>
       </aside>
 

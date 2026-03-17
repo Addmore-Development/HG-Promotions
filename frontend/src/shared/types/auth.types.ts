@@ -9,7 +9,7 @@ export interface User {
 
 export interface AuthContextType {
   user:            User | null
-  role:            string | null
+  role:            string | null   // lowercase: 'promoter' | 'business' | 'admin'
   isAuthenticated: boolean
   isLoading:       boolean
   login:           (email: string, password: string) => Promise<void>

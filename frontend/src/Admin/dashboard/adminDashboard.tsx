@@ -353,7 +353,7 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
   const handleSave = () => {
     setSaving(true)
     setTimeout(() => {
-      onSave({
+      const newClient = {
         id: `C${Date.now().toString().slice(-5)}`,
         name: form.name, contact: form.contact, email: form.email,
         phone: form.phone, city: form.city || 'Not specified',
@@ -364,7 +364,17 @@ function AddClientModal({ onClose, onSave }: { onClose: ()=>void; onSave: (c: an
         jobsRun: 0, totalHours: 0, status: 'new', budget: 'R 0',
         categorySpecs: specs, regulations: regs,
         source: 'manual',
-      })
+      }
+      onSave(newClient)
+      // Broadcast so any business dashboard for this email sees the new entry
+      try {
+        const existing: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
+        localStorage.setItem('hg_client_updates', JSON.stringify([
+          { ...newClient, updatedAt: new Date().toISOString() },
+          ...existing.slice(0, 49),
+        ]))
+        window.dispatchEvent(new Event('storage'))
+      } catch { /* silent */ }
       setSaving(false)
       onClose()
     }, 600)
@@ -1433,8 +1443,22 @@ export default function AdminDashboard() {
     navigate('/admin?tab=' + id)
   }
 
+  // ─── Broadcast helper — writes shared key so business dashboard reacts ──────
+  const broadcastClientUpdate = (id: string, patch: Record<string, any>) => {
+    try {
+      const existing: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
+      const filtered = existing.filter((e: any) => e.id !== id)
+      localStorage.setItem('hg_client_updates', JSON.stringify([
+        { id, ...patch, updatedAt: new Date().toISOString() },
+        ...filtered.slice(0, 49),
+      ]))
+      window.dispatchEvent(new Event('storage'))
+    } catch { /* silent */ }
+  }
+
   const updateStatus = (id: string, status: 'approved' | 'rejected') => {
     const token = localStorage.getItem('hg_token')
+    const uiStatus = status === 'approved' ? 'active' : 'inactive'
     if (token) {
       fetch(`${API_URL}/admin/users/${id}/approve`, {
         method: 'PUT',
@@ -1444,8 +1468,10 @@ export default function AdminDashboard() {
     }
     setRegs(p => p.map(r => r.id !== id ? r : { ...r, status }))
     setClients(prev => prev.map(c =>
-      c.id !== id ? c : { ...c, status: status === 'approved' ? 'active' : 'inactive' }
+      c.id !== id ? c : { ...c, status: uiStatus }
     ))
+    // Broadcast so business dashboard re-fetches profile and shows updated status
+    broadcastClientUpdate(id, { status })
     setDetail(null)
   }
 

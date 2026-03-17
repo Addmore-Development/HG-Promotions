@@ -67,7 +67,7 @@ interface Promoter {
   appId?: string
 }
 
-// ─── Full Promoter Profile Modal (same style as admin) ────────────────────────
+// ─── Full Promoter Profile Modal ──────────────────────────────────────────────
 function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, canSelect }: {
   promoter: Promoter
   onClose: () => void
@@ -83,18 +83,12 @@ function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, c
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 18, background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 20, lineHeight: 1 }}>✕</button>
 
         <div style={{ padding: '36px 36px 0' }}>
-          {/* Label */}
-          <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 20 }}>
-            Promoter Profile
-          </div>
+          <div style={{ fontSize: 9, letterSpacing: '0.36em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 20 }}>Promoter Profile</div>
 
-          {/* Hero: headshot + name */}
           <div style={{ display: 'flex', gap: 24, marginBottom: 28, alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0 }}>
               {promoter.headshotUrl || promoter.profilePhotoUrl ? (
-                <img
-                  src={promoter.headshotUrl || promoter.profilePhotoUrl}
-                  alt={promoter.fullName}
+                <img src={promoter.headshotUrl || promoter.profilePhotoUrl} alt={promoter.fullName}
                   style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', objectPosition: 'top', border: `3px solid ${GL}` }} />
               ) : (
                 <div style={{ width: 110, height: 110, borderRadius: '50%', background: hex2rgba(GL, 0.12), border: `3px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: GL, fontFamily: FD, fontWeight: 700 }}>
@@ -107,31 +101,23 @@ function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, c
               <div style={{ fontSize: 13, color: W4, fontFamily: FB, marginBottom: 10 }}>{promoter.email}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {promoter.city && (
-                  <span style={{ fontSize: 11, color: W7, background: BB, padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>
-                    📍 {promoter.city}
-                  </span>
+                  <span style={{ fontSize: 11, color: W7, background: BB, padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>📍 {promoter.city}</span>
                 )}
                 {(promoter.reliabilityScore ?? 0) > 0 && (
-                  <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>
-                    ⭐ {(promoter.reliabilityScore ?? 0).toFixed(1)} / 5
-                  </span>
+                  <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), padding: '4px 12px', borderRadius: 20, fontFamily: FB }}>⭐ {(promoter.reliabilityScore ?? 0).toFixed(1)} / 5</span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Full body photo */}
           {promoter.fullBodyPhotoUrl && (
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 10, fontWeight: 700 }}>Full Body Photo</div>
-              <img
-                src={promoter.fullBodyPhotoUrl}
-                alt="Full body"
+              <img src={promoter.fullBodyPhotoUrl} alt="Full body"
                 style={{ width: '100%', maxHeight: 360, objectFit: 'cover', objectPosition: 'top', borderRadius: 4, border: `1px solid ${BB}` }} />
             </div>
           )}
 
-          {/* Personal details — two column grid */}
           <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 24, marginBottom: 24 }}>
             <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 16, fontWeight: 700 }}>Personal Details</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
@@ -153,7 +139,6 @@ function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, c
             </div>
           </div>
 
-          {/* CV link */}
           {promoter.cvUrl && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, fontFamily: FD, marginBottom: 10, fontWeight: 700 }}>Documents</div>
@@ -165,7 +150,6 @@ function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, c
           )}
         </div>
 
-        {/* Footer action */}
         <div style={{ padding: '0 36px 36px' }}>
           {isSelected ? (
             <div style={{ display: 'flex', gap: 12 }}>
@@ -197,15 +181,10 @@ function PromoterProfileModal({ promoter, onClose, isSelected, onToggleSelect, c
 
 // ─── Confirm Selection Modal ──────────────────────────────────────────────────
 function ConfirmSelectionModal({ job, selected, promoters, onConfirm, onClose, confirming }: {
-  job: ApiJob
-  selected: Set<string>
-  promoters: Promoter[]
-  onConfirm: () => void
-  onClose: () => void
-  confirming: boolean
+  job: ApiJob; selected: Set<string>; promoters: Promoter[]
+  onConfirm: () => void; onClose: () => void; confirming: boolean
 }) {
   const selectedPromoters = promoters.filter(p => selected.has(p.id))
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, padding: 24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
@@ -217,8 +196,6 @@ function ConfirmSelectionModal({ job, selected, promoters, onConfirm, onClose, c
           <p style={{ fontSize: 13, color: W4, fontFamily: FB, marginBottom: 24, lineHeight: 1.6 }}>
             You are about to confirm <strong style={{ color: GL }}>{selectedPromoters.length}</strong> promoter{selectedPromoters.length > 1 ? 's' : ''} for <strong style={{ color: GL }}>{job.title}</strong>. They will be notified and this job will appear on their dashboard.
           </p>
-
-          {/* Selected promoters list */}
           <div style={{ marginBottom: 28 }}>
             {selectedPromoters.map((p, i) => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < selectedPromoters.length - 1 ? `1px solid ${BB}` : 'none' }}>
@@ -226,9 +203,7 @@ function ConfirmSelectionModal({ job, selected, promoters, onConfirm, onClose, c
                   {p.headshotUrl || p.profilePhotoUrl ? (
                     <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: GL, fontFamily: FD }}>
-                      {p.fullName.charAt(0)}
-                    </div>
+                    <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: GL, fontFamily: FD }}>{p.fullName.charAt(0)}</div>
                   )}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -240,7 +215,6 @@ function ConfirmSelectionModal({ job, selected, promoters, onConfirm, onClose, c
             ))}
           </div>
         </div>
-
         <div style={{ padding: '0 36px 36px', display: 'flex', gap: 12 }}>
           <button onClick={onClose} disabled={confirming}
             style={{ flex: 1, padding: '13px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 3 }}>
@@ -295,7 +269,6 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
         ))}
       </div>
 
-      {/* Promoter interest count */}
       {(interestedCount > 0 || selectedCount > 0) && (
         <div style={{ display: 'flex', gap: 12, marginBottom: 10, fontSize: 11, fontFamily: FB }}>
           {interestedCount > 0 && <span style={{ color: TEAL }}>👋 {interestedCount} interested</span>}
@@ -318,17 +291,15 @@ function JobCard({ job, onOpen }: { job: ApiJob; onOpen: () => void }) {
 
 // ─── Job Detail Panel ─────────────────────────────────────────────────────────
 function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () => void; onRefresh: () => void }) {
-  const [promoters,    setPromoters]    = useState<Promoter[]>([])
-  const [loading,      setLoading]      = useState(true)
-  // pendingSelection = promoters the business has ticked but NOT yet confirmed
+  const [promoters,     setPromoters]     = useState<Promoter[]>([])
+  const [loading,       setLoading]       = useState(true)
   const [pendingSelect, setPendingSelect] = useState<Set<string>>(new Set())
-  // confirmedIds = already ALLOCATED in the DB
-  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
-  const [viewPromoter, setViewPromoter] = useState<Promoter | null>(null)
-  const [tab,          setTab]          = useState<'info' | 'promoters'>('info')
-  const [showConfirm,  setShowConfirm]  = useState(false)
-  const [confirming,   setConfirming]   = useState(false)
-  const [resultMsg,    setResultMsg]    = useState('')
+  const [confirmedIds,  setConfirmedIds]  = useState<Set<string>>(new Set())
+  const [viewPromoter,  setViewPromoter]  = useState<Promoter | null>(null)
+  const [tab,           setTab]           = useState<'info' | 'promoters'>('info')
+  const [showConfirm,   setShowConfirm]   = useState(false)
+  const [confirming,    setConfirming]    = useState(false)
+  const [resultMsg,     setResultMsg]     = useState('')
 
   const loadPromoters = async () => {
     setLoading(true)
@@ -337,99 +308,56 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
         fetch(`${API}/applications/job/${job.id}`, { headers: authHdr() as any }),
         fetch(`${API}/users/promoters/eligible?jobId=${job.id}`, { headers: authHdr() as any }),
       ])
-
       const apps: any[]     = appsRes.ok ? await appsRes.json() : []
       const eligible: any[] = eligRes.ok  ? await eligRes.json() : []
-
-      const appMap    = new Map(apps.map((a: any) => [a.promoterId, a]))
+      const appMap     = new Map(apps.map((a: any) => [a.promoterId, a]))
       const appliedIds = new Set(apps.map((a: any) => a.promoterId))
 
       const allPromoters: Promoter[] = [
-        // Applied promoters first
         ...apps.map((a: any) => ({
-          id:               a.promoter.id,
-          fullName:         a.promoter.fullName,
-          email:            a.promoter.email,
-          phone:            a.promoter.phone,
-          city:             a.promoter.city,
-          province:         a.promoter.province,
-          gender:           a.promoter.gender,
-          height:           a.promoter.height,
-          clothingSize:     a.promoter.clothingSize,
-          shoeSize:         a.promoter.shoeSize,
-          reliabilityScore: a.promoter.reliabilityScore,
-          profilePhotoUrl:  a.promoter.profilePhotoUrl,
-          headshotUrl:      a.promoter.headshotUrl,
-          fullBodyPhotoUrl: a.promoter.fullBodyPhotoUrl,
-          cvUrl:            a.promoter.cvUrl,
-          onboardingStatus: a.promoter.onboardingStatus,
-          status:           a.promoter.status,
-          createdAt:        a.promoter.createdAt,
-          appStatus:        a.status,
-          appId:            a.id,
+          id: a.promoter.id, fullName: a.promoter.fullName, email: a.promoter.email,
+          phone: a.promoter.phone, city: a.promoter.city, province: a.promoter.province,
+          gender: a.promoter.gender, height: a.promoter.height,
+          clothingSize: a.promoter.clothingSize, shoeSize: a.promoter.shoeSize,
+          reliabilityScore: a.promoter.reliabilityScore, profilePhotoUrl: a.promoter.profilePhotoUrl,
+          headshotUrl: a.promoter.headshotUrl, fullBodyPhotoUrl: a.promoter.fullBodyPhotoUrl,
+          cvUrl: a.promoter.cvUrl, onboardingStatus: a.promoter.onboardingStatus,
+          status: a.promoter.status, createdAt: a.promoter.createdAt,
+          appStatus: a.status, appId: a.id,
         })),
-        // Eligible promoters who haven't applied
         ...eligible
           .filter((p: any) => !appliedIds.has(p.id))
           .map((p: any) => ({
-            id:               p.id,
-            fullName:         p.fullName,
-            email:            p.email,
-            phone:            p.phone,
-            city:             p.city,
-            province:         p.province,
-            gender:           p.gender,
-            height:           p.height,
-            clothingSize:     p.clothingSize,
-            shoeSize:         p.shoeSize,
-            reliabilityScore: p.reliabilityScore,
-            profilePhotoUrl:  p.profilePhotoUrl,
-            headshotUrl:      p.headshotUrl,
-            fullBodyPhotoUrl: p.fullBodyPhotoUrl,
-            cvUrl:            p.cvUrl,
-            onboardingStatus: p.onboardingStatus,
-            status:           p.status,
-            createdAt:        p.createdAt,
-            appStatus:        null,
-            appId:            undefined,
+            id: p.id, fullName: p.fullName, email: p.email, phone: p.phone,
+            city: p.city, province: p.province, gender: p.gender, height: p.height,
+            clothingSize: p.clothingSize, shoeSize: p.shoeSize,
+            reliabilityScore: p.reliabilityScore, profilePhotoUrl: p.profilePhotoUrl,
+            headshotUrl: p.headshotUrl, fullBodyPhotoUrl: p.fullBodyPhotoUrl,
+            cvUrl: p.cvUrl, onboardingStatus: p.onboardingStatus,
+            status: p.status, createdAt: p.createdAt, appStatus: null, appId: undefined,
           })),
       ]
 
       setPromoters(allPromoters)
-
-      // Set confirmed IDs from DB
-      const dbConfirmed = new Set(
-        apps.filter((a: any) => a.status === 'ALLOCATED').map((a: any) => a.promoterId)
-      )
+      const dbConfirmed = new Set(apps.filter((a: any) => a.status === 'ALLOCATED').map((a: any) => a.promoterId))
       setConfirmedIds(dbConfirmed)
-      // Pre-populate pending selection with already confirmed ones
       setPendingSelect(new Set(dbConfirmed))
-    } catch (e) {
-      console.error('[BusinessJobs] loadPromoters error:', e)
-    }
+    } catch (e) { console.error('[BusinessJobs] loadPromoters error:', e) }
     setLoading(false)
   }
 
   useEffect(() => { loadPromoters() }, [job.id])
 
-  const slotsRemaining = job.totalSlots - confirmedIds.size
-
   const togglePending = (id: string) => {
-    if (confirmedIds.has(id)) return // Can't uncheck already confirmed via this flow
+    if (confirmedIds.has(id)) return
     setPendingSelect(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        // Can't select more than total slots
-        if (next.size >= job.totalSlots) return prev
-        next.add(id)
-      }
+      if (next.has(id)) { next.delete(id) }
+      else { if (next.size >= job.totalSlots) return prev; next.add(id) }
       return next
     })
   }
 
-  // New selections = pending but not yet confirmed
   const newSelections = [...pendingSelect].filter(id => !confirmedIds.has(id))
 
   const handleConfirm = async () => {
@@ -437,8 +365,7 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
     setConfirming(true)
     try {
       const res = await fetch(`${API}/applications/bulk-allocate`, {
-        method: 'POST',
-        headers: authHdr() as any,
+        method: 'POST', headers: authHdr() as any,
         body: JSON.stringify({ jobId: job.id, promoterIds: newSelections }),
       })
       if (res.ok) {
@@ -446,15 +373,12 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
         setShowConfirm(false)
         setResultMsg(`✓ ${newSelections.length} promoter${newSelections.length > 1 ? 's' : ''} confirmed! They will see this job on their dashboard.`)
         setTimeout(() => setResultMsg(''), 5000)
-        await loadPromoters()
-        onRefresh()
+        await loadPromoters(); onRefresh()
       } else {
         const err = await res.json()
         setResultMsg(`Failed: ${err.error || 'Please try again'}`)
       }
-    } catch {
-      setResultMsg('Network error — please try again')
-    }
+    } catch { setResultMsg('Network error — please try again') }
     setConfirming(false)
   }
 
@@ -462,19 +386,15 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
     if (!promoter.appId) return
     try {
       await fetch(`${API}/applications/${promoter.appId}/status`, {
-        method: 'PUT',
-        headers: authHdr() as any,
+        method: 'PUT', headers: authHdr() as any,
         body: JSON.stringify({ status: 'STANDBY' }),
       })
       setConfirmedIds(prev => { const s = new Set(prev); s.delete(promoter.id); return s })
       setPendingSelect(prev => { const s = new Set(prev); s.delete(promoter.id); return s })
       setResultMsg(`✓ ${promoter.fullName} removed from this job.`)
       setTimeout(() => setResultMsg(''), 3000)
-      await loadPromoters()
-      onRefresh()
-    } catch {
-      setResultMsg('Failed to remove — please try again')
-    }
+      await loadPromoters(); onRefresh()
+    } catch { setResultMsg('Failed to remove — please try again') }
   }
 
   const filters = job.filters || {}
@@ -502,7 +422,6 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 20, flexShrink: 0, marginLeft: 16 }}>✕</button>
           </div>
 
-          {/* Slot progress */}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
             <div style={{ flex: 1, height: 4, background: BB, borderRadius: 2 }}>
               <div style={{ height: '100%', borderRadius: 2, background: `linear-gradient(90deg, ${GD3}, ${GL})`, width: `${Math.round(pendingSelect.size / Math.max(job.totalSlots, 1) * 100)}%`, transition: 'width 0.3s' }} />
@@ -512,14 +431,12 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
             </span>
           </div>
 
-          {/* Result message */}
           {resultMsg && (
             <div style={{ padding: '10px 14px', background: resultMsg.startsWith('✓') ? hex2rgba(TEAL, 0.1) : hex2rgba(CORAL, 0.1), border: `1px solid ${resultMsg.startsWith('✓') ? hex2rgba(TEAL, 0.4) : hex2rgba(CORAL, 0.4)}`, borderRadius: 3, marginBottom: 14, fontSize: 12, color: resultMsg.startsWith('✓') ? TEAL : CORAL, fontFamily: FD }}>
               {resultMsg}
             </div>
           )}
 
-          {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, border: `1px solid ${BB}`, borderRadius: 3, overflow: 'hidden' }}>
             {(['info', 'promoters'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
@@ -532,21 +449,19 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-
-          {/* INFO TAB */}
           {tab === 'info' && (
             <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 {[
-                  { label: 'Client',     value: job.client  || '—' },
-                  { label: 'Venue',      value: job.venue   || job.address?.split(',')[0] || '—' },
-                  { label: 'Date',       value: fmtDate(job.date) },
-                  { label: 'Start',      value: job.startTime },
-                  { label: 'End',        value: job.endTime },
-                  { label: 'Rate',       value: `R${job.hourlyRate}/hr` },
-                  { label: 'Slots',      value: `${job.totalSlots} needed` },
-                  { label: 'Filled',     value: `${job.filledSlots} confirmed` },
-                  { label: 'Status',     value: job.status },
+                  { label: 'Client',   value: job.client  || '—' },
+                  { label: 'Venue',    value: job.venue   || job.address?.split(',')[0] || '—' },
+                  { label: 'Date',     value: fmtDate(job.date) },
+                  { label: 'Start',    value: job.startTime },
+                  { label: 'End',      value: job.endTime },
+                  { label: 'Rate',     value: `R${job.hourlyRate}/hr` },
+                  { label: 'Slots',    value: `${job.totalSlots} needed` },
+                  { label: 'Filled',   value: `${job.filledSlots} confirmed` },
+                  { label: 'Status',   value: job.status },
                 ].map(r => (
                   <div key={r.label} style={{ background: BB2, border: `1px solid ${BB}`, padding: '11px 14px', borderRadius: 3 }}>
                     <div style={{ fontSize: 9, color: W4, fontFamily: FD, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 4 }}>{r.label}</div>
@@ -558,15 +473,9 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
                 <div>
                   <div style={{ fontSize: 9, letterSpacing: '0.26em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 10 }}>Requirements</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {filters.gender && filters.gender !== 'Any Gender' && (
-                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.gender}</span>
-                    )}
-                    {filters.minHeight && (
-                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>Min {filters.minHeight}cm</span>
-                    )}
-                    {filters.languages && (
-                      <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.languages}</span>
-                    )}
+                    {filters.gender && filters.gender !== 'Any Gender' && <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.gender}</span>}
+                    {filters.minHeight && <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>Min {filters.minHeight}cm</span>}
+                    {filters.languages && <span style={{ fontSize: 11, color: GL, background: hex2rgba(GL, 0.1), border: `1px solid ${hex2rgba(GL, 0.3)}`, padding: '5px 14px', borderRadius: 3, fontFamily: FD }}>{filters.languages}</span>}
                   </div>
                 </div>
               )}
@@ -577,10 +486,8 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
             </div>
           )}
 
-          {/* PROMOTERS TAB */}
           {tab === 'promoters' && (
             <>
-              {/* Legend */}
               <div style={{ padding: '10px 32px', borderBottom: `1px solid ${BB}`, display: 'flex', gap: 20, fontSize: 11, color: W4, fontFamily: FB, background: hex2rgba(GL, 0.02), flexWrap: 'wrap', alignItems: 'center' }}>
                 <span><span style={{ color: TEAL }}>●</span> Interested (applied)</span>
                 <span><span style={{ color: GL }}>●</span> Confirmed (allocated)</span>
@@ -591,9 +498,7 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
               {loading ? (
                 <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>Loading promoters…</div>
               ) : promoters.length === 0 ? (
-                <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>
-                  No approved promoters found yet.
-                </div>
+                <div style={{ padding: 60, textAlign: 'center', color: W4, fontFamily: FD }}>No approved promoters found yet.</div>
               ) : (
                 promoters.map((p, i) => {
                   const isConfirmed  = confirmedIds.has(p.id)
@@ -607,7 +512,6 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
                       onMouseEnter={e => { if (!isConfirmed && !isPending) (e.currentTarget as HTMLElement).style.background = BB2 }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isConfirmed ? hex2rgba(GL, 0.05) : isPending ? hex2rgba(GD, 0.04) : isInterested ? hex2rgba(TEAL, 0.03) : 'transparent' }}>
 
-                      {/* Clickable avatar */}
                       <div style={{ width: 54, height: 54, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: `2px solid ${hex2rgba(accentColor, 0.6)}`, cursor: 'pointer', transition: 'transform 0.2s' }}
                         onClick={() => setViewPromoter(p)}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.06)'}
@@ -615,13 +519,10 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
                         {p.headshotUrl || p.profilePhotoUrl ? (
                           <img src={p.headshotUrl || p.profilePhotoUrl} alt={p.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                         ) : (
-                          <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: GL, fontFamily: FD }}>
-                            {p.fullName.charAt(0)}
-                          </div>
+                          <div style={{ width: '100%', height: '100%', background: hex2rgba(GL, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: GL, fontFamily: FD }}>{p.fullName.charAt(0)}</div>
                         )}
                       </div>
 
-                      {/* Info — clickable */}
                       <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setViewPromoter(p)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 14, fontWeight: 700, color: W, fontFamily: FD }}>{p.fullName}</span>
@@ -635,12 +536,9 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
                           {p.height && <span style={{ marginLeft: 10, color: W2 }}>{p.height}cm</span>}
                           {p.gender && <span style={{ marginLeft: 10, color: W2 }}>{p.gender}</span>}
                         </div>
-                        <div style={{ fontSize: 10, color: hex2rgba(GL, 0.45), marginTop: 2, fontFamily: FB }}>
-                          Click to view full profile →
-                        </div>
+                        <div style={{ fontSize: 10, color: hex2rgba(GL, 0.45), marginTop: 2, fontFamily: FB }}>Click to view full profile →</div>
                       </div>
 
-                      {/* Action buttons */}
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                         <button onClick={() => setViewPromoter(p)}
                           style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${BB}`, color: W4, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.18s' }}
@@ -648,15 +546,13 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
                           onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W4 }}>
                           View
                         </button>
-
                         {isConfirmed ? (
                           <button onClick={() => handleRemove(p)}
                             style={{ padding: '7px 14px', background: hex2rgba(CORAL, 0.1), border: `1px solid ${hex2rgba(CORAL, 0.4)}`, color: CORAL, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: 'pointer', borderRadius: 2 }}>
                             Remove
                           </button>
                         ) : (
-                          <button
-                            onClick={() => togglePending(p.id)}
+                          <button onClick={() => togglePending(p.id)}
                             disabled={!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots}
                             style={{ padding: '7px 14px', background: pendingSelect.has(p.id) ? `linear-gradient(135deg, ${GD}, ${GL})` : 'transparent', border: `1px solid ${pendingSelect.has(p.id) ? GL : hex2rgba(GL, 0.4)}`, color: pendingSelect.has(p.id) ? BLK : GL, fontFamily: FD, fontSize: 9, fontWeight: 700, cursor: (!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots) ? 'not-allowed' : 'pointer', letterSpacing: '0.1em', borderRadius: 2, transition: 'all 0.2s', opacity: (!pendingSelect.has(p.id) && pendingSelect.size >= job.totalSlots) ? 0.4 : 1 }}>
                             {pendingSelect.has(p.id) ? '✓ Selected' : '+ Select'}
@@ -691,27 +587,14 @@ function JobDetailPanel({ job, onClose, onRefresh }: { job: ApiJob; onClose: () 
         </div>
       </div>
 
-      {/* Full profile modal */}
       {viewPromoter && (
-        <PromoterProfileModal
-          promoter={viewPromoter}
-          onClose={() => setViewPromoter(null)}
-          isSelected={pendingSelect.has(viewPromoter.id)}
-          onToggleSelect={() => togglePending(viewPromoter.id)}
-          canSelect={pendingSelect.has(viewPromoter.id) || pendingSelect.size < job.totalSlots}
-        />
+        <PromoterProfileModal promoter={viewPromoter} onClose={() => setViewPromoter(null)}
+          isSelected={pendingSelect.has(viewPromoter.id)} onToggleSelect={() => togglePending(viewPromoter.id)}
+          canSelect={pendingSelect.has(viewPromoter.id) || pendingSelect.size < job.totalSlots} />
       )}
-
-      {/* Confirm selection modal */}
       {showConfirm && (
-        <ConfirmSelectionModal
-          job={job}
-          selected={new Set(newSelections)}
-          promoters={promoters}
-          onConfirm={handleConfirm}
-          onClose={() => setShowConfirm(false)}
-          confirming={confirming}
-        />
+        <ConfirmSelectionModal job={job} selected={new Set(newSelections)} promoters={promoters}
+          onConfirm={handleConfirm} onClose={() => setShowConfirm(false)} confirming={confirming} />
       )}
     </div>
   )
@@ -735,6 +618,18 @@ export default function BusinessJobs() {
   }, [])
 
   useEffect(() => { loadJobs() }, [loadJobs])
+
+  // ─── React to admin job broadcasts ─────────────────────────────────────────
+  useEffect(() => {
+    const onStorage = (e?: StorageEvent) => {
+      if (e && e.key !== 'hg_job_updates' && e.key !== null) return
+      loadJobs()
+    }
+    window.addEventListener('storage', onStorage)
+    // Also poll every 30s — admin and business may be in different browser sessions
+    const poll = setInterval(loadJobs, 30_000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(poll) }
+  }, [loadJobs])
 
   const filtered = jobs.filter(j => {
     const sm = filter === 'all' || j.status === filter
@@ -762,7 +657,6 @@ export default function BusinessJobs() {
         </p>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: BB, marginBottom: 28 }}>
         {[
           { label: 'Total Jobs', value: counts.all,       color: GL  },
@@ -778,7 +672,6 @@ export default function BusinessJobs() {
         ))}
       </div>
 
-      {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['all', 'OPEN', 'FILLED', 'COMPLETED', 'CANCELLED'] as const).map(f => (
@@ -796,7 +689,6 @@ export default function BusinessJobs() {
         </div>
       </div>
 
-      {/* Jobs grid */}
       {loading ? (
         <div style={{ padding: '60px 0', textAlign: 'center', color: W4, fontFamily: FD }}>Loading jobs…</div>
       ) : filtered.length === 0 ? (
@@ -819,11 +711,7 @@ export default function BusinessJobs() {
       </div>
 
       {selected && (
-        <JobDetailPanel
-          job={selected}
-          onClose={() => { setSelected(null); loadJobs(); }}
-          onRefresh={loadJobs}
-        />
+        <JobDetailPanel job={selected} onClose={() => { setSelected(null); loadJobs() }} onRefresh={loadJobs} />
       )}
     </div>
   )

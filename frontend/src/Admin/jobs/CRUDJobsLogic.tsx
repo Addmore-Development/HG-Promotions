@@ -35,6 +35,18 @@ function hex2rgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+// ─── Broadcast job change so business dashboards reload their job list ─────────
+function broadcastJobUpdate(jobId: string, action: 'created' | 'updated' | 'deleted') {
+  try {
+    const existing: any[] = JSON.parse(localStorage.getItem('hg_job_updates') || '[]')
+    localStorage.setItem('hg_job_updates', JSON.stringify([
+      { jobId, action, updatedAt: new Date().toISOString() },
+      ...existing.slice(0, 49),
+    ]))
+    window.dispatchEvent(new Event('storage'))
+  } catch { /* silent */ }
+}
+
 type JobStatus = 'open' | 'filled' | 'completed' | 'cancelled'
 type JobSource = 'base' | 'api' | 'admin'
 
@@ -281,7 +293,7 @@ export default function CRUDJobsLogic() {
       }
       if (editing&&editing.source!=='base') {
         const res = await fetch(`${API_URL}/jobs/${editing.id}`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) { await loadJobs(); broadcastJobUpdate(editing!.id, 'updated'); closeModal() }
         else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Update failed (${res.status})`) }
       } else if (editing&&editing.source==='base') {
         const stored:any[]=JSON.parse(localStorage.getItem('hg_admin_jobs')||'[]')
@@ -289,7 +301,7 @@ export default function CRUDJobsLogic() {
         setJobs(prev=>prev.map(j=>j.id===editing.id?{...j,...form,source:'admin'}:j)); closeModal()
       } else {
         const res = await fetch(`${API_URL}/jobs`,{method:'POST',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) { await loadJobs(); broadcastJobUpdate('new', 'created'); closeModal() }
         else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Create failed (${res.status})`) }
       }
     } catch { setSaveError('Network error — backend may be offline.') }
@@ -300,6 +312,7 @@ export default function CRUDJobsLogic() {
     const job=jobs.find(j=>j.id===id)
     if (job?.source==='base') { setJobs(prev=>prev.filter(j=>j.id!==id)) }
     else { try { await fetch(`${API_URL}/jobs/${id}`,{method:'DELETE',headers:authHeader() as any}) } catch {} setJobs(prev=>prev.filter(j=>j.id!==id)) }
+    broadcastJobUpdate(id, 'deleted')
     setDeleting(null)
   }
 
