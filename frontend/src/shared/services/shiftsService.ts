@@ -1,8 +1,3 @@
-// src/shared/services/shiftsService.ts
-// API shim — exact same signatures as original localStorage version.
-// Returns Shift objects with the nested `attendance` shape the promoter
-// dashboard uses: s.attendance.checkInTime, s.attendance.issues, etc.
-
 import { apiFetch, apiUpload } from './api'
 import type { Shift } from '../types/shift.types'
 
@@ -13,37 +8,36 @@ function apiToShift(s: any): Shift {
   const issues = Array.isArray(s.issues) ? s.issues : []
 
   return {
-    id:          s.id,
-    jobId:       s.jobId,
-    promoterId:  s.promoterId,
-    status:      (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
+    id:         s.id,
+    jobId:      s.jobId,
+    promoterId: s.promoterId,
+    status:     (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
 
     // Nested attendance object — this is what promoter components access
     attendance: {
-      shiftId:    s.id,
-      promoterId: s.promoterId,
-      jobId:      s.jobId,
-      status:     (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
-      checkInTime:     s.checkInTime     || undefined,
-      checkOutTime:    s.checkOutTime    || undefined,
-      checkInSelfie:   s.checkInSelfieUrl  || undefined,
-      checkOutSelfie:  s.checkOutSelfieUrl || undefined,
-      totalHours:      s.totalHours || undefined,
-      supervisorRating: s.supervisorRating || undefined,
+      shiftId:          s.id,
+      promoterId:       s.promoterId,
+      jobId:            s.jobId,
+      status:           (s.status?.toLowerCase() || 'scheduled') as Shift['status'],
+      checkInTime:      s.checkInTime      || undefined,
+      checkOutTime:     s.checkOutTime     || undefined,
+      checkInSelfie:    s.checkInSelfieUrl  || undefined,
+      checkOutSelfie:   s.checkOutSelfieUrl || undefined,
+      totalHours:       s.totalHours       || undefined,
+      supervisorRating: s.supervisorRating  || undefined,
       issues: issues.map((iss: any) => ({
-        id:       iss.id || String(Date.now()),
-        type:     iss.type || 'other',
-        note:     iss.note || '',
+        id:       iss.id       || String(Date.now()),
+        type:     iss.type     || 'other',
+        note:     iss.note     || '',
         loggedBy: iss.reportedBy || iss.loggedBy || '',
         loggedAt: iss.reportedAt || iss.loggedAt || new Date().toISOString(),
       })),
     },
 
-    // Also expose flat fields for any component that uses them directly
-    checkInTime:    s.checkInTime     || undefined,
-    checkOutTime:   s.checkOutTime    || undefined,
-    totalHours:     s.totalHours      || undefined,
-    supervisorRating: s.supervisorRating || undefined,
+    // Optional pay fields (these DO exist on Shift type)
+    grossPay:   s.grossPay   || undefined,
+    deductions: s.deductions || undefined,
+    netPay:     s.netPay     || undefined,
   }
 }
 
@@ -68,7 +62,6 @@ export const shiftsService = {
   ): Promise<Shift> {
     await delay(600)
 
-    // Convert base64 data URL → File for multipart upload
     let selfieFile: File | undefined
     if (selfieUrl && selfieUrl.startsWith('data:')) {
       try {
