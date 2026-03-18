@@ -118,14 +118,15 @@ function injectStyles() {
     }
     .hg-nav-item:hover .hg-tooltip { opacity: 1; }
 
-    /* Mobile overlay */
-    .hg-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.75);
-      z-index: 199;
-      backdrop-filter: blur(4px);
-      animation: overlayIn 0.22s ease;
+    /* ── Mobile sidebar — force readable contrast ── */
+    @media (max-width: 900px) {
+      .hg-mobile-sidebar button {
+        -webkit-tap-highlight-color: rgba(232,168,32,0.15);
+      }
+      /* Ensure nav item text is never invisible on small dark screens */
+      .hg-mobile-sidebar .hg-nav button span:not([class]) {
+        color: #E8DFC8 !important;
+      }
     }
 
     /* Mobile top bar */
@@ -133,14 +134,21 @@ function injectStyles() {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0;
-      height: 52px;
+      height: 56px;
       background: ${BC};
       border-bottom: 1px solid ${BB};
       z-index: 300;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.6);
+      padding: 0 14px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.7);
+    }
+    .hg-mobile-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #6B3F10, #E8A820, #F5C842, #E8A820, #6B3F10);
     }
 
     /* Collapse toggle button */
@@ -169,7 +177,7 @@ function injectStyles() {
     @media (max-width: 900px) {
       .hg-desktop-sidebar { display: none !important; }
       .hg-mobile-bar { display: flex !important; }
-      .hg-main-content { margin-top: 52px !important; height: calc(100vh - 52px) !important; }
+      .hg-main-content { margin-top: 56px !important; height: calc(100vh - 56px) !important; }
     }
 
     @media (min-width: 901px) {
@@ -271,8 +279,10 @@ function SidebarContent({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      background: `linear-gradient(180deg, ${BC} 0%, #0A0805 100%)`,
-      borderRight: isMobile ? 'none' : `1px solid ${BB}`,
+      background: isMobile ? '#1C1608' : `linear-gradient(180deg, ${BC} 0%, #0A0805 100%)`,
+      borderRight: isMobile ? `1px solid rgba(212,136,10,0.20)` : `1px solid ${BB}`,
+      /* Solid background — prevents any blur from showing through */
+      isolation: 'isolate',
     }}>
 
       {/* ── Logo row ── */}
@@ -349,11 +359,11 @@ function SidebarContent({
                 <span
                   className="hg-group-label"
                   style={{
-                    fontSize: 7.5,
+                    fontSize: 8,
                     fontWeight: 700,
-                    letterSpacing: '0.32em',
+                    letterSpacing: '0.28em',
                     textTransform: 'uppercase' as const,
-                    color: WD,
+                    color: 'rgba(232,168,32,0.55)',   /* gold-tinted, clearly readable */
                     fontFamily: FD,
                     opacity: collapsed && !isMobile ? 0 : 1,
                     maxHeight: collapsed && !isMobile ? 0 : 20,
@@ -365,12 +375,12 @@ function SidebarContent({
                   {group.label}
                 </span>
                 {!collapsed || isMobile ? (
-                  <span style={{ flexShrink: 0, opacity: 0.5 }}>
+                  <span style={{ flexShrink: 0, opacity: 0.7 }}>
                     <svg
                       width="10" height="10" viewBox="0 0 10 10" fill="none"
                       style={{ transform: groupOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.22s' }}
                     >
-                      <path d="M7.5 3.5L5 6L2.5 3.5" stroke={WD} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M7.5 3.5L5 6L2.5 3.5" stroke="rgba(232,168,32,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </span>
                 ) : null}
@@ -394,35 +404,35 @@ function SidebarContent({
                           display: 'flex',
                           alignItems: 'center',
                           gap: 8,
-                          padding: collapsed && !isMobile ? '9px 0' : '8px 10px',
+                          padding: collapsed && !isMobile ? '9px 0' : '9px 12px',
                           marginBottom: 2,
                           borderRadius: 6,
                           cursor: 'pointer',
                           background: active
-                            ? 'linear-gradient(135deg, rgba(212,136,10,0.22), rgba(139,90,26,0.14))'
+                            ? 'linear-gradient(135deg, rgba(232,168,32,0.18), rgba(196,151,58,0.10))'
                             : 'transparent',
                           border: active
-                            ? '1px solid rgba(212,136,10,0.42)'
+                            ? '1px solid rgba(232,168,32,0.45)'
                             : '1px solid transparent',
-                          color: active ? GL : WM,
+                          color: active ? GL : '#E8DFC8',   /* warm near-white — always readable */
                           fontFamily: FD,
-                          fontSize: 12.5,
-                          fontWeight: active ? 700 : 400,
+                          fontSize: 13,
+                          fontWeight: active ? 700 : 500,
                           transition: 'all 0.18s',
                           position: 'relative' as const,
                           justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
                         }}
                         onMouseEnter={e => {
                           if (!active) {
-                            e.currentTarget.style.background = 'rgba(212,136,10,0.08)'
+                            e.currentTarget.style.background = 'rgba(232,168,32,0.10)'
                             e.currentTarget.style.color = W
-                            e.currentTarget.style.borderColor = 'rgba(212,136,10,0.18)'
+                            e.currentTarget.style.borderColor = 'rgba(232,168,32,0.22)'
                           }
                         }}
                         onMouseLeave={e => {
                           if (!active) {
                             e.currentTarget.style.background = 'transparent'
-                            e.currentTarget.style.color = WM
+                            e.currentTarget.style.color = '#E8DFC8'
                             e.currentTarget.style.borderColor = 'transparent'
                           }
                         }}
@@ -440,8 +450,8 @@ function SidebarContent({
 
                         {/* Icon */}
                         <span style={{
-                          fontSize: 13,
-                          color: active ? GL : WD,
+                          fontSize: 14,
+                          color: active ? GL : 'rgba(232,168,32,0.75)',  /* gold tint — visible on dark */
                           transition: 'color 0.18s',
                           flexShrink: 0,
                           lineHeight: 1,
@@ -511,8 +521,8 @@ function SidebarContent({
             transition: 'opacity 0.18s, max-width 0.24s',
             whiteSpace: 'nowrap',
           }}>
-            <div style={{ fontSize: 11, color: W, fontWeight: 700, fontFamily: FD }}>Administrator</div>
-            <div style={{ fontSize: 9, color: WD, marginTop: 1, fontFamily: FD }}>Super Admin</div>
+            <div style={{ fontSize: 12, color: '#E8DFC8', fontWeight: 700, fontFamily: FD }}>Administrator</div>
+            <div style={{ fontSize: 10, color: 'rgba(232,168,32,0.55)', marginTop: 1, fontFamily: FD }}>Super Admin</div>
           </div>
         </div>
 
@@ -520,7 +530,7 @@ function SidebarContent({
           className="hg-footer-btn"
           onClick={() => navigate('/')}
           style={{
-            fontSize: 10,
+            fontSize: 11,
             color: GL,
             background: 'none',
             border: 'none',
@@ -587,20 +597,76 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* ── Mobile top bar ── */}
       <div className="hg-mobile-bar">
-        {/* Hamburger */}
+
+        {/* ── MENU / CLOSE button — prominent, top-left ── */}
         <button
           onClick={() => setMobileOpen(p => !p)}
+          aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
           style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '6px 4px', display: 'flex', alignItems: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: mobileOpen
+              ? `rgba(232,168,32,0.18)`
+              : `rgba(232,168,32,0.08)`,
+            border: `1px solid ${mobileOpen ? GL : 'rgba(232,168,32,0.45)'}`,
+            borderRadius: 6,
+            cursor: 'pointer',
+            padding: '7px 13px 7px 10px',
+            transition: 'all 0.22s cubic-bezier(0.4,0,0.2,1)',
+            flexShrink: 0,
           }}
-          aria-label="Toggle navigation"
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(232,168,32,0.22)'
+            e.currentTarget.style.borderColor = GL
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = mobileOpen ? 'rgba(232,168,32,0.18)' : 'rgba(232,168,32,0.08)'
+            e.currentTarget.style.borderColor = mobileOpen ? GL : 'rgba(232,168,32,0.45)'
+          }}
         >
-          <HamburgerIcon open={mobileOpen} />
+          {/* Animated icon — three lines → X */}
+          <div style={{ width: 16, height: 12, position: 'relative', flexShrink: 0 }}>
+            <span style={{
+              position: 'absolute', left: 0, right: 0, height: 1.5, borderRadius: 2,
+              background: GL,
+              top: mobileOpen ? '50%' : '0%',
+              transform: mobileOpen ? 'translateY(-50%) rotate(45deg)' : 'translateY(0) rotate(0deg)',
+              transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
+            }} />
+            <span style={{
+              position: 'absolute', left: 0, right: 0, height: 1.5, borderRadius: 2,
+              background: GL,
+              top: '50%', transform: 'translateY(-50%)',
+              opacity: mobileOpen ? 0 : 1,
+              transition: 'opacity 0.18s ease',
+            }} />
+            <span style={{
+              position: 'absolute', left: 0, right: 0, height: 1.5, borderRadius: 2,
+              background: GL,
+              bottom: mobileOpen ? '50%' : '0%',
+              transform: mobileOpen ? 'translateY(50%) rotate(-45deg)' : 'translateY(0) rotate(0deg)',
+              transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
+            }} />
+          </div>
+
+          {/* Label */}
+          <span style={{
+            fontFamily: FD,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: mobileOpen ? GL : 'rgba(232,168,32,0.90)',
+            lineHeight: 1,
+            transition: 'color 0.22s',
+          }}>
+            {mobileOpen ? 'Close' : 'Menu'}
+          </span>
         </button>
 
-        {/* Logo */}
-        <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, letterSpacing: '0.02em' }}>
+        {/* Logo — centred */}
+        <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 700, letterSpacing: '0.02em', position: 'absolute', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none' }}>
           <span style={{ color: GL }}>HONEY</span>
           <span style={{ color: W }}> GROUP</span>
         </div>
@@ -609,36 +675,51 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <button
           onClick={() => navigate('/')}
           style={{
-            background: 'none', border: `1px solid ${BB}`,
+            background: 'none', border: `1px solid rgba(250,243,232,0.18)`,
             color: WM, fontFamily: FD, fontSize: 10,
-            padding: '5px 10px', cursor: 'pointer',
-            borderRadius: 4, letterSpacing: '0.06em',
+            padding: '6px 10px', cursor: 'pointer',
+            borderRadius: 4, letterSpacing: '0.08em',
+            flexShrink: 0,
+            transition: 'all 0.2s',
           }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(250,243,232,0.18)'; e.currentTarget.style.color = WM }}
         >
           ← Site
         </button>
       </div>
 
-      {/* ── Mobile overlay ── */}
+      {/* ── Mobile overlay — sits above drawer, below top bar ── */}
       {mobileOpen && (
         <div
           className="hg-overlay"
           onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.60)',
+            zIndex: 250,
+            /* NO backdropFilter — it was blurring the sidebar drawer content */
+            animation: 'overlayIn 0.22s ease',
+            cursor: 'pointer',
+            top: 56,
+          }}
         />
       )}
 
-      {/* ── Mobile drawer ── */}
+      {/* ── Mobile drawer — slides in from left, always above overlay ── */}
       <div
         ref={drawerRef}
         className="hg-mobile-sidebar"
         style={{
           position: 'fixed',
           top: 0, left: 0, bottom: 0,
-          width: 256,
-          zIndex: 200,
+          width: 272,
+          zIndex: 260,            /* above overlay (250) so drawer is never blurred */
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
-          boxShadow: mobileOpen ? '8px 0 40px rgba(0,0,0,0.8)' : 'none',
+          boxShadow: mobileOpen ? '8px 0 40px rgba(0,0,0,0.9)' : 'none',
+          isolation: 'isolate',   /* create new stacking context — prevents blur inheritance */
         }}
       >
         <SidebarContent
