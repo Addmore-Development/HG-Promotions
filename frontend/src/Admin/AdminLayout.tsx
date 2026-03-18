@@ -33,7 +33,7 @@ const NAV_GROUPS = [
   ]},
   { label: 'Comms', items: [
     { label: 'Messages',           icon: '◆', path: '/admin',             tab: 'messages',      external: false },
-    { label: 'Complaints & Enquiries', icon: '⚑', path: '/admin/reviews',   tab: 'reviews',       external: true  },
+    { label: 'Complaints & Enquiries', icon: '⚑', path: '/admin/reviews', tab: 'reviews',       external: true  },
     { label: 'Login Activity',     icon: '◉', path: '/admin',             tab: 'logins',        external: false },
   ]},
   { label: 'System', items: [
@@ -150,22 +150,22 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* Footer */}
         <div style={{ padding:'14px 18px', borderTop:`1px solid ${BB}`, flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
             <div style={{ width:30, height:30, borderRadius:'50%', background:`linear-gradient(135deg,${G2},${G})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:W, flexShrink:0, fontFamily:FD }}>A</div>
             <div>
               <div style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>Administrator</div>
               <div style={{ fontSize:10, color:WD, marginTop:1, fontFamily:FD }}>Super Admin</div>
             </div>
           </div>
-          <button onClick={() => {
-            localStorage.removeItem('hg_token')
-            localStorage.removeItem('hg_session')
-            navigate('/login')
-          }}
-            style={{ fontSize:10.5, color:WD, background:'none', border:'none', cursor:'pointer', fontFamily:FD, padding:0, letterSpacing:'0.06em' }}
-            onMouseEnter={e => e.currentTarget.style.color=GL}
-            onMouseLeave={e => e.currentTarget.style.color=WD}
-          >← Log Out</button>
+
+          <button
+            onClick={() => navigate('/')}
+            style={{ fontSize:10.5, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD, padding:0, letterSpacing:'0.06em', textAlign:'left' }}
+            onMouseEnter={e => e.currentTarget.style.color=W}
+            onMouseLeave={e => e.currentTarget.style.color=GL}
+          >
+            ← Back to Site
+          </button>
         </div>
       </aside>
 
