@@ -53,7 +53,14 @@ export const PromoterLayout: React.FC<{ children: ReactNode }> = ({ children }) 
 
     fetch(`${API}/auth/me`, { headers: authHdr() as any })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setProfile(data) })
+      .then(data => {
+        if (data) {
+          // Normalise status to lowercase — defensive against legacy uppercase DB values
+          if (data.status) data.status = data.status.toLowerCase();
+          if (data.onboardingStatus) data.onboardingStatus = data.onboardingStatus.toLowerCase();
+          setProfile(data);
+        }
+      })
       .catch(() => {})
 
     Promise.all([
@@ -139,7 +146,7 @@ export const PromoterLayout: React.FC<{ children: ReactNode }> = ({ children }) 
                 </div>
                 <div style={{ minWidth:0 }}>
                   <p style={{ fontFamily:FD, fontSize:11, fontWeight:700, color:W, margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{displayName}</p>
-                  <p style={{ fontFamily:FB, fontSize:10, color:GL, margin:0 }}>{profile.status==='approved'?'Approved':'Pending'}</p>
+                  <p style={{ fontFamily:FB, fontSize:10, color:GL, margin:0 }}>{(profile.status||'').toLowerCase()==='approved'?'Approved':'Pending'}</p>
                 </div>
               </div>
             </div>

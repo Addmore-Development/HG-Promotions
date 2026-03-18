@@ -12,7 +12,6 @@ const BB   = 'rgba(212,136,10,0.16)'  // Brown border
 const W    = '#FAF3E8'
 const W7   = 'rgba(250,243,232,0.70)'
 const W4   = 'rgba(250,243,232,0.40)'
-const TEAL = '#C07818'      // Changed to Brown (was teal)
 const FD   = "'Playfair Display', Georgia, serif"
 const FB   = "'DM Sans', system-ui, sans-serif"
 
@@ -92,7 +91,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         fetch(`${API}/jobs`,            { headers: authHdr() as any }),
         fetch(`${API}/shifts/my`,       { headers: authHdr() as any }),
       ])
-      if (meRes.ok)     setProfile(await meRes.json())
+      if (meRes.ok) {
+        const data = await meRes.json()
+        // ✅ Normalise status to lowercase — handles legacy 'APPROVED' in DB
+        if (data?.status)            data.status            = data.status.toLowerCase()
+        if (data?.onboardingStatus)  data.onboardingStatus  = data.onboardingStatus.toLowerCase()
+        setProfile(data)
+      }
       if (appsRes.ok)   setMyApps(await appsRes.json())
       if (jobsRes.ok)   setAllJobs(await jobsRes.json())
       if (shiftsRes.ok) setMyShifts(await shiftsRes.json())
@@ -108,9 +113,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = (profile?.fullName || '').split(' ')[0] || 'Promoter'
 
-  // ── Applications split by status ──────────────────────────────────────────
-  // Each app has app.job embedded (from getMyApplications include)
-  // Fall back to allJobs lookup if needed
   const getJobFromApp = (app: any) => {
     if (app.job) return app.job
     return allJobs.find(j => j.id === app.jobId)
@@ -124,7 +126,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     a.status === 'PENDING'  || a.status === 'pending'
   )
 
-  // Upcoming confirmed jobs — use app.job directly
   const upcomingAllocated = allocatedApps
     .map(a => ({ app: a, job: getJobFromApp(a) }))
     .filter(({ job }) => job && new Date(job.date) >= new Date(new Date().setHours(0, 0, 0, 0)))
@@ -132,7 +133,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   const upcomingJob = upcomingAllocated[0] || null
 
-  // Today's active shift
   const todayShift = myShifts.find(s => {
     const job = allJobs.find(j => j.id === s.jobId)
     if (!job) return false
@@ -151,7 +151,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     return tokens[0].replace(/\b\w/g, (c: string) => c.toUpperCase())
   })()
 
-  // Jobs in promoter's city that they haven't applied to
   const appliedJobIds = new Set(myApps.map(a => a.jobId))
   const nearbyJobs = allJobs.filter(j => {
     if (appliedJobIds.has(j.id)) return false
@@ -168,6 +167,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   )
 
   const nav = (tab: string) => onNavigate ? onNavigate(tab) : navigate(`/promoter/?tab=${tab}`)
+
+  // ✅ Normalised: status is already lowercased after load()
+  const isApproved    = profile?.status === 'approved'
+  const isBlacklisted = profile?.status === 'blacklisted'
+  const isPending     = profile && !isApproved && !isBlacklisted
 
   return (
     <div style={{ padding: '32px 48px' }}>
@@ -230,8 +234,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         ) : null
       })()}
 
-      {/* ── Account pending warning ── */}
-      {profile && profile.status !== 'approved' && profile.status !== 'blacklisted' && (
+      {/* ── Account pending warning — only shown when truly pending ── */}
+      {isPending && (
         <div style={{ padding: '14px 18px', background: hex2rgba(GD2, 0.2), border: `1px solid ${hex2rgba(GD, 0.4)}`, borderRadius: 3, marginBottom: 24, fontSize: 13, color: GL, fontFamily: FB, lineHeight: 1.6 }}>
           ⏳ Your account is <strong>pending admin approval</strong>. You can browse jobs but cannot apply until approved.
         </div>
@@ -367,7 +371,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* ── My Confirmed Jobs list (all of them) ── */}
+      {/* ── My Confirmed Jobs list ── */}
       {allocatedApps.length > 0 && (
         <div style={{ background: BLK2, padding: 28, border: `1px solid ${BB}`, borderRadius: 3 }}>
           <h2 style={{ fontFamily: FD, fontSize: 18, fontWeight: 700, color: W, marginBottom: 20 }}>
@@ -375,7 +379,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {allocatedApps.map((app, i) => {
-              // Use app.job directly — it's embedded from the API
               const job = getJobFromApp(app)
               if (!job) return null
               return (
