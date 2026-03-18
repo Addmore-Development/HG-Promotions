@@ -9,12 +9,16 @@ import {
   approveShift,
   updateLiveLocation,
   selfieUpload,
+  createShift,      
+  deleteShift, 
 } from "../controllers/shift.controller";
 import { protect, adminOnly } from "../middleware/auth";
 
 const router = Router();
 
 router.get("/my",             protect, getMyShifts);
+router.post("/",            protect, adminOnly, createShift);   
+router.delete("/:id",         protect, adminOnly, deleteShift);   
 router.get("/live-locations", protect, getLiveLocations);
 router.get("/all",            protect, adminOnly, getAllShifts);
 router.post("/:id/checkin",   protect, selfieUpload, checkIn);
