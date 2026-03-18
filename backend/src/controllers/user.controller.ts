@@ -1,295 +1,205 @@
-import { Request, Response } from 'express';
-import { prisma } from '../config';
+import { Response } from 'express';
+import { prisma }   from '../config';
 import { AuthRequest } from '../middleware/auth';
-import { auditLog } from '../utils/auditLogger';
-import { uploadToS3 } from '../services/s3.service';
-import * as fs from 'fs';
-import * as path from 'path';
 import multer from 'multer';
+import path   from 'path';
+import fs     from 'fs';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-export const uploadMiddleware = upload.fields([
-  { name: 'profilePhoto',  maxCount: 1 },
-  { name: 'cv',            maxCount: 1 },
+// ── Multer setup ────────────────────────────────────────────────────────────
+const docDir = path.join(process.cwd(), 'uploads', 'documents');
+if (!fs.existsSync(docDir)) fs.mkdirSync(docDir, { recursive: true });
+
+const docStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, docDir),
+  filename:    (_req, file, cb)  => cb(null, `${Date.now()}-${file.originalname}`),
+});
+
+export const documentUpload = multer({
+  storage: docStorage,
+  limits:  { fileSize: 20 * 1024 * 1024 },
+}).fields([
   { name: 'headshot',      maxCount: 1 },
   { name: 'fullBodyPhoto', maxCount: 1 },
-  { name: 'cipcDoc',       maxCount: 1 },
-  { name: 'taxPin',        maxCount: 1 },
-  { name: 'bizBankProof',  maxCount: 1 },
+  { name: 'cv',            maxCount: 1 },
+  { name: 'profilePhoto',  maxCount: 1 },
 ]);
 
-
-export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+// ── GET all users (admin) ───────────────────────────────────────────────────
+export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        id: true, fullName: true, email: true, phone: true,
-        city: true, province: true, gender: true, dateOfBirth: true,
-        address: true, height: true, clothingSize: true, shoeSize: true,
-        bankName: true, accountNumber: true, branchCode: true,
-        profilePhotoUrl: true, cvUrl: true,
-        headshotUrl: true, fullBodyPhotoUrl: true,
-        status: true, onboardingStatus: true, reliabilityScore: true, consentPopia: true,
-        role: true, createdAt: true,
-      },
-    });
+    const { role, status } = req.query;
+    const where: any = {};
+    if (role)   where.role   = (role   as string).toUpperCase();
+    if (status) where.status = (status as string).toLowerCase();
 
-    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
-    res.json(user);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true, fullName: true, email: true, phone: true, role: true,
+        status: true, onboardingStatus: true, city: true, province: true,
+        streetNumber: true, streetName: true, suburb: true, postalCode: true,
+        reliabilityScore: true, profilePhotoUrl: true, headshotUrl: true,
+        fullBodyPhotoUrl: true, createdAt: true, gender: true,
+        height: true, clothingSize: true, shoeSize: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('[User] getAllUsers error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 };
 
+// ── GET single user ─────────────────────────────────────────────────────────
+export const getUserById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true, fullName: true, email: true, phone: true, role: true,
+        status: true, onboardingStatus: true, city: true, province: true,
+        streetNumber: true, streetName: true, suburb: true, postalCode: true,
+        reliabilityScore: true, profilePhotoUrl: true, headshotUrl: true,
+        fullBodyPhotoUrl: true, cvUrl: true, createdAt: true,
+        gender: true, height: true, clothingSize: true, shoeSize: true,
+        idNumber: true, bankName: true, accountNumber: true, branchCode: true,
+        rejectionReason: true, consentPopia: true,
+      },
+    });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+    res.json(user);
+  } catch (err) {
+    console.error('[User] getUserById error:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
 
-export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+// ── PUT update own profile ──────────────────────────────────────────────────
+export const updateMyProfile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const {
-      fullName, phone, city, province, gender, dateOfBirth,
-      address, height, clothingSize, shoeSize, bankName, accountNumber, branchCode,
-      // Business-specific fields
-      contactName, vatNumber, industry, website,
+      city, province,
+      streetNumber, streetName, suburb, postalCode,
+      height, clothingSize, shoeSize,
+      bankName, accountNumber, branchCode,
     } = req.body;
 
     const updated = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
-        ...(fullName    !== undefined && { fullName }),
-        ...(phone       !== undefined && { phone }),
-        ...(city        !== undefined && { city }),
-        ...(province    !== undefined && { province }),
-        ...(gender      !== undefined && { gender }),
-        ...(address     !== undefined && { address }),
-        ...(dateOfBirth !== undefined && { dateOfBirth: new Date(dateOfBirth) }),
-        ...(height      !== undefined && { height: parseInt(height) }),
-        ...(clothingSize !== undefined && { clothingSize }),
-        ...(shoeSize    !== undefined && { shoeSize }),
-        ...(bankName    !== undefined && { bankName }),
+        ...(city          !== undefined && { city }),
+        ...(province      !== undefined && { province }),
+        ...(streetNumber  !== undefined && { streetNumber }),
+        ...(streetName    !== undefined && { streetName }),
+        ...(suburb        !== undefined && { suburb }),
+        ...(postalCode    !== undefined && { postalCode }),
+        ...(height        !== undefined && { height: Number(height) || null }),
+        ...(clothingSize  !== undefined && { clothingSize }),
+        ...(shoeSize      !== undefined && { shoeSize }),
+        ...(bankName      !== undefined && { bankName }),
         ...(accountNumber !== undefined && { accountNumber }),
-        ...(branchCode  !== undefined && { branchCode }),
-        // Business fields
-        ...(contactName !== undefined && { contactName }),
-        ...(vatNumber   !== undefined && { vatNumber }),
-        ...(industry    !== undefined && { industry }),
-        ...(website     !== undefined && { website }),
+        ...(branchCode    !== undefined && { branchCode }),
       },
     });
-
-    await auditLog({ userId: req.user!.id, action: 'UPDATE_PROFILE', entity: 'User', entityId: req.user!.id });
-    res.json({ message: 'Profile updated', user: updated });
-  } catch {
-    res.status(500).json({ error: 'Profile update failed' });
+    res.json(updated);
+  } catch (err) {
+    console.error('[User] updateMyProfile error:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 };
 
-
+// ── POST upload documents ───────────────────────────────────────────────────
 export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const files = req.files as Record<string, Express.Multer.File[]>;
-    const userId = req.user!.id;
-    const updates: Record<string, string> = {};
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const data: any = {};
 
-    const isDev = process.env.NODE_ENV !== 'production';
+    if (files?.headshot?.[0])      data.headshotUrl      = `/uploads/documents/${files.headshot[0].filename}`;
+    if (files?.fullBodyPhoto?.[0]) data.fullBodyPhotoUrl = `/uploads/documents/${files.fullBodyPhoto[0].filename}`;
+    if (files?.cv?.[0])            data.cvUrl            = `/uploads/documents/${files.cv[0].filename}`;
+    if (files?.profilePhoto?.[0])  data.profilePhotoUrl  = `/uploads/documents/${files.profilePhoto[0].filename}`;
 
-    for (const [field, fileArr] of Object.entries(files)) {
-      const file = fileArr[0];
-      const key = `users/${userId}/${field}-${Date.now()}`;
-      const fieldMap: Record<string, string> = {
-        profilePhoto:  'profilePhotoUrl',
-        cv:            'cvUrl',
-        headshot:      'headshotUrl',
-        fullBodyPhoto: 'fullBodyPhotoUrl',
-        cipcDoc:       'cipcDocUrl',
-        taxPin:        'taxPinUrl',
-        bizBankProof:  'bizBankProofUrl',
-      };
-
-      if (fieldMap[field]) {
-        let url: string;
-        if (isDev) {
-          const uploadDir = path.join(process.cwd(), 'uploads', userId);
-          fs.mkdirSync(uploadDir, { recursive: true });
-          const filename = `${field}-${Date.now()}${path.extname(file.originalname) || ''}`;
-          fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
-          url = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${userId}/${filename}`;
-        } else {
-          url = await uploadToS3(key, file.buffer, file.mimetype);
-        }
-        updates[fieldMap[field]] = url;
-      }
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: 'No files uploaded' });
+      return;
     }
 
-    const user = await prisma.user.update({ where: { id: userId }, data: updates });
-
-    await auditLog({ userId, action: 'UPLOAD_DOCUMENTS', entity: 'User', entityId: userId, meta: { fields: Object.keys(updates) } });
-
-    // Auto-flag for review if core docs uploaded
-    if ((user.headshotUrl && user.fullBodyPhotoUrl) || user.cipcDocUrl) {
-      await prisma.user.update({ where: { id: userId }, data: { onboardingStatus: 'documents_submitted' } });
-    }
-
-    res.json({ message: 'Documents uploaded', urls: updates });
+    const updated = await prisma.user.update({ where: { id: req.user!.id }, data });
+    res.json(updated);
   } catch (err) {
-    console.error('[User] document upload error:', err);
-    res.status(500).json({ error: 'Document upload failed' });
+    console.error('[User] uploadDocuments error:', err);
+    res.status(500).json({ error: 'Failed to upload documents' });
   }
 };
 
-export const uploadDocumentsByUserId = async (req: Request, res: Response): Promise<void> => {
+// ── Admin: update user status / onboarding ─────────────────────────────────
+export const adminUpdateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { userId } = req.params;
-    if (!userId) { res.status(400).json({ error: 'userId is required' }); return; }
+    const {
+      status, onboardingStatus, rejectionReason,
+      role, reliabilityScore, paymentStatus,
+    } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+    const data: any = {};
+    if (status           !== undefined) data.status           = status;
+    if (onboardingStatus !== undefined) data.onboardingStatus = onboardingStatus;
+    if (rejectionReason  !== undefined) data.rejectionReason  = rejectionReason;
+    if (role             !== undefined) data.role             = role.toUpperCase();
+    if (reliabilityScore !== undefined) data.reliabilityScore = parseFloat(reliabilityScore);
+    if (paymentStatus    !== undefined) data.paymentStatus    = paymentStatus;
 
-    const files = req.files as Record<string, Express.Multer.File[]>;
-    const updates: Record<string, string> = {};
-    const isDev = process.env.NODE_ENV !== 'production';
-
-    for (const [field, fileArr] of Object.entries(files)) {
-      const file = fileArr[0];
-      const key = `users/${userId}/${field}-${Date.now()}`;
-      const fieldMap: Record<string, string> = {
-        profilePhoto:  'profilePhotoUrl',
-        cv:            'cvUrl',
-        headshot:      'headshotUrl',
-        fullBodyPhoto: 'fullBodyPhotoUrl',
-        cipcDoc:       'cipcDocUrl',
-        taxPin:        'taxPinUrl',
-        bizBankProof:  'bizBankProofUrl',
-      };
-      if (fieldMap[field]) {
-        let url: string;
-        if (isDev) {
-          const uploadDir = path.join(process.cwd(), 'uploads', userId);
-          fs.mkdirSync(uploadDir, { recursive: true });
-          const filename = `${field}-${Date.now()}${path.extname(file.originalname) || ''}`;
-          fs.writeFileSync(path.join(uploadDir, filename), file.buffer);
-          url = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${userId}/${filename}`;
-        } else {
-          url = await uploadToS3(key, file.buffer, file.mimetype);
-        }
-        updates[fieldMap[field]] = url;
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      const updated = await prisma.user.update({ where: { id: userId }, data: updates });
-      await auditLog({ userId, action: 'UPLOAD_DOCUMENTS', entity: 'User', entityId: userId, meta: { fields: Object.keys(updates) } });
-      if ((updated.headshotUrl && updated.fullBodyPhotoUrl) || updated.cipcDocUrl) {
-        await prisma.user.update({ where: { id: userId }, data: { onboardingStatus: 'documents_submitted' } });
-      }
-    }
-
-    res.json({ message: 'Documents uploaded', urls: updates });
+    const updated = await prisma.user.update({ where: { id: req.params.id }, data });
+    res.json(updated);
   } catch (err) {
-    console.error('[User] public document upload error:', err);
-    res.status(500).json({ error: 'Document upload failed' });
+    console.error('[User] adminUpdateUser error:', err);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 };
 
-
-
-export const getUserById = async (req: Request, res: Response): Promise<void> => {
+// ── Admin: delete user ──────────────────────────────────────────────────────
+export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.id },
-      include: {
-        shifts: { include: { job: true } },
-        applications: { include: { job: true } },
-        payments: true,
-      },
-    });
-    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
-    res.json(user);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch user' });
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ message: 'User deleted' });
+  } catch (err) {
+    console.error('[User] deleteUser error:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 };
 
-
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+// ── Eligible promoters for a job ────────────────────────────────────────────
+export const getEligiblePromoters = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { role, status, search } = req.query;
-    const users = await prisma.user.findMany({
-      where: {
-        ...(role && { role: role as any }),
-        ...(status && { status: status as string }),
-        ...(search && {
-          OR: [
-            { fullName: { contains: search as string, mode: 'insensitive' } },
-            { email: { contains: search as string, mode: 'insensitive' } },
-          ],
-        }),
-      },
-      select: {
-        id: true, fullName: true, email: true, role: true, status: true,
-        onboardingStatus: true, phone: true, city: true, reliabilityScore: true,
-        profilePhotoUrl: true, headshotUrl: true, fullBodyPhotoUrl: true, createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(users);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-};
-
-
-/**
- * GET /api/users/promoters/eligible?jobId=xxx
- * Returns approved promoters eligible for a given job, sorted by:
- *   1. City match (same city as job venue)
- *   2. Reliability score desc
- * Also returns basic profile photos for business display.
- */
-export const getEligiblePromoters = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { jobId, city, category } = req.query;
-
-    // Fetch job to get location/category context
-    let jobCity = city as string | undefined;
-    let jobCategory = category as string | undefined;
-
-    if (jobId) {
-      const job = await prisma.job.findUnique({ where: { id: jobId as string } });
-      if (job) {
-        jobCity = jobCity || job.address?.split(',')[0]?.trim();
-        jobCategory = jobCategory || (job.filters as any)?.category;
-      }
-    }
+    const { jobId } = req.query;
+    const where: any = { role: 'PROMOTER', status: 'approved' };
 
     const promoters = await prisma.user.findMany({
-      where: {
-        role: 'PROMOTER',
-        status: 'approved',
-      },
+      where,
       select: {
-        id: true, fullName: true, email: true, phone: true,
-        city: true, province: true, gender: true, height: true,
-        clothingSize: true, reliabilityScore: true,
-        profilePhotoUrl: true, headshotUrl: true, fullBodyPhotoUrl: true,
-        onboardingStatus: true,
+        id: true, fullName: true, email: true, phone: true, city: true,
+        province: true, gender: true, height: true, clothingSize: true,
+        shoeSize: true, reliabilityScore: true, profilePhotoUrl: true,
+        headshotUrl: true, fullBodyPhotoUrl: true, cvUrl: true,
+        onboardingStatus: true, status: true, createdAt: true,
       },
-      orderBy: [
-        { reliabilityScore: 'desc' },
-        { createdAt: 'asc' },
-      ],
+      orderBy: { reliabilityScore: 'desc' },
     });
 
-    // Sort: city-match first
-    const sorted = [...promoters].sort((a, b) => {
-      const aMatch = jobCity && a.city?.toLowerCase().includes(jobCity.toLowerCase()) ? 0 : 1;
-      const bMatch = jobCity && b.city?.toLowerCase().includes(jobCity.toLowerCase()) ? 0 : 1;
-      if (aMatch !== bMatch) return aMatch - bMatch;
-      return (b.reliabilityScore || 0) - (a.reliabilityScore || 0);
-    });
+    // Exclude already-allocated promoters if jobId provided
+    if (jobId) {
+      const allocated = await prisma.application.findMany({
+        where: { jobId: jobId as string, status: 'ALLOCATED' },
+        select: { promoterId: true },
+      });
+      const allocatedIds = new Set(allocated.map(a => a.promoterId));
+      res.json(promoters.filter(p => !allocatedIds.has(p.id)));
+      return;
+    }
 
-    res.json(sorted);
+    res.json(promoters);
   } catch (err) {
-    console.error('[Users] eligible promoters error:', err);
-    res.status(500).json({ error: 'Failed to fetch eligible promoters' });
+    console.error('[User] getEligiblePromoters error:', err);
+    res.status(500).json({ error: 'Failed to fetch promoters' });
   }
 };

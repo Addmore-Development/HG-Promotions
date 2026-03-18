@@ -46,10 +46,10 @@ export const getPendingRegistrations = async (_req: Request, res: Response): Pro
     const users = await prisma.user.findMany({
       where: { status: 'pending_review' },
       select: {
-  id: true, fullName: true, email: true, phone: true, city: true,
-  headshotUrl: true, fullBodyPhotoUrl: true, profilePhotoUrl: true, cvUrl: true,
-  consentPopia: true, createdAt: true, role: true,
-},
+        id: true, fullName: true, email: true, phone: true, city: true,
+        headshotUrl: true, fullBodyPhotoUrl: true, profilePhotoUrl: true, cvUrl: true,
+        consentPopia: true, createdAt: true, role: true,
+      },
       orderBy: { createdAt: 'asc' },
     });
     res.json(users);

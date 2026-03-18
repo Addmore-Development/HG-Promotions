@@ -1,22 +1,28 @@
-import { Router } from "express";
+import { Router } from 'express';
 import {
-  getProfile, updateProfile, uploadDocuments, uploadMiddleware,
-  getAllUsers, getUserById, getEligiblePromoters, uploadDocumentsByUserId,
-} from "../controllers/user.controller";
-import { protect, adminOnly, adminOrBusiness } from "../middleware/auth";
+  getAllUsers,
+  getUserById,
+  updateMyProfile,
+  uploadDocuments,
+  documentUpload,
+  adminUpdateUser,
+  deleteUser,
+  getEligiblePromoters,
+} from '../controllers/user.controller';
+import { protect, adminOnly } from '../middleware/auth';
 
 const router = Router();
 
-router.get("/me/profile", protect, getProfile);
-router.put("/me/profile", protect, updateProfile);
-router.post("/me/documents", protect, uploadMiddleware, uploadDocuments);
-// Public route — used immediately after registration before account is approved
-router.post("/register-documents/:userId", uploadMiddleware, uploadDocumentsByUserId);
+// ── Own profile ──────────────────────────────────────────────────────────────
+router.get('/me',       protect, getUserById);                      // GET    /api/users/me
+router.put('/me',       protect, updateMyProfile);                  // PUT    /api/users/me
+router.post('/me/docs', protect, documentUpload, uploadDocuments);  // POST   /api/users/me/docs
 
-// Business + Admin can fetch eligible promoters for a job
-router.get("/promoters/eligible", protect, adminOrBusiness, getEligiblePromoters);
-
-router.get("/", protect, adminOnly, getAllUsers);
-router.get("/:id", protect, adminOrBusiness, getUserById);
+// ── Admin: all users ─────────────────────────────────────────────────────────
+router.get('/eligible', protect, adminOnly, getEligiblePromoters);  // GET    /api/users/eligible
+router.get('/',         protect, adminOnly, getAllUsers);            // GET    /api/users
+router.get('/:id',      protect, adminOnly, getUserById);           // GET    /api/users/:id
+router.put('/:id',      protect, adminOnly, adminUpdateUser);       // PUT    /api/users/:id
+router.delete('/:id',   protect, adminOnly, deleteUser);            // DELETE /api/users/:id
 
 export default router;
