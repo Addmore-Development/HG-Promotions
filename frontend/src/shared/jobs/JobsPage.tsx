@@ -145,7 +145,7 @@ function JobCardCompact({ job, onView, onApply, appliedIds }: any) {
   const almostFull=job.slotsLeft<=2
   return (
     <div className="job-card-compact" onClick={()=>onView(job.id)}
-      style={{ background:BC, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden', position:'relative', cursor:'pointer', transition:'all 0.2s', active:undefined }}
+      style={{ background:BC, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden', position:'relative', cursor:'pointer', transition:'all 0.2s' }}
       onMouseEnter={e=>(e.currentTarget.style.borderColor=accent+'66')}
       onMouseLeave={e=>(e.currentTarget.style.borderColor=BB)}>
       {/* Colour accent bar */}
@@ -392,10 +392,10 @@ export default function JobsPage() {
                 <div key={job.id}>
                   {/* Desktop/tablet full card */}
                   <JobCardFull job={job} appliedIds={appliedIds} session={session}
-                    onView={id=>navigate(`/jobs/${id}`)} onApply={handleApply} />
+                    onView={(id: string)=>navigate(`/jobs/${id}`)} onApply={handleApply} />
                   {/* Mobile compact card */}
                   <JobCardCompact job={job} appliedIds={appliedIds}
-                    onView={id=>navigate(`/jobs/${id}`)} onApply={handleApply} />
+                    onView={(id: string)=>navigate(`/jobs/${id}`)} onApply={handleApply} />
                 </div>
               ))}
             </div>
