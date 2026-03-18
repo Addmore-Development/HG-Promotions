@@ -1,7 +1,7 @@
 export interface Shift {
   id:        string
   checkIn:   string       // ISO datetime
-  checkOut?: string       // ISO datetime, undefined = still working
+  checkOut?: string       // ISO datetime — undefined means still working
 }
 
 export interface Applicant {
@@ -21,14 +21,16 @@ export interface Job {
   location:        string
   terms:           string
   ratePerHour:     number
-  startDate?:      string  // ── CHANGE: ISO date string, optional for backwards compat
-  endDate:         string  // ISO date string
+  startDate?:      string   // ISO date string — optional for backwards compat
+  endDate:         string   // ISO date string
   status:          'active' | 'cancelled'
   createdAt:       string
   applicants:      Applicant[]
 }
 
 const KEY = 'hg_jobs'
+
+// ─── CRUD helpers ─────────────────────────────────────────────────────────────
 
 export function getAllJobs(): Job[] {
   try {
@@ -40,10 +42,16 @@ export function getAllJobs(): Job[] {
 
 export function saveAllJobs(jobs: Job[]): void {
   localStorage.setItem(KEY, JSON.stringify(jobs))
+  // Broadcast so other business portal tabs and BusinessDashboard react
+  window.dispatchEvent(new Event('storage'))
 }
 
 export function getBusinessJobs(businessEmail: string): Job[] {
   return getAllJobs().filter(j => j.businessEmail === businessEmail)
+}
+
+export function getJobById(id: string): Job | undefined {
+  return getAllJobs().find(j => j.id === id)
 }
 
 export function upsertJob(job: Job): void {
@@ -57,10 +65,13 @@ export function upsertJob(job: Job): void {
   saveAllJobs(all)
 }
 
-export function getJobById(id: string): Job | undefined {
-  return getAllJobs().find(j => j.id === id)
+export function deleteJob(id: string): void {
+  saveAllJobs(getAllJobs().filter(j => j.id !== id))
 }
 
+// ─── Shift calculations ───────────────────────────────────────────────────────
+
+/** Total completed hours across all shifts for an applicant */
 export function calcHours(shifts: Shift[]): number {
   return shifts
     .filter(s => s.checkOut)
@@ -69,14 +80,77 @@ export function calcHours(shifts: Shift[]): number {
     }, 0)
 }
 
+/** Total payout for an applicant based on completed shifts */
 export function calcPayout(shifts: Shift[], ratePerHour: number): number {
   return calcHours(shifts) * ratePerHour
 }
 
-// Seed some mock promoter applicants for demo purposes
-export function seedMockApplicants(businessEmail: string): void {
+/** Hours worked in the current active (unchecked-out) shift, if any */
+export function calcLiveHours(shifts: Shift[]): number {
+  const activeShift = shifts.find(s => !s.checkOut)
+  if (!activeShift) return 0
+  return (Date.now() - new Date(activeShift.checkIn).getTime()) / 3600000
+}
+
+/** Total payout including ongoing live shift */
+export function calcLivePayout(shifts: Shift[], ratePerHour: number): number {
+  return (calcHours(shifts) + calcLiveHours(shifts)) * ratePerHour
+}
+
+// ─── Applicant helpers ────────────────────────────────────────────────────────
+
+/** Add or update an applicant on a job */
+export function upsertApplicant(jobId: string, applicant: Applicant): void {
   const all = getAllJobs()
-  const bizJobs = all.filter(j => j.businessEmail === businessEmail && j.applicants.length === 0 && j.status === 'active')
+  const job = all.find(j => j.id === jobId)
+  if (!job) return
+  const idx = job.applicants.findIndex(a => a.email === applicant.email)
+  if (idx >= 0) {
+    job.applicants[idx] = applicant
+  } else {
+    job.applicants.push(applicant)
+  }
+  saveAllJobs(all)
+}
+
+/** Add a check-in shift for an applicant */
+export function checkInApplicant(jobId: string, email: string): void {
+  const all = getAllJobs()
+  const job = all.find(j => j.id === jobId)
+  if (!job) return
+  const applicant = job.applicants.find(a => a.email === email)
+  if (!applicant) return
+  // Don't allow double check-in
+  if (applicant.shifts.some(s => !s.checkOut)) return
+  applicant.shifts.push({ id: `s-${Date.now()}`, checkIn: new Date().toISOString() })
+  saveAllJobs(all)
+}
+
+/** Check out the active shift for an applicant */
+export function checkOutApplicant(jobId: string, email: string): void {
+  const all = getAllJobs()
+  const job = all.find(j => j.id === jobId)
+  if (!job) return
+  const applicant = job.applicants.find(a => a.email === email)
+  if (!applicant) return
+  const activeShift = applicant.shifts.find(s => !s.checkOut)
+  if (activeShift) activeShift.checkOut = new Date().toISOString()
+  saveAllJobs(all)
+}
+
+// ─── Demo seed ────────────────────────────────────────────────────────────────
+
+/**
+ * Seeds mock promoter applicants onto empty active jobs for a given business.
+ * Useful for demo / onboarding screens.
+ */
+export function seedMockApplicants(businessEmail: string): void {
+  const all     = getAllJobs()
+  const bizJobs = all.filter(
+    j => j.businessEmail === businessEmail &&
+         j.applicants.length === 0 &&
+         j.status === 'active'
+  )
   if (bizJobs.length === 0) return
 
   const mockPromoters: Omit<Applicant, 'shifts' | 'joinedAt'>[] = [
@@ -85,22 +159,26 @@ export function seedMockApplicants(businessEmail: string): void {
     { email: 'lerato@promo.co.za',  fullName: 'Lerato Mokoena',  phone: '+27613334455', idNumber: '9807060009081' },
   ]
 
-  const now = new Date()
-  const twoHoursAgo = new Date(now.getTime() - 2 * 3600000).toISOString()
-  const oneHourAgo  = new Date(now.getTime() - 1 * 3600000).toISOString()
-  const thirtyMinsAgo = new Date(now.getTime() - 0.5 * 3600000).toISOString()
+  const now             = new Date()
+  const twoHoursAgo     = new Date(now.getTime() - 2 * 3600000).toISOString()
+  const oneHourAgo      = new Date(now.getTime() - 1 * 3600000).toISOString()
+  const thirtyMinsAgo   = new Date(now.getTime() - 0.5 * 3600000).toISOString()
 
   bizJobs.forEach((job, ji) => {
-    job.applicants = mockPromoters.slice(0, Math.min(2, job.promotersNeeded)).map((p, pi) => ({
-      ...p,
-      joinedAt: new Date(Date.now() - (ji + pi) * 3600000 * 24).toISOString(),
-      shifts: pi === 0 ? [
-        { id: `s-${Date.now()}-1`, checkIn: twoHoursAgo, checkOut: oneHourAgo },
-        { id: `s-${Date.now()}-2`, checkIn: thirtyMinsAgo },
-      ] : [
-        { id: `s-${Date.now()}-3`, checkIn: oneHourAgo, checkOut: thirtyMinsAgo },
-      ],
-    }))
+    job.applicants = mockPromoters
+      .slice(0, Math.min(2, job.promotersNeeded))
+      .map((p, pi) => ({
+        ...p,
+        joinedAt: new Date(Date.now() - (ji + pi) * 3600000 * 24).toISOString(),
+        shifts: pi === 0
+          ? [
+              { id: `s-${Date.now()}-1`, checkIn: twoHoursAgo,   checkOut: oneHourAgo     },
+              { id: `s-${Date.now()}-2`, checkIn: thirtyMinsAgo                            },
+            ]
+          : [
+              { id: `s-${Date.now()}-3`, checkIn: oneHourAgo,    checkOut: thirtyMinsAgo  },
+            ],
+      }))
   })
 
   saveAllJobs(all)

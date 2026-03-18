@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '../AdminLayout'
 
-// ─── Warm palette ─────────────────────────────────────────────────────────────
+// ─── Updated Warm palette ─────────────────────────────────────────────────────
 const G   = '#D4880A'
 const GL  = '#E8A820'
 const G2  = '#8B5A1A'
@@ -17,9 +17,12 @@ const D3 = '#1C1709'
 const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
 
-const W   = '#FAF3E8'
-const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
+const W   = '#CEC5B2'
+const W85 = 'rgba(210,198,180,0.95)'
+const W75 = 'rgba(195,182,162,0.82)'
+const W55 = 'rgba(192,178,158,0.80)'
+const W35 = 'rgba(168,152,130,0.55)'
+const W28 = 'rgba(172,158,136,0.65)'
 
 const FD   = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
@@ -32,6 +35,19 @@ function hex2rgba(hex: string, alpha: number): string {
   const g = parseInt(h.substring(2, 4), 16)
   const b = parseInt(h.substring(4, 6), 16)
   return `rgba(${r},${g},${b},${alpha})`
+}
+
+// ─── Shared broadcast helper — keeps business dashboard in sync ───────────────
+function broadcastUserUpdate(id: string, patch: Record<string, any>) {
+  try {
+    const existing: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
+    const filtered = existing.filter((e: any) => e.id !== id)
+    localStorage.setItem('hg_client_updates', JSON.stringify([
+      { id, ...patch, updatedAt: new Date().toISOString() },
+      ...filtered.slice(0, 49),
+    ]))
+    window.dispatchEvent(new Event('storage'))
+  } catch { /* silent */ }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -98,7 +114,7 @@ const ROLE_COLOR: Record<Role, string> = {
 
 const STATUS_CLR: Record<Status, string> = {
   active:    G3,
-  inactive:  '#E8D5A8',
+  inactive:  '#C8B898',
   suspended: G4,
   pending:   GL,
 }
@@ -161,23 +177,17 @@ export default function FullCRUDUsers() {
   const [statusF,  setStatusF ] = useState<Status | 'all'>('all')
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  // ── Merge helper: API/local users on top, dedup by email ──────────────────
   const mergeUsers = (incoming: User[]) => {
     setUsers(prev => {
       const incomingEmails = new Set(incoming.map(u => u.email.toLowerCase()))
-      // Keep mock/manual users whose email isn't in the incoming batch
-      const kept = prev.filter(u => !incomingEmails.has(u.email.toLowerCase()) || u.source === 'mock' && incoming.some(i => i.email.toLowerCase() === u.email.toLowerCase()) === false)
-      // Actually: incoming wins over mock for same email; keep non-overlapping mocks
       const mockOnly = prev.filter(u => u.source === 'mock' && !incomingEmails.has(u.email.toLowerCase()))
       return [...incoming, ...mockOnly]
     })
   }
 
-  // ── Fetch from API ────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
     if (!token) {
-      // No token — try localStorage registrations as fallback
       syncFromLocalStorage()
       return
     }
@@ -188,18 +198,14 @@ export default function FullCRUDUsers() {
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
         const apiUsers = data
-          .filter((u: any) => (u.role || '').toUpperCase() !== 'ADMIN') // never show admins
+          .filter((u: any) => (u.role || '').toUpperCase() !== 'ADMIN')
           .map((u: any) => mapApiUser(u, 'api'))
         mergeUsers(apiUsers)
       })
-      .catch(() => {
-        // API offline — fall back to localStorage
-        syncFromLocalStorage()
-      })
+      .catch(() => syncFromLocalStorage())
       .finally(() => setSyncing(false))
   }, [])
 
-  // ── Read localStorage registrations (works offline) ───────────────────────
   const syncFromLocalStorage = () => {
     try {
       const stored = localStorage.getItem('hg_registrations')
@@ -213,15 +219,13 @@ export default function FullCRUDUsers() {
     } catch { /* silent */ }
   }
 
-  // ── Watch localStorage for real-time new registrations ────────────────────
   useEffect(() => {
-    syncFromLocalStorage() // run once on mount
+    syncFromLocalStorage()
     const onStorage = () => syncFromLocalStorage()
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  // ── CRUD handlers ─────────────────────────────────────────────────────────
   const openCreate = () => { setForm(EMPTY); setEditing(null); setModal('create') }
   const openEdit   = (u: User) => { setForm({ name:u.name, email:u.email, phone:u.phone, role:u.role, status:u.status, city:u.city, joined:u.joined }); setEditing(u); setModal('edit') }
   const openView   = (u: User) => { setEditing(u); setModal('view') }
@@ -231,7 +235,6 @@ export default function FullCRUDUsers() {
     if (modal === 'create') {
       const newUser: User = { ...form, id:`U${Date.now()}`, jobs:0, payouts:0, source:'mock' }
       setUsers(prev => [newUser, ...prev])
-      // Also try to create via API
       const token = localStorage.getItem('hg_token')
       if (token) {
         fetch(`${API_URL}/users`, {
@@ -242,7 +245,6 @@ export default function FullCRUDUsers() {
       }
     } else if (editing) {
       setUsers(prev => prev.map(u => u.id === editing.id ? { ...u, ...form } : u))
-      // Also try to update via API
       const token = localStorage.getItem('hg_token')
       if (token && editing.source === 'api') {
         fetch(`${API_URL}/users/${editing.id}`, {
@@ -250,6 +252,13 @@ export default function FullCRUDUsers() {
           headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
           body: JSON.stringify({ fullName:form.name, phone:form.phone, city:form.city, status:form.status }),
         }).catch(() => {})
+      }
+      // Broadcast status change so affected user's dashboard refreshes
+      if (form.status !== editing.status) {
+        const apiStatus = form.status === 'active' ? 'approved'
+                        : form.status === 'inactive' ? 'rejected'
+                        : form.status
+        broadcastUserUpdate(editing.id, { status: apiStatus })
       }
     }
     closeModal()
@@ -259,7 +268,6 @@ export default function FullCRUDUsers() {
     setUsers(prev => prev.filter(u => u.id !== id))
     setDeleting(null)
     if (modal) closeModal()
-    // Try API delete
     const token = localStorage.getItem('hg_token')
     const user  = users.find(u => u.id === id)
     if (token && user?.source === 'api') {
@@ -273,18 +281,20 @@ export default function FullCRUDUsers() {
   const updateUserStatus = async (id: string, status: Status) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, status } : u))
     const token = localStorage.getItem('hg_token')
+    const apiDecision = status === 'active' ? 'approved' : 'rejected'
     if (token) {
       fetch(`${API_URL}/admin/users/${id}/approve`, {
         method: 'PUT',
         headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
-        body: JSON.stringify({ decision: status === 'active' ? 'approved' : 'rejected' }),
+        body: JSON.stringify({ decision: apiDecision }),
       }).catch(() => {})
     }
+    // Broadcast so business/promoter dashboard picks up the new status
+    broadcastUserUpdate(id, { status: apiDecision })
   }
 
   const F = (key: keyof typeof form, val: string) => setForm(prev => ({ ...prev, [key]: val }))
 
-  // ── Filters ───────────────────────────────────────────────────────────────
   const filtered = users.filter(u => {
     const roleMatch   = roleF   === 'all' || u.role   === roleF
     const statusMatch = statusF === 'all' || u.status === statusF
@@ -305,7 +315,6 @@ export default function FullCRUDUsers() {
     local:     users.filter(u => u.source === 'local').length,
   }
 
-  // ── Styles ────────────────────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
   const labelStyle: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:W55, display:'block', marginBottom:7, fontFamily:FD }
 
@@ -319,12 +328,12 @@ export default function FullCRUDUsers() {
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>People · Users</div>
             <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Manage Users</h1>
             <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>
-              <strong style={{ color:W }}>{users.length}</strong> users ·{' '}
+              <strong style={{ color:W85 }}>{users.length}</strong> users ·{' '}
               <span style={{ color:GL }}>{counts.promoter} promoters</span> ·{' '}
               <span style={{ color:G3 }}>{counts.client} clients</span> ·{' '}
               <span style={{ color:G4 }}>{counts.pending} pending</span>
-              {syncing && <span style={{ color:W28, marginLeft:12, fontSize:11 }}>↻ syncing…</span>}
-              {counts.api > 0 && <span style={{ color:W28, marginLeft:12, fontSize:11 }}>● {counts.api} live</span>}
+              {syncing && <span style={{ color:W35, marginLeft:12, fontSize:11 }}>↻ syncing…</span>}
+              {counts.api > 0 && <span style={{ color:W35, marginLeft:12, fontSize:11 }}>● {counts.api} live</span>}
               {counts.local > 0 && <span style={{ color:G4, marginLeft:8, fontSize:11 }}>◎ {counts.local} local</span>}
             </p>
           </div>
@@ -351,18 +360,16 @@ export default function FullCRUDUsers() {
         {/* FILTERS */}
         <div style={{ display:'flex', gap:10, marginBottom:24, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W28, fontSize:12, pointerEvents:'none' }}>⌕</span>
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W35, fontSize:12, pointerEvents:'none' }}>⌕</span>
             <input placeholder="Search name, email or city…" value={search} onChange={e => setSearch(e.target.value)}
               style={{ background:D2, border:`1px solid ${BB}`, padding:'9px 14px 9px 30px', color:W, fontFamily:FD, fontSize:12, outline:'none', width:240, borderRadius:3 }}
               onFocus={e => e.currentTarget.style.borderColor = GL} onBlur={e => e.currentTarget.style.borderColor = BB} />
           </div>
-
           <div style={{ display:'flex', gap:5 }}>
             {(['all','promoter','client','admin'] as const).map(r => (
               <FilterBtn key={r} label={r === 'all' ? `All Roles (${counts.all})` : r} active={roleF === r} color={r === 'all' ? GL : ROLE_COLOR[r]} onClick={() => setRoleF(r)} />
             ))}
           </div>
-
           <div style={{ display:'flex', gap:5 }}>
             {(['all','active','pending','inactive','suspended'] as const).map(s => (
               <FilterBtn key={s} label={s === 'all' ? 'All Status' : s} active={statusF === s} color={s === 'all' ? GL : STATUS_CLR[s]} onClick={() => setStatusF(s)} />
@@ -387,7 +394,7 @@ export default function FullCRUDUsers() {
             <thead>
               <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
                 {['User','Role','City','Joined','Jobs','Payout','Status','Source','Actions'].map(h => (
-                  <th key={h} style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD, whiteSpace:'nowrap', overflow:'hidden' }}>{h}</th>
+                  <th key={h} style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD, whiteSpace:'nowrap', overflow:'hidden' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -398,8 +405,6 @@ export default function FullCRUDUsers() {
                   onMouseEnter={e => e.currentTarget.style.background = BB2}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   onClick={() => openView(u)}>
-
-                  {/* Avatar + name */}
                   <td style={{ padding:'14px 18px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:`linear-gradient(145deg,${G5}CC,${hex2rgba(ROLE_COLOR[u.role],0.28)})`, border:`1px solid ${hex2rgba(ROLE_COLOR[u.role],0.35)}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, color:ROLE_COLOR[u.role], fontWeight:700, fontFamily:FD }}>
@@ -407,50 +412,35 @@ export default function FullCRUDUsers() {
                       </div>
                       <div>
                         <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:160 }}>{u.name}</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:160 }}>{u.name}</div>
                           {u.status === 'pending' && <div style={{ width:6, height:6, borderRadius:'50%', background:GL, flexShrink:0 }} title="Pending review" />}
                         </div>
                         <div style={{ fontSize:11, color:W55, fontFamily:FD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:160 }}>{u.email}</div>
-                        {u.phone && u.phone !== 'Not provided' && <div style={{ fontSize:10, color:W28, fontFamily:MONO }}>{u.phone}</div>}
+                        {u.phone && u.phone !== 'Not provided' && <div style={{ fontSize:10, color:W35, fontFamily:MONO }}>{u.phone}</div>}
                       </div>
                     </div>
                   </td>
-
-                  {/* Role */}
                   <td style={{ padding:'14px 18px' }}>
                     <Badge label={u.role} color={ROLE_COLOR[u.role]} bg={hex2rgba(ROLE_COLOR[u.role],0.12)} border={hex2rgba(ROLE_COLOR[u.role],0.4)} />
                   </td>
-
                   <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{u.city}</td>
-
                   <td style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
                     {u.joined ? new Date(u.joined).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
                   </td>
-
-                  <td style={{ padding:'14px 18px', fontSize:13, color:W, fontWeight:700, fontFamily:FD }}>{u.jobs}</td>
-
-                  {/* Payout — promoters only */}
-                  <td style={{ padding:'14px 18px', fontSize:13, fontWeight:700, fontFamily:FD, color:u.role === 'promoter' ? GL : W28 }}>
+                  <td style={{ padding:'14px 18px', fontSize:13, color:W85, fontWeight:700, fontFamily:FD }}>{u.jobs}</td>
+                  <td style={{ padding:'14px 18px', fontSize:13, fontWeight:700, fontFamily:FD, color:u.role === 'promoter' ? GL : W35 }}>
                     {u.role === 'promoter' ? `R${u.payouts.toLocaleString('en-ZA')}` : '—'}
                   </td>
-
-                  {/* Status */}
                   <td style={{ padding:'14px 18px' }}>
                     <Badge label={u.status} color={STATUS_CLR[u.status]} bg={STATUS_BG[u.status]} border={STATUS_BORDER[u.status]} />
                   </td>
-
-                  {/* Source indicator */}
                   <td style={{ padding:'14px 18px' }}>
-                    <span style={{ fontSize:9, fontWeight:700, fontFamily:FD, color:u.source==='api'?GL:u.source==='local'?G4:W28 }}>
+                    <span style={{ fontSize:9, fontWeight:700, fontFamily:FD, color:u.source==='api'?GL:u.source==='local'?G4:W35 }}>
                       {u.source === 'api' ? '● Live' : u.source === 'local' ? '◎ Local' : '○ Demo'}
                     </span>
                   </td>
-
-                  {/* Actions */}
                   <td style={{ padding:'10px 18px', verticalAlign:'middle' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-
-                      {/* Always-visible: Edit + Delete row */}
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => openEdit(u)}
                           style={{ flex:1, padding:'5px 10px', fontSize:10, fontWeight:700, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
@@ -465,8 +455,6 @@ export default function FullCRUDUsers() {
                           🗑 Delete
                         </button>
                       </div>
-
-                      {/* Pending only: Approve + Reject row */}
                       {u.status === 'pending' && (
                         <div style={{ display:'flex', gap:6 }}>
                           <button onClick={() => updateUserStatus(u.id, 'active')}
@@ -476,14 +464,13 @@ export default function FullCRUDUsers() {
                             ✓ Approve
                           </button>
                           <button onClick={() => updateUserStatus(u.id, 'inactive')}
-                            style={{ flex:1, padding:'5px 10px', fontSize:10, fontWeight:700, color:'#E8D5A8', background:hex2rgba(G2,0.20), border:`1px solid ${hex2rgba(G2,0.55)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
+                            style={{ flex:1, padding:'5px 10px', fontSize:10, fontWeight:700, color:'#C8B898', background:hex2rgba(G2,0.20), border:`1px solid ${hex2rgba(G2,0.55)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
                             onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(G2,0.35)}}
                             onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(G2,0.20)}}>
                             ✗ Reject
                           </button>
                         </div>
                       )}
-
                     </div>
                   </td>
                 </tr>
@@ -491,13 +478,13 @@ export default function FullCRUDUsers() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ padding:48, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>
+            <div style={{ padding:48, textAlign:'center', color:W35, fontSize:13, fontFamily:FD }}>
               {users.length === 0 ? 'No users found. Connect to the API to load live users.' : 'No users match your filters.'}
             </div>
           )}
         </div>
 
-        <div style={{ marginTop:10, fontSize:11, color:W28, fontFamily:FD }}>
+        <div style={{ marginTop:10, fontSize:11, color:W35, fontFamily:FD }}>
           Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{users.length}</strong> users
         </div>
 
@@ -509,14 +496,14 @@ export default function FullCRUDUsers() {
               <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:G2, borderRadius:'4px 4px 0 0' }} />
               <h3 style={{ fontFamily:FD, fontSize:22, color:W, marginBottom:12 }}>Delete User?</h3>
               <p style={{ fontSize:13, color:W55, marginBottom:8, lineHeight:1.7, fontFamily:FD }}>
-                <strong style={{ color:W }}>{users.find(u => u.id === deleting)?.name}</strong>
+                <strong style={{ color:W85 }}>{users.find(u => u.id === deleting)?.name}</strong>
               </p>
               <p style={{ fontSize:13, color:W55, marginBottom:28, lineHeight:1.7, fontFamily:FD }}>
                 This will permanently remove the user from the platform.
               </p>
               <div style={{ display:'flex', gap:12 }}>
                 <button onClick={() => setDeleting(null)} style={{ flex:1, padding:'12px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:12, cursor:'pointer', borderRadius:3 }}>Cancel</button>
-                <button onClick={() => deleteUser(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#E8D5A8', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>Delete</button>
+                <button onClick={() => deleteUser(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#C8B898', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>Delete</button>
               </div>
             </div>
           </div>
@@ -528,7 +515,7 @@ export default function FullCRUDUsers() {
             onClick={e => e.target === e.currentTarget && closeModal()}>
             <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:520, maxHeight:'90vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${GL},${G5})`, borderRadius:'4px 4px 0 0' }} />
-              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
+              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
               <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>{modal === 'create' ? 'New User' : 'Edit User'}</div>
               <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:28 }}>{modal === 'create' ? 'Add a New User' : `Editing ${editing?.name}`}</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
@@ -576,8 +563,7 @@ export default function FullCRUDUsers() {
             onClick={e => e.target === e.currentTarget && closeModal()}>
             <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:460, position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${ROLE_COLOR[editing.role]},${G5})`, borderRadius:'4px 4px 0 0' }} />
-              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
-
+              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
               <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:28 }}>
                 <div style={{ width:52, height:52, borderRadius:'50%', flexShrink:0, background:`linear-gradient(145deg,${G5}CC,${hex2rgba(ROLE_COLOR[editing.role],0.32)})`, border:`1px solid ${hex2rgba(ROLE_COLOR[editing.role],0.4)}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, color:ROLE_COLOR[editing.role], fontWeight:700, fontFamily:FD }}>
                   {initials(editing.name)}
@@ -595,7 +581,6 @@ export default function FullCRUDUsers() {
                   </div>
                 </div>
               </div>
-
               {[
                 { label:'Email',  value: editing.email },
                 { label:'Phone',  value: editing.phone },
@@ -606,10 +591,9 @@ export default function FullCRUDUsers() {
               ].map(row => (
                 <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'11px 0', borderBottom:`1px solid ${BB}` }}>
                   <span style={{ fontSize:12, color:W55, fontFamily:FD }}>{row.label}</span>
-                  <span style={{ fontSize:12, color:W, fontWeight:700, fontFamily:FD }}>{row.value}</span>
+                  <span style={{ fontSize:12, color:W85, fontWeight:700, fontFamily:FD }}>{row.value}</span>
                 </div>
               ))}
-
               {editing.status === 'pending' && (
                 <div style={{ display:'flex', gap:10, marginTop:20 }}>
                   <button onClick={() => { updateUserStatus(editing.id,'active'); closeModal() }}
@@ -622,21 +606,19 @@ export default function FullCRUDUsers() {
                   </button>
                 </div>
               )}
-
               <div style={{ display:'flex', gap:10, marginTop:editing.status === 'pending' ? 10 : 24 }}>
                 <button onClick={() => { closeModal(); openEdit(editing) }}
                   style={{ flex:2, padding:'12px', background:`linear-gradient(135deg,${GL},${G3})`, border:'none', color:B, fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3, boxShadow:`0 2px 12px ${hex2rgba(GL,0.35)}` }}>
                   Edit User
                 </button>
                 <button onClick={() => { closeModal(); setDeleting(editing.id) }}
-                  style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.18), border:`1px solid ${hex2rgba(G2,0.5)}`, color:'#E8D5A8', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>
+                  style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.18), border:`1px solid ${hex2rgba(G2,0.5)}`, color:'#C8B898', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>
                   Delete
                 </button>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </AdminLayout>
   )

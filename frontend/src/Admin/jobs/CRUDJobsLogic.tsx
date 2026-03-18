@@ -14,9 +14,15 @@ const D2   = '#151209'
 const D3   = '#1C1709'
 const BB   = 'rgba(212,136,10,0.16)'
 const BB2  = 'rgba(212,136,10,0.06)'
-const W    = '#FAF3E8'
-const W55  = 'rgba(250,243,232,0.55)'
-const W28  = 'rgba(250,243,232,0.28)'
+
+// ─── Updated text colors ──────────────────────────────────────────────────────
+const W   = '#CEC5B2'                   // warm mid-cream
+const W85 = 'rgba(210,198,180,0.95)'   // near-full warm grey
+const W75 = 'rgba(195,182,162,0.82)'   // medium-light warm grey
+const W55 = 'rgba(192,178,158,0.80)'   // bright readable mid-grey
+const W35 = 'rgba(168,152,130,0.55)'   // visible dark-grey
+const W28 = 'rgba(172,158,136,0.65)'   // was nearly invisible, now clearly readable
+
 const FD   = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
 const WARM_ACCENTS = [GL, G3, '#AB8D3F', G, G4, GL, G3, '#AB8D3F', G, G4]
@@ -29,11 +35,23 @@ function hex2rgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+// ─── Broadcast job change so business dashboards reload their job list ─────────
+function broadcastJobUpdate(jobId: string, action: 'created' | 'updated' | 'deleted') {
+  try {
+    const existing: any[] = JSON.parse(localStorage.getItem('hg_job_updates') || '[]')
+    localStorage.setItem('hg_job_updates', JSON.stringify([
+      { jobId, action, updatedAt: new Date().toISOString() },
+      ...existing.slice(0, 49),
+    ]))
+    window.dispatchEvent(new Event('storage'))
+  } catch { /* silent */ }
+}
+
 type JobStatus = 'open' | 'filled' | 'completed' | 'cancelled'
 type JobSource = 'base' | 'api' | 'admin'
 
 interface Job {
-  id: string; title: string; client: string; clientId?: string; venue: string
+  id: string; title: string; client: string; venue: string
   date: string; startDate?: string; startTime: string; endTime: string
   hourlyRate: number; totalSlots: number; filledSlots: number
   status: JobStatus; city: string; category?: string
@@ -79,7 +97,7 @@ function authHeader() {
 
 function baseJobsToAdminJobs(): Job[] {
   return ALL_JOBS.map(j => ({
-    id: j.id, title: j.title, client: j.company, clientId: undefined,
+    id: j.id, title: j.title, client: j.company,
     venue: j.location.split(',')[0]?.trim() || j.location,
     date: j.jobDate, startTime: '09:00', endTime: '17:00',
     hourlyRate: parseInt(j.pay.replace(/\D/g, '')) || 0,
@@ -114,7 +132,7 @@ function StatusBadge({ status }: { status: JobStatus }) {
 }
 
 function SourceBadge({ source }: { source: JobSource }) {
-  const map: Record<JobSource,{label:string;color:string}> = { base:{label:'Base',color:W28}, api:{label:'Live',color:GL}, admin:{label:'Admin',color:G3} }
+  const map: Record<JobSource,{label:string;color:string}> = { base:{label:'Base',color:W35}, api:{label:'Live',color:GL}, admin:{label:'Admin',color:G3} }
   const s = map[source]
   return (
     <span style={{ fontSize:8, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:s.color, border:`1px solid ${hex2rgba(s.color,0.35)}`, padding:'2px 7px', borderRadius:3, whiteSpace:'nowrap' }}>
@@ -126,7 +144,7 @@ function SourceBadge({ source }: { source: JobSource }) {
 function Btn({ onClick, children, color=GL, outline=false, small=false, disabled=false }: any) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ padding:small?'7px 14px':'11px 22px', background:disabled?'rgba(255,255,255,0.05)':outline?'transparent':`linear-gradient(135deg,${color},${hex2rgba(color,0.8)})`, border:`1px solid ${disabled?BB:color}`, color:disabled?W28:outline?color:B, fontFamily:FD, fontSize:small?10:11, fontWeight:700, letterSpacing:'0.08em', cursor:disabled?'not-allowed':'pointer', textTransform:'uppercase' as const, transition:'all 0.2s', borderRadius:3 }}
+      style={{ padding:small?'7px 14px':'11px 22px', background:disabled?'rgba(255,255,255,0.05)':outline?'transparent':`linear-gradient(135deg,${color},${hex2rgba(color,0.8)})`, border:`1px solid ${disabled?BB:color}`, color:disabled?W55:outline?color:B, fontFamily:FD, fontSize:small?10:11, fontWeight:700, letterSpacing:'0.08em', cursor:disabled?'not-allowed':'pointer', textTransform:'uppercase' as const, transition:'all 0.2s', borderRadius:3 }}
       onMouseEnter={e=>{if(!disabled){e.currentTarget.style.opacity='0.82';e.currentTarget.style.transform='translateY(-1px)'}}}
       onMouseLeave={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='translateY(0)'}}
     >{children}</button>
@@ -142,7 +160,7 @@ function FilterBtn({ label, active, color, onClick }: { label:string; active:boo
 }
 
 const EMPTY_JOB: Omit<Job,'id'|'applications'|'source'> = {
-  title:'', client:'', clientId:undefined, venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
+  title:'', client:'', venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
   hourlyRate:120, totalSlots:4, filledSlots:0, status:'open', city:'', category:'', termsAndConditions:'',
 }
 
@@ -154,9 +172,8 @@ const FALLBACK_CLIENTS: ClientEntry[] = [
 ]
 
 export default function CRUDJobsLogic() {
-  // ── Initialise immediately with base jobs — no loading flicker ──
   const [jobs,setJobs]                   = useState<Job[]>(() => baseJobsToAdminJobs())
-  const [loading,setLoading]             = useState(false)   // ← was true; now never shows spinner
+  const [loading,setLoading]             = useState(false)
   const [modal,setModal]                 = useState<'create'|'edit'|'promoters'|null>(null)
   const [editing,setEditing]             = useState<Job|null>(null)
   const [form,setForm]                   = useState<Omit<Job,'id'|'applications'|'source'>>(EMPTY_JOB)
@@ -177,7 +194,7 @@ export default function CRUDJobsLogic() {
   const [termsAgreed,setTermsAgreed]     = useState(false)
   const [clients,setClients]             = useState<ClientEntry[]>(FALLBACK_CLIENTS)
   const [clientsLoaded,setClientsLoaded] = useState(false)
-  const [otherClient,setOtherClient]     = useState('')   // ← separate state so typing doesn't hide the input
+  const [otherClient,setOtherClient]     = useState('')
   const [promoterJob,setPromoterJob]     = useState<Job|null>(null)
   const [matchedPromos,setMatchedPromos] = useState<PromoterMatch[]>([])
   const [promoLoading,setPromoLoading]   = useState(false)
@@ -203,7 +220,6 @@ export default function CRUDJobsLogic() {
       .catch(()=>{ setClients(FALLBACK_CLIENTS); setClientsLoaded(true) })
   },[])
 
-  // ── Background API merge: silently merges live jobs on top of base jobs ──
   const loadJobs = useCallback(async () => {
     const base = baseJobsToAdminJobs()
     try {
@@ -211,7 +227,7 @@ export default function CRUDJobsLogic() {
       if (res.ok) {
         const data:any[] = await res.json()
         const apiJobs:Job[] = data.map(j=>({
-          id:j.id,title:j.title,client:j.client,clientId:j.clientId,venue:j.venue,
+          id:j.id,title:j.title,client:j.client,venue:j.venue,
           date:j.date?.slice(0,10)||'',startTime:j.startTime||'09:00',endTime:j.endTime||'17:00',
           hourlyRate:j.hourlyRate||0,totalSlots:j.totalSlots||0,filledSlots:j.filledSlots||0,
           status:(j.status?.toLowerCase()||'open') as JobStatus,
@@ -220,10 +236,8 @@ export default function CRUDJobsLogic() {
           applications:j.applications||[],termsAndConditions:j.termsAndConditions||j.filters?.termsAndConditions||'',
         }))
         const apiIds = new Set(apiJobs.map(j=>j.id))
-        // Merge: API jobs first, then base jobs not already covered
         setJobs([...apiJobs,...base.filter(b=>!apiIds.has(b.id))])
       }
-      // If API fails, base jobs are already showing — do nothing
     } catch { /* base jobs already visible */ }
   },[])
 
@@ -257,17 +271,6 @@ export default function CRUDJobsLogic() {
     setSaveError(''); setSaving(true)
     try {
       const dateISO = form.date ? new Date(form.date).toISOString() : new Date().toISOString()
-      
-      // Find clientId if this is a registered business
-      let clientId = undefined
-      if (form.client !== '__other__') {
-        const selectedClient = clients.find(c => c.name === resolvedClient)
-        if (selectedClient?.email) {
-          // Only use clientId if it's a registered business with email
-          clientId = selectedClient.id
-        }
-      }
-      
       const builtTags:string[] = []
       if (reqGender&&reqGender!=='Any Gender') builtTags.push(reqGender)
       if (reqLanguages) builtTags.push(reqLanguages)
@@ -276,10 +279,8 @@ export default function CRUDJobsLogic() {
       if (reqExperience&&reqExperience!=='None') builtTags.push(reqExperience)
       if (reqAttire&&reqAttire!=='Smart Casual') builtTags.push(reqAttire)
       if (reqOther) builtTags.push(reqOther)
-      
       const payload = {
-        title:form.title, client:resolvedClient, clientId, // Include clientId for registered businesses
-        brand:resolvedClient,
+        title:form.title, client:resolvedClient, brand:resolvedClient,
         venue:form.venue||form.city,address:`${form.venue||form.city}, ${form.city}`,
         lat:cityCoords(form.city)?.[0]??-26.2041,lng:cityCoords(form.city)?.[1]??28.0473,
         date:dateISO,startTime:form.startTime,endTime:form.endTime,
@@ -290,10 +291,9 @@ export default function CRUDJobsLogic() {
           minHeight:reqMinHeight,minAge:reqMinAge,experience:reqExperience,attire:reqAttire,
           other:reqOther,tags:builtTags,termsAndConditions:termsText},
       }
-      
       if (editing&&editing.source!=='base') {
         const res = await fetch(`${API_URL}/jobs/${editing.id}`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) { await loadJobs(); broadcastJobUpdate(editing!.id, 'updated'); closeModal() }
         else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Update failed (${res.status})`) }
       } else if (editing&&editing.source==='base') {
         const stored:any[]=JSON.parse(localStorage.getItem('hg_admin_jobs')||'[]')
@@ -301,7 +301,7 @@ export default function CRUDJobsLogic() {
         setJobs(prev=>prev.map(j=>j.id===editing.id?{...j,...form,source:'admin'}:j)); closeModal()
       } else {
         const res = await fetch(`${API_URL}/jobs`,{method:'POST',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); closeModal() }
+        if (res.ok) { await loadJobs(); broadcastJobUpdate('new', 'created'); closeModal() }
         else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Create failed (${res.status})`) }
       }
     } catch { setSaveError('Network error — backend may be offline.') }
@@ -312,10 +312,9 @@ export default function CRUDJobsLogic() {
     const job=jobs.find(j=>j.id===id)
     if (job?.source==='base') { setJobs(prev=>prev.filter(j=>j.id!==id)) }
     else { try { await fetch(`${API_URL}/jobs/${id}`,{method:'DELETE',headers:authHeader() as any}) } catch {} setJobs(prev=>prev.filter(j=>j.id!==id)) }
+    broadcastJobUpdate(id, 'deleted')
     setDeleting(null)
   }
-
-  const toggleBaseStatus = (job:Job,newStatus:JobStatus) => setJobs(prev=>prev.map(j=>j.id===job.id?{...j,status:newStatus}:j))
 
   const openPromoterPanel = async (job:Job) => {
     setPromoterJob(job); setModal('promoters'); setPromoLoading(true); setShortlistMsg('')
@@ -408,7 +407,7 @@ export default function CRUDJobsLogic() {
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Operations · Jobs</div>
             <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Manage Jobs</h1>
             <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>
-              <strong style={{ color:W }}>{jobs.length}</strong> total · <span style={{ color:GL }}>{counts.open} open</span> · <span style={{ color:W28 }}>{counts.base} base · {counts.api} live API</span>
+              <strong style={{ color:W85 }}>{jobs.length}</strong> total · <span style={{ color:GL }}>{counts.open} open</span> · <span style={{ color:W35 }}>{counts.base} base · {counts.api} live API</span>
             </p>
           </div>
           <Btn onClick={openCreate}>+ New Job</Btn>
@@ -439,7 +438,7 @@ export default function CRUDJobsLogic() {
               ))}
             </div>
             <div style={{ position:'relative' }}>
-              <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W28, fontSize:12, pointerEvents:'none' }}>⌕</span>
+              <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W35, fontSize:12, pointerEvents:'none' }}>⌕</span>
               <input placeholder="Search jobs…" value={search} onChange={e=>setSearch(e.target.value)}
                 style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 14px 7px 30px', color:W, fontFamily:FD, fontSize:11, outline:'none', borderRadius:3, width:180 }}
                 onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
@@ -455,13 +454,13 @@ export default function CRUDJobsLogic() {
               <div key={i} style={{ fontSize:11, color:W55, fontFamily:FD, display:'flex', gap:12, marginBottom:4 }}>
                 <span style={{ color:n.type==='shortlisted'?GL:G2, fontWeight:700 }}>{n.type==='shortlisted'?'⏳ Shortlisted':'✗ Not Needed'}</span>
                 <span>{n.promoterName}</span>
-                <span style={{ color:W28 }}>{new Date(n.notifiedAt).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</span>
+                <span style={{ color:W35 }}>{new Date(n.notifiedAt).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* ── TABLE — always rendered immediately ── */}
+        {/* TABLE */}
         <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden', width:'100%' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
             <colgroup>
@@ -486,20 +485,17 @@ export default function CRUDJobsLogic() {
             <tbody>
               {filtered.map((job,i)=>{
                 const isBase = job.source==='base'
-                const DIM    = 'rgba(250,243,232,0.60)'
                 return (
                   <tr key={job.id}
                     style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s', background:isBase?hex2rgba(GL,0.01):'transparent' }}
                     onMouseEnter={e=>e.currentTarget.style.background=BB2}
                     onMouseLeave={e=>e.currentTarget.style.background=isBase?hex2rgba(GL,0.01):'transparent'}>
 
-                    {/* ID */}
-                    <td style={{ padding:'14px 12px', fontSize:9, color:DIM, fontFamily:MONO, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.id}</td>
+                    <td style={{ padding:'14px 12px', fontSize:9, color:W35, fontFamily:MONO, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.id}</td>
 
-                    {/* Title */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, lineHeight:1.3, marginBottom:2 }}>{job.title}</div>
-                      {job.category&&<div style={{ fontSize:9, color:DIM, fontFamily:FD, marginBottom:3 }}>{job.category}</div>}
+                      <div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD, lineHeight:1.3, marginBottom:2 }}>{job.title}</div>
+                      {job.category&&<div style={{ fontSize:9, color:W55, fontFamily:FD, marginBottom:3 }}>{job.category}</div>}
                       <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
                         {(job.tags&&job.tags.length>0?job.tags:(job as any).filters?.tags||[]).slice(0,2).map((t:string,ti:number)=>(
                           <span key={ti} style={{ fontSize:8, color:GL, background:hex2rgba(GL,0.08), border:`1px solid ${hex2rgba(GL,0.22)}`, padding:'1px 6px', borderRadius:2, fontFamily:FD }}>{t}</span>
@@ -507,67 +503,52 @@ export default function CRUDJobsLogic() {
                       </div>
                     </td>
 
-                    {/* Client */}
-                    <td style={{ padding:'14px 12px', fontSize:11, color:'rgba(250,243,232,0.80)', fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    <td style={{ padding:'14px 12px', fontSize:11, color:W85, fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                       {job.client}
                       {job.clientId && <div style={{ fontSize:8, color:GL, marginTop:2 }}>Registered Business</div>}
                     </td>
 
-                    {/* Location */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:11, color:W, fontFamily:FD, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.city||job.location?.split(',').slice(-1)[0]?.trim()}</div>
-                      <div style={{ fontSize:9, color:DIM, fontFamily:FD, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
+                      <div style={{ fontSize:11, color:W85, fontFamily:FD, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.city||job.location?.split(',').slice(-1)[0]?.trim()}</div>
+                      <div style={{ fontSize:9, color:W55, fontFamily:FD, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
                     </td>
 
-                    {/* Date */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:11, color:'rgba(250,243,232,0.80)', fontFamily:FD, fontWeight:600, whiteSpace:'nowrap' }}>
+                      <div style={{ fontSize:11, color:W85, fontFamily:FD, fontWeight:600, whiteSpace:'nowrap' }}>
                         {job.jobDate||job.date?new Date(job.jobDate||job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}):'—'}
                       </div>
-                      <div style={{ fontSize:9, color:DIM, fontFamily:FD, marginTop:2, whiteSpace:'nowrap' }}>{isBase&&job.duration?job.duration:`${job.startTime}–${job.endTime}`}</div>
+                      <div style={{ fontSize:9, color:W55, fontFamily:FD, marginTop:2, whiteSpace:'nowrap' }}>{isBase&&job.duration?job.duration:`${job.startTime}–${job.endTime}`}</div>
                     </td>
 
-                    {/* Pay */}
                     <td style={{ padding:'14px 12px', fontSize:13, color:GL, fontWeight:700, fontFamily:FD, verticalAlign:'middle', whiteSpace:'nowrap' }}>
                       {isBase?job.pay:`R${job.hourlyRate}/hr`}
                     </td>
 
-                    {/* Slots */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:12, color:W, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
+                      <div style={{ fontSize:12, color:W85, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
                       <div style={{ marginTop:5, height:3, background:'rgba(212,136,10,0.22)', borderRadius:2, width:36 }}>
                         <div style={{ height:'100%', borderRadius:2, background:STATUS_COLOR[job.status], width:`${job.totalSlots>0?(job.filledSlots/job.totalSlots)*100:0}%` }} />
                       </div>
                     </td>
 
-                    {/* Status */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}><StatusBadge status={job.status} /></td>
-
-                    {/* Source */}
                     <td style={{ padding:'14px 12px', verticalAlign:'middle' }}><SourceBadge source={job.source} /></td>
 
-                    {/* ACTIONS */}
                     <td style={{ padding:'10px 12px', verticalAlign:'middle' }} onClick={e=>e.stopPropagation()}>
                       <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                        <button
-                          onClick={() => openEdit(job)}
-                          title="Edit job"
+                        <button onClick={() => openEdit(job)} title="Edit job"
                           style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:700, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
                           onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(GL,0.20);e.currentTarget.style.borderColor=GL}}
                           onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(GL,0.10);e.currentTarget.style.borderColor=hex2rgba(GL,0.35)}}>
                           ✎ Edit
                         </button>
-                        <button
-                          onClick={() => setDeleting(job.id)}
-                          title={isBase ? 'Hide job' : 'Delete job'}
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:600, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
+                        <button onClick={() => setDeleting(job.id)} title={isBase ? 'Hide job' : 'Delete job'}
+                          style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:600, color:'rgba(220,175,130,0.90)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
                           onMouseEnter={e=>{e.currentTarget.style.background='rgba(139,90,26,0.25)';e.currentTarget.style.borderColor='rgba(139,90,26,0.65)'}}
                           onMouseLeave={e=>{e.currentTarget.style.background='rgba(139,90,26,0.12)';e.currentTarget.style.borderColor='rgba(139,90,26,0.40)'}}>
                           🗑 {isBase ? 'Hide' : 'Delete'}
                         </button>
-                        <button
-                          onClick={() => openPromoterPanel(job)}
-                          title="Manage staff"
+                        <button onClick={() => openPromoterPanel(job)} title="Manage staff"
                           style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:600, color:G4, background:hex2rgba(G4,0.08), border:`1px solid ${hex2rgba(G4,0.30)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
                           onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(G4,0.18);e.currentTarget.style.borderColor=G4}}
                           onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(G4,0.08);e.currentTarget.style.borderColor=hex2rgba(G4,0.30)}}>
@@ -583,7 +564,7 @@ export default function CRUDJobsLogic() {
           {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No jobs match your filters.</div>}
         </div>
 
-        <div style={{ marginTop:10, fontSize:11, color:W28, fontFamily:FD }}>
+        <div style={{ marginTop:10, fontSize:11, color:W35, fontFamily:FD }}>
           Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{jobs.length}</strong> jobs
         </div>
 
@@ -596,7 +577,7 @@ export default function CRUDJobsLogic() {
                 {jobs.find(j=>j.id===deleting)?.source==='base' ? 'Hide Job?' : 'Delete Job?'}
               </h3>
               <p style={{ fontSize:13, color:W55, marginBottom:8, lineHeight:1.7, fontFamily:FD }}>
-                <strong style={{ color:W }}>{jobs.find(j=>j.id===deleting)?.title}</strong>
+                <strong style={{ color:W85 }}>{jobs.find(j=>j.id===deleting)?.title}</strong>
               </p>
               <p style={{ fontSize:13, color:W55, marginBottom:28, lineHeight:1.7, fontFamily:FD }}>
                 {jobs.find(j=>j.id===deleting)?.source==='base'
@@ -605,7 +586,7 @@ export default function CRUDJobsLogic() {
               </p>
               <div style={{ display:'flex', gap:12 }}>
                 <button onClick={()=>setDeleting(null)} style={{ flex:1, padding:'12px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:12, cursor:'pointer', borderRadius:3 }}>Cancel</button>
-                <button onClick={()=>handleDelete(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#E8D5A8', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>
+                <button onClick={()=>handleDelete(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#D8C0A0', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>
                   {jobs.find(j=>j.id===deleting)?.source==='base' ? 'Hide' : 'Delete'}
                 </button>
               </div>
@@ -618,14 +599,14 @@ export default function CRUDJobsLogic() {
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
             <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:640, maxHeight:'90vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${GL},${G5})`, borderRadius:'4px 4px 0 0' }} />
-              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
+              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
               <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontFamily:FD, fontWeight:700 }}>{modal==='create'?'New Job':editing?.source==='base'?'Customise Base Job':'Edit Job'}</div>
               <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:16 }}>{modal==='create'?'Create a New Job':editing?.title}</h2>
               {editing?.source==='base'&&<div style={{ padding:'10px 14px', background:hex2rgba(GL,0.06), border:`1px solid ${hex2rgba(GL,0.22)}`, marginBottom:20, fontSize:12, color:GL, fontFamily:FD, borderRadius:3 }}>ℹ️ Editing a base job creates an admin override.</div>}
               <div style={{ display:'flex', flexDirection:'column', gap:18, marginTop:16 }}>
                 <div><label style={lbl}>Job Title</label><input type="text" value={form.title} onChange={e=>F('title',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
                 <div>
-                  <label style={lbl}>Client{!clientsLoaded&&<span style={{ color:W28, fontWeight:400, marginLeft:8, fontSize:9 }}>Loading…</span>}</label>
+                  <label style={lbl}>Client{!clientsLoaded&&<span style={{ color:W35, fontWeight:400, marginLeft:8, fontSize:9 }}>Loading…</span>}</label>
                   <select value={form.client} onChange={e=>F('client',e.target.value)} style={{ ...inp, background:D3, cursor:'pointer' }}>
                     <option value="">— Select client —</option>
                     {clients.filter(c=>c.email).length>0&&<optgroup label="── Registered Clients ──">{clients.filter(c=>c.email).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</optgroup>}
@@ -633,23 +614,8 @@ export default function CRUDJobsLogic() {
                     <option value="__other__">Other (type below)</option>
                   </select>
                   {form.client==='__other__'&&(
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Enter client name…"
-                      value={otherClient}
-                      onChange={e=>setOtherClient(e.target.value)}
-                      style={{ ...inp,marginTop:8 }}
-                      onFocus={e=>e.currentTarget.style.borderColor=GL}
-                      onBlur={e=>e.currentTarget.style.borderColor=BB}
-                    />
-                  )}
-                  {form.client !== '__other__' && form.client && (
-                    <div style={{ marginTop:8, fontSize:11, color:GL, fontFamily:FD }}>
-                      {clients.find(c => c.name === form.client)?.email 
-                        ? '✓ Registered business — jobs will appear in their dashboard' 
-                        : 'ℹ️ Unregistered client — add as a registered business for dashboard visibility'}
-                    </div>
+                    <input type="text" autoFocus placeholder="Enter client name…" value={otherClient} onChange={e=>setOtherClient(e.target.value)}
+                      style={{ ...inp,marginTop:8 }} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
                   )}
                 </div>
                 <div><label style={lbl}>Category</label><select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}><option value="">— Select —</option>{CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
@@ -689,7 +655,7 @@ export default function CRUDJobsLogic() {
                     <span style={{ fontSize:12, color:W55, lineHeight:1.6, fontFamily:FD }}>I confirm this job complies with Honey Group platform standards and all applicable South African labour regulations.</span>
                   </label>
                 </div>
-                {saveError&&<div style={{ padding:'10px 14px', background:'rgba(139,90,26,0.2)', border:'1px solid rgba(139,90,26,0.6)', borderRadius:3, fontSize:12, color:'#E8C090', fontFamily:FD }}>⚠ {saveError}</div>}
+                {saveError&&<div style={{ padding:'10px 14px', background:'rgba(139,90,26,0.2)', border:'1px solid rgba(139,90,26,0.6)', borderRadius:3, fontSize:12, color:'#D8B888', fontFamily:FD }}>⚠ {saveError}</div>}
                 <Btn onClick={save} disabled={saving}>{saving?'Saving…':modal==='create'?'Create Job':'Save Changes'}</Btn>
               </div>
             </div>
@@ -702,7 +668,7 @@ export default function CRUDJobsLogic() {
             <div style={{ background:D2, border:`1px solid ${BB}`, width:'100%', maxWidth:760, maxHeight:'90vh', display:'flex', flexDirection:'column', position:'relative', borderRadius:4 }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G4},${GL})`, borderRadius:'4px 4px 0 0' }} />
               <div style={{ padding:'28px 32px 20px', borderBottom:`1px solid ${BB}` }}>
-                <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W28, fontSize:18 }}>✕</button>
+                <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
                 <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:G4, fontWeight:700, fontFamily:FD, marginBottom:6 }}>Job · Promoters</div>
                 <h2 style={{ fontFamily:FD, fontSize:22, fontWeight:700, color:W }}>{promoterJob.title}</h2>
                 <div style={{ display:'flex', gap:20, marginTop:8, fontSize:12, color:W55, fontFamily:FD }}><span>📍 {promoterJob.venue}, {promoterJob.city}</span><span>👥 {promoterJob.filledSlots}/{promoterJob.totalSlots} filled</span></div>
@@ -713,22 +679,22 @@ export default function CRUDJobsLogic() {
                 </div>
               </div>
               <div style={{ overflowY:'auto', flex:1 }}>
-                {promoLoading?<div style={{ padding:60, textAlign:'center', color:W28, fontFamily:FD }}>Loading promoters…</div>:matchedPromos.length===0?<div style={{ padding:60, textAlign:'center', color:W28, fontFamily:FD }}>No approved promoters found.</div>:matchedPromos.map((p,i)=>{
-                  const isAllocated=p.appStatus==='ALLOCATED',isStandby=p.appStatus==='STANDBY',accentColor=isAllocated?GL:isStandby?G4:W28
+                {promoLoading?<div style={{ padding:60, textAlign:'center', color:W35, fontFamily:FD }}>Loading promoters…</div>:matchedPromos.length===0?<div style={{ padding:60, textAlign:'center', color:W35, fontFamily:FD }}>No approved promoters found.</div>:matchedPromos.map((p,i)=>{
+                  const isAllocated=p.appStatus==='ALLOCATED',isStandby=p.appStatus==='STANDBY',accentColor=isAllocated?GL:isStandby?G4:W35
                   return (
                     <div key={p.id} style={{ padding:'16px 32px', borderBottom:i<matchedPromos.length-1?`1px solid ${BB}`:'none', display:'flex', alignItems:'center', gap:16, background:isAllocated?hex2rgba(GL,0.04):isStandby?hex2rgba(G4,0.03):'transparent' }}>
                       <div style={{ width:40, height:40, borderRadius:'50%', background:BB, border:`2px solid ${accentColor}`, overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:accentColor, fontWeight:700, fontFamily:FD }}>
                         {p.profilePhotoUrl?<img src={p.profilePhotoUrl} alt={p.name} style={{ width:'100%',height:'100%',objectFit:'cover' }}/>:p.name.charAt(0)}
                       </div>
-                      <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{p.name}</div><div style={{ fontSize:11, color:W55, fontFamily:FD }}>{p.city}{p.distanceKm!==undefined&&<span style={{ color:W28, marginLeft:8 }}>~{p.distanceKm}km</span>}</div></div>
+                      <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD }}>{p.name}</div><div style={{ fontSize:11, color:W55, fontFamily:FD }}>{p.city}{p.distanceKm!==undefined&&<span style={{ color:W35, marginLeft:8 }}>~{p.distanceKm}km</span>}</div></div>
                       <div style={{ flexShrink:0 }}>
                         {isAllocated&&<span style={{ fontSize:9, fontWeight:700, color:GL, background:hex2rgba(GL,0.12), border:`1px solid ${hex2rgba(GL,0.4)}`, padding:'3px 9px', borderRadius:3, fontFamily:FD }}>Allocated</span>}
                         {isStandby&&<span style={{ fontSize:9, fontWeight:700, color:G4, background:hex2rgba(G4,0.12), border:`1px solid ${hex2rgba(G4,0.4)}`, padding:'3px 9px', borderRadius:3, fontFamily:FD }}>Shortlisted</span>}
-                        {!p.appStatus&&<span style={{ fontSize:9, color:W28, fontFamily:FD }}>Not applied</span>}
+                        {!p.appStatus&&<span style={{ fontSize:9, color:W35, fontFamily:FD }}>Not applied</span>}
                       </div>
                       <div style={{ flexShrink:0 }}>
                         {!isAllocated&&promoterJob.filledSlots<promoterJob.totalSlots&&<Btn small onClick={()=>allocatePromoter(p,promoterJob.id)} color={GL}>Allocate</Btn>}
-                        {isAllocated&&<span style={{ fontSize:10, color:W28, fontFamily:FD }}>✓ On this job</span>}
+                        {isAllocated&&<span style={{ fontSize:10, color:W35, fontFamily:FD }}>✓ On this job</span>}
                       </div>
                     </div>
                   )

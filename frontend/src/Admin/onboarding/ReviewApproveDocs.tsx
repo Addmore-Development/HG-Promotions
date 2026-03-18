@@ -17,10 +17,11 @@ const D3 = '#1C1709'
 const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
 
-const W   = '#FAF3E8'
-const W85 = 'rgba(250,243,232,0.85)'
-const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
+// ─── Updated text colors ──────────────────────────────────────────────────────
+const W   = '#CEC5B2'                   // warm mid-cream
+const W85 = 'rgba(210,198,180,0.95)'   // near-full warm grey
+const W55 = 'rgba(192,178,158,0.80)'   // bright readable mid-grey
+const W28 = 'rgba(172,158,136,0.65)'   // visible dark-grey
 
 const FD = "'Playfair Display', Georgia, serif"
 
@@ -47,8 +48,7 @@ const MOCK: Applicant[] = [
   { id:'A005', name:'Nomsa Zulu',      email:'nomsa@email.com',   phone:'+27 83 678 9012', role:'Promoter',   joined:'2026-03-04', status:'pending',  docs:{ id:'approved', bankDetails:'approved', contract:'pending',  selfie:'pending'  }, notes:'' },
 ]
 
-// Visible status colors for all three states
-const STATUS_CLR: Record<DocStatus,string>    = { pending: GL,        approved: G3,       rejected: '#E8D5A8' }
+const STATUS_CLR: Record<DocStatus,string>    = { pending: GL,        approved: G3,       rejected: '#C8B898' }
 const STATUS_BG : Record<DocStatus,string>    = { pending: hex2rgba(GL,0.12), approved: hex2rgba(G3,0.12), rejected: hex2rgba('#8B5A1A',0.25) }
 const STATUS_BORDER: Record<DocStatus,string> = { pending: hex2rgba(GL,0.45), approved: hex2rgba(G3,0.45), rejected: hex2rgba('#8B5A1A',0.55) }
 
@@ -100,14 +100,12 @@ export default function ReviewApproveDocs() {
     <AdminLayout>
       <div style={{ padding:'40px 48px' }}>
 
-        {/* HEADER */}
         <div style={{ marginBottom:32 }}>
           <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>People · Onboarding</div>
           <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Review & Approve Documents</h1>
           <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Verify applicant documents before granting platform access.</p>
         </div>
 
-        {/* FILTERS */}
         <div style={{ display:'flex', gap:6, marginBottom:28, flexWrap:'wrap' }}>
           {(['all','pending','approved','rejected'] as const).map(f=>(
             <FilterBtn key={f} label={`${f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1)} (${counts[f]})`} active={filter===f} color={f==='all'?GL:STATUS_CLR[f]} onClick={()=>setFilter(f)} />
@@ -116,13 +114,12 @@ export default function ReviewApproveDocs() {
 
         <div style={{ display:'grid', gridTemplateColumns:selected?'1fr 420px':'1fr', gap:20 }}>
 
-          {/* TABLE */}
           <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
                   {['Applicant','Role','Applied','Documents','Status',''].map(h=>(
-                    <th key={h} style={{ padding:'14px 20px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W28, fontFamily:FD }}>{h}</th>
+                    <th key={h} style={{ padding:'14px 20px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W55, fontFamily:FD }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -143,7 +140,7 @@ export default function ReviewApproveDocs() {
                           <div key={j} style={{ width:8, height:8, borderRadius:'50%', background:STATUS_CLR[d] }} />
                         ))}
                       </div>
-                      <div style={{ fontSize:10, color:W28, marginTop:5, fontFamily:FD }}>{Object.values(a.docs).filter(d=>d==='approved').length}/4 verified</div>
+                      <div style={{ fontSize:10, color:W55, marginTop:5, fontFamily:FD }}>{Object.values(a.docs).filter(d=>d==='approved').length}/4 verified</div>
                     </td>
                     <td style={{ padding:'16px 20px' }}><StatusBadge status={a.status} /></td>
                     <td style={{ padding:'16px 20px' }}>
@@ -153,10 +150,9 @@ export default function ReviewApproveDocs() {
                 ))}
               </tbody>
             </table>
-            {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>No applicants match this filter.</div>}
+            {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No applicants match this filter.</div>}
           </div>
 
-          {/* DETAIL PANEL */}
           {selected&&(
             <div style={{ background:D2, border:`1px solid ${BB}`, padding:28, height:'fit-content', borderRadius:4 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
@@ -200,7 +196,7 @@ export default function ReviewApproveDocs() {
 
               <div style={{ display:'flex', gap:10 }}>
                 <Btn onClick={()=>updateStatus(selected.id,'approved')} color={G3}>✓ Approve</Btn>
-                <Btn onClick={()=>updateStatus(selected.id,'rejected')} color='#E8D5A8'>✗ Reject</Btn>
+                <Btn onClick={()=>updateStatus(selected.id,'rejected')} color='#C8B898'>✗ Reject</Btn>
               </div>
             </div>
           )}

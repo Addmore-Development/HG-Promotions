@@ -64,6 +64,7 @@ export const ViewAcceptJobs: React.FC = () => {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading]           = useState(true);
   const [applying, setApplying]         = useState<string | null>(null);
+  const [appliedJob,   setAppliedJob]   = useState<any>(null);   // triggers success modal
   const [selectedJob, setSelectedJob]   = useState<any>(null);
   const [filter, setFilter]             = useState<'myCity' | 'all' | 'matched'>('myCity');
   const [search, setSearch]             = useState('');
@@ -152,8 +153,8 @@ export const ViewAcceptJobs: React.FC = () => {
       const data = await res.json();
       if (res.ok) {
         setApplications(prev => [...prev, data]);
-        showToast('✅ Your interest has been registered! The admin and business will be notified.', 'info');
         setSelectedJob(null);
+        setAppliedJob(job);   // show success modal
       } else {
         showToast(data.error || 'Failed to apply', 'error');
       }
@@ -369,6 +370,50 @@ export const ViewAcceptJobs: React.FC = () => {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Application Success Modal ── */}
+      {appliedJob && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }}
+          onClick={() => setAppliedJob(null)}>
+          <div style={{ background:BC, border:`1px solid ${BB}`, padding:'48px 44px', width:'100%', maxWidth:480, textAlign:'center', position:'relative', borderRadius:4 }}
+            onClick={e => e.stopPropagation()}>
+            {/* Gold top bar */}
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G2},${GL},${G})` }} />
+
+            {/* Icon */}
+            <div style={{ width:72, height:72, borderRadius:'50%', background:`rgba(232,168,32,0.1)`, border:`1px solid rgba(232,168,32,0.35)`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px', fontSize:30 }}>
+              ✓
+            </div>
+
+            <div style={{ fontSize:9, letterSpacing:'0.44em', textTransform:'uppercase', color:GL, marginBottom:12, fontWeight:700, fontFamily:FD }}>
+              Application Submitted
+            </div>
+            <h2 style={{ fontFamily:FD, fontSize:26, fontWeight:700, color:W, marginBottom:16, lineHeight:1.2 }}>
+              You're on the list!
+            </h2>
+
+            <div style={{ background:'rgba(232,168,32,0.06)', border:`1px solid rgba(232,168,32,0.18)`, padding:'16px 20px', marginBottom:24, borderRadius:3, textAlign:'left' }}>
+              <div style={{ fontSize:14, fontWeight:700, color:W, fontFamily:FD, marginBottom:4 }}>{appliedJob.title}</div>
+              <div style={{ fontSize:12, color:WM, fontFamily:FB }}>{appliedJob.client} · {appliedJob.venue}</div>
+              <div style={{ fontSize:11, color:WD, marginTop:6, fontFamily:FB }}>
+                {new Date(appliedJob.date).toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' })}
+                {' · '}{appliedJob.startTime}–{appliedJob.endTime}
+                {' · '}R{appliedJob.hourlyRate}/hr
+              </div>
+            </div>
+
+            <div style={{ background:'rgba(212,136,10,0.04)', border:`1px solid ${BB}`, padding:'14px 18px', marginBottom:28, borderRadius:3 }}>
+              <p style={{ fontFamily:FB, fontSize:12, color:WM, lineHeight:1.8, margin:0 }}>
+                Your interest has been registered. The <span style={{ color:GL, fontWeight:600 }}>business client</span> and <span style={{ color:GL, fontWeight:600 }}>Honey Group admin</span> have been notified. You'll receive a confirmation once you're allocated to this shift.
+              </p>
+            </div>
+
+            <button onClick={() => setAppliedJob(null)}
+              style={{ width:'100%', padding:'14px 0', background:`linear-gradient(90deg,${G2},${GL},${G})`, border:'none', fontFamily:FB, fontSize:11, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:'#080808', cursor:'pointer', borderRadius:2 }}>
+              Back to Jobs
+            </button>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 // ─── Strict Gold & Black Palette ──────────────────────────────────────────────
 const BLK  = '#050402'
@@ -37,47 +37,55 @@ interface PayRow {
 type SortKey = 'netAmount' | 'promoterName' | 'status'
 
 export default function BusinessPayroll() {
-  const [rows,   setRows]   = useState<PayRow[]>([])
-  const [loading,setLoading]= useState(true)
-  const [sortBy, setSortBy] = useState<SortKey>('netAmount')
-  const [filter, setFilter] = useState('all')
+  const [rows,    setRows]    = useState<PayRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sortBy,  setSortBy]  = useState<SortKey>('netAmount')
+  const [filter,  setFilter]  = useState('all')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Fetch all payments visible to this business (admin-side join)
-        const res = await fetch(`${API}/payments/`, { headers: authHdr() as any })
-        if (res.ok) {
-          const data: any[] = await res.json()
-          const mapped: PayRow[] = data.map(p => ({
-            id:             p.id,
-            promoterName:   p.promoter?.fullName || 'Unknown',
-            promoterEmail:  p.promoter?.email    || '',
-            jobTitle:       p.shift?.job?.title  || 'Unknown Job',
-            grossAmount:    p.grossAmount || 0,
-            deductions:     p.deductions  || 0,
-            netAmount:      p.netAmount   || 0,
-            status:         (p.status || 'pending').toLowerCase(),
-            paidAt:         p.paidAt,
-          }))
-          setRows(mapped)
-        }
-      } catch {}
-      setLoading(false)
-    }
-    load()
+  const loadPayroll = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/payments/`, { headers: authHdr() as any })
+      if (res.ok) {
+        const data: any[] = await res.json()
+        setRows(data.map(p => ({
+          id:            p.id,
+          promoterName:  p.promoter?.fullName || 'Unknown',
+          promoterEmail: p.promoter?.email    || '',
+          jobTitle:      p.shift?.job?.title  || 'Unknown Job',
+          grossAmount:   p.grossAmount || 0,
+          deductions:    p.deductions  || 0,
+          netAmount:     p.netAmount   || 0,
+          status:        (p.status || 'pending').toLowerCase(),
+          paidAt:        p.paidAt,
+        })))
+      }
+    } catch {}
+    setLoading(false)
   }, [])
+
+  useEffect(() => { loadPayroll() }, [loadPayroll])
+
+  // ─── Reload when admin updates jobs or payments ─────────────────────────────
+  useEffect(() => {
+    const onStorage = (e?: StorageEvent) => {
+      // React to both job updates (which may change shift records) and client updates
+      if (e && e.key !== 'hg_job_updates' && e.key !== 'hg_client_updates' && e.key !== null) return
+      loadPayroll()
+    }
+    window.addEventListener('storage', onStorage)
+    // Poll every 60s — payroll data changes less frequently than job status
+    const poll = setInterval(loadPayroll, 60_000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(poll) }
+  }, [loadPayroll])
 
   const filtered = rows.filter(r => filter === 'all' || r.status === filter)
   const sorted   = [...filtered].sort((a, b) => {
-    if (sortBy === 'netAmount')     return b.netAmount - a.netAmount
-    if (sortBy === 'promoterName')  return a.promoterName.localeCompare(b.promoterName)
+    if (sortBy === 'netAmount')    return b.netAmount - a.netAmount
+    if (sortBy === 'promoterName') return a.promoterName.localeCompare(b.promoterName)
     return a.status.localeCompare(b.status)
   })
 
   const grandTotal = sorted.reduce((acc, r) => acc + r.netAmount, 0)
-  const totalHrsApprox = sorted.reduce((acc, r) => acc + r.grossAmount / 120, 0) // rough
-
   const statusColor = (s: string) => s === 'paid' ? GD : s === 'approved' ? GL : s === 'pending' ? GL : W4
 
   return (
@@ -91,9 +99,9 @@ export default function BusinessPayroll() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: BB, marginBottom: 28 }}>
         {[
-          { label: 'Total Payout',   value: `R ${grandTotal.toFixed(0)}`,    color: GL  },
-          { label: 'Promoters',      value: new Set(rows.map(r => r.promoterEmail)).size, color: GD  },
-          { label: 'Paid Records',   value: rows.filter(r => r.status === 'paid').length, color: GD2 },
+          { label: 'Total Payout', value: `R ${grandTotal.toFixed(0)}`,                                    color: GL  },
+          { label: 'Promoters',    value: new Set(rows.map(r => r.promoterEmail)).size,                     color: GD  },
+          { label: 'Paid Records', value: rows.filter(r => r.status === 'paid').length,                     color: GD2 },
         ].map((s, i) => (
           <div key={i} className="biz-page" style={{ background: BLK2, padding: '22px 20px', position: 'relative', borderRadius: 2 }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${GD3}, ${s.color}, ${GD3})` }} />
@@ -106,7 +114,7 @@ export default function BusinessPayroll() {
       {/* Filters + sort */}
       <div className="biz-page" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {['all','pending','approved','paid'].map(f => (
+          {['all', 'pending', 'approved', 'paid'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               style={{ padding: '6px 14px', background: filter === f ? hex2rgba(f === 'all' ? GL : statusColor(f), 0.14) : 'transparent', border: `1px solid ${filter === f ? (f === 'all' ? GL : statusColor(f)) : BB}`, color: filter === f ? (f === 'all' ? GL : statusColor(f)) : W4, fontFamily: FD, fontSize: 9, fontWeight: filter === f ? 700 : 400, cursor: 'pointer', borderRadius: 2, transition: 'all 0.18s', letterSpacing: '0.1em' }}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -114,7 +122,7 @@ export default function BusinessPayroll() {
           ))}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          {(['netAmount','promoterName','status'] as SortKey[]).map(s => (
+          {(['netAmount', 'promoterName', 'status'] as SortKey[]).map(s => (
             <button key={s} onClick={() => setSortBy(s)}
               style={{ padding: '6px 12px', background: sortBy === s ? hex2rgba(GL, 0.1) : 'transparent', border: `1px solid ${sortBy === s ? hex2rgba(GL, 0.4) : BB}`, color: sortBy === s ? GL : W4, fontFamily: FD, fontSize: 9, fontWeight: sortBy === s ? 700 : 400, cursor: 'pointer', borderRadius: 2, transition: 'all 0.18s', letterSpacing: '0.1em' }}>
               {s === 'netAmount' ? 'By Amount' : s === 'promoterName' ? 'By Name' : 'By Status'}
@@ -136,7 +144,7 @@ export default function BusinessPayroll() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${BB}`, background: BLK1 }}>
-                {['Promoter','Job','Gross','Deductions','Net Payout','Status','Paid At'].map(h => (
+                {['Promoter', 'Job', 'Gross', 'Deductions', 'Net Payout', 'Status', 'Paid At'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: W2, fontFamily: FD, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -187,7 +195,7 @@ export default function BusinessPayroll() {
           <button
             onClick={() => {
               const csv = [
-                ['Promoter','Email','Job','Gross','Deductions','Net','Status','Paid At'],
+                ['Promoter', 'Email', 'Job', 'Gross', 'Deductions', 'Net', 'Status', 'Paid At'],
                 ...sorted.map(r => [r.promoterName, r.promoterEmail, r.jobTitle, r.grossAmount, r.deductions, r.netAmount, r.status, r.paidAt || '']),
               ].map(row => row.join(',')).join('\n')
               const blob = new Blob([csv], { type: 'text/csv' })

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 
 // ─── Strict Gold & Black Palette ──────────────────────────────────────────────
@@ -29,7 +29,6 @@ const NAV_ITEMS = [
   { path: '/business/payroll',   icon: '◆', label: 'Payroll'   },
 ]
 
-// ─── Section helper for profile view ─────────────────────────────────────────
 function Section({ label, children }: { label: string; children: { label: string; value?: string | null }[] }) {
   const rows = children.filter(r => r.value)
   if (rows.length === 0) return null
@@ -46,22 +45,37 @@ function Section({ label, children }: { label: string; children: { label: string
   )
 }
 
+// ─── Status indicator used in sidebar ────────────────────────────────────────
+function StatusPill({ status }: { status: string }) {
+  const isApproved = status === 'approved' || status === 'active'
+  const isRejected = status === 'rejected' || status === 'inactive'
+  const color  = isApproved ? GD  : isRejected ? GD2 : GL
+  const label  = isApproved ? 'Approved' : isRejected ? 'Not Approved' : 'Pending Review'
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', background: isApproved ? 'rgba(192,120,24,0.12)' : isRejected ? 'rgba(139,90,26,0.18)' : 'rgba(232,168,32,0.08)', border: `1px solid ${isApproved ? 'rgba(192,120,24,0.38)' : isRejected ? 'rgba(139,90,26,0.42)' : BB}`, borderRadius: 3 }}>
+      <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: FD, color }}>{label}</span>
+    </div>
+  )
+}
+
 export default function BusinessLayout() {
   const navigate  = useNavigate()
   const location  = useLocation()
-  const [session,     setSession]     = useState<Record<string,string> | null>(null)
-  const [collapsed,   setCollapsed]   = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [profile,     setProfile]     = useState<any>(null)
-  const [editMode,    setEditMode]    = useState(false)
-  const [editForm,    setEditForm]    = useState<any>({})
-  const [saving,      setSaving]      = useState(false)
-  const [saveMsg,     setSaveMsg]     = useState('')
-  // Document upload states
-  const [docCipc,     setDocCipc]     = useState<File | null>(null)
-  const [docTax,      setDocTax]      = useState<File | null>(null)
-  const [docBank,     setDocBank]     = useState<File | null>(null)
+  const [session,      setSession]      = useState<Record<string,string> | null>(null)
+  const [collapsed,    setCollapsed]    = useState(false)
+  const [profileOpen,  setProfileOpen]  = useState(false)
+  const [profile,      setProfile]      = useState<any>(null)
+  const [editMode,     setEditMode]     = useState(false)
+  const [editForm,     setEditForm]     = useState<any>({})
+  const [saving,       setSaving]       = useState(false)
+  const [saveMsg,      setSaveMsg]      = useState('')
+  const [docCipc,      setDocCipc]      = useState<File | null>(null)
+  const [docTax,       setDocTax]       = useState<File | null>(null)
+  const [docBank,      setDocBank]      = useState<File | null>(null)
   const [docUploading, setDocUploading] = useState(false)
+  // Track last-known status to detect changes
+  const [lastKnownStatus, setLastKnownStatus] = useState<string | null>(null)
 
   const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
   function authHdr() {
@@ -69,21 +83,58 @@ export default function BusinessLayout() {
     return t ? { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
   }
 
+  // ─── Fetch fresh profile ────────────────────────────────────────────────────
+  const refreshProfile = useCallback(async () => {
+    const token = localStorage.getItem('hg_token')
+    if (!token) return
+    try {
+      const res = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const data = await res.json()
+        setProfile((prev: any) => {
+          if (prev?.status && prev.status !== data.status) {
+            setLastKnownStatus(prev.status)
+          }
+          return data
+        })
+        setEditForm((prev: any) => ({ ...data, ...prev }))
+      }
+    } catch { /* offline */ }
+  }, [API])
+
   useEffect(() => {
     const s = localStorage.getItem('hg_session')
     if (!s) { navigate('/login'); return }
     const parsed = JSON.parse(s)
     if (parsed.role !== 'business') { navigate('/login'); return }
     setSession(parsed)
-    // Fetch full profile
-    const token = localStorage.getItem('hg_token')
-    if (token) {
-      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) { setProfile(data); setEditForm(data) } })
-        .catch(() => {})
+    refreshProfile()
+  }, [navigate, refreshProfile])
+
+  // ─── React to admin broadcasts ──────────────────────────────────────────────
+  useEffect(() => {
+    const onStorage = (e?: StorageEvent) => {
+      if (e && e.key !== 'hg_client_updates' && e.key !== null) return
+      const sessionStr = localStorage.getItem('hg_session')
+      if (!sessionStr) return
+      try {
+        const sess = JSON.parse(sessionStr)
+        const userId = sess?.id || sess?.userId
+        if (!userId) { refreshProfile(); return }
+        const updates: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
+        const myUpdate = updates.find((u: any) => u.id === userId)
+        if (myUpdate) refreshProfile()
+      } catch { refreshProfile() }
     }
-  }, [navigate])
+
+    window.addEventListener('storage', onStorage)
+    // Poll every 30s — admin and client are typically different browser sessions
+    const pollInterval = setInterval(() => refreshProfile(), 30_000)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      clearInterval(pollInterval)
+    }
+  }, [refreshProfile])
 
   const handleUploadDocuments = async () => {
     if (!docCipc && !docTax && !docBank) return
@@ -94,16 +145,13 @@ export default function BusinessLayout() {
       if (docCipc) formData.append('cipcDoc',      docCipc)
       if (docTax)  formData.append('taxPin',       docTax)
       if (docBank) formData.append('bizBankProof', docBank)
-
       const res = await fetch(`${API}/users/me/documents`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
-
       if (res.ok) {
         const data = await res.json()
-        // data.urls is a flat object: { cipcDocUrl: '...', taxPinUrl: '...', bizBankProofUrl: '...' }
         const urls = data.urls || {}
         setProfile((prev: any) => ({
           ...prev,
@@ -113,18 +161,14 @@ export default function BusinessLayout() {
         }))
         setDocCipc(null); setDocTax(null); setDocBank(null)
         setSaveMsg('✓ Documents uploaded successfully')
-        // Re-fetch full profile to make sure everything is in sync
-        fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then(fresh => { if (fresh) setProfile(fresh) })
-          .catch(() => {})
+        // Re-sync full profile after upload
+        await refreshProfile()
         setTimeout(() => setSaveMsg(''), 4000)
       } else {
         const err = await res.json().catch(() => ({}))
         setSaveMsg(`Upload failed: ${err.error || res.status}`)
       }
     } catch (e) {
-      console.error('Upload error:', e)
       setSaveMsg('Network error during upload')
     }
     setDocUploading(false)
@@ -151,9 +195,7 @@ export default function BusinessLayout() {
         }),
       })
       if (res.ok) {
-        const updated = await res.json()
-        const merged = { ...profile, ...editForm, ...(updated.user || {}) }
-        setProfile(merged)
+        await refreshProfile()
         setSaveMsg('✓ Profile updated successfully')
         setEditMode(false)
         setTimeout(() => setSaveMsg(''), 3000)
@@ -172,6 +214,8 @@ export default function BusinessLayout() {
 
   if (!session) return null
 
+  const currentStatus = profile?.status || 'pending_review'
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: BLK, fontFamily: FB }}>
       <style>{`
@@ -185,6 +229,7 @@ export default function BusinessLayout() {
         .biz-page { animation: biz-fade 0.4s ease both; }
         select option { background: ${BLK2}; color: ${W}; }
         input::placeholder { color: rgba(212,136,10,0.25); }
+        @keyframes status-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(232,168,32,0.4)} 50%{box-shadow:0 0 0 6px rgba(232,168,32,0)} }
       `}</style>
 
       {/* SIDEBAR */}
@@ -262,7 +307,7 @@ export default function BusinessLayout() {
           </button>
         </nav>
 
-        {/* User + logout */}
+        {/* User + status + logout */}
         <div style={{ borderTop: `1px solid ${BB}`, padding: collapsed ? '14px 0' : '14px 18px' }}>
           {!collapsed && (
             <div style={{ marginBottom: 10 }}>
@@ -270,11 +315,21 @@ export default function BusinessLayout() {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', width: '100%', transition: 'opacity 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
                 onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                <p style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: W, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: W, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profile?.fullName || session.companyName || session.name || session.email}
                 </p>
+                {/* Live status pill in sidebar */}
+                <div style={{ marginBottom: 4 }}>
+                  <StatusPill status={currentStatus} />
+                </div>
                 <p style={{ fontFamily: FB, fontSize: 10, color: GL }}>Business Account · View Profile →</p>
               </button>
+            </div>
+          )}
+          {collapsed && (
+            /* Compact status dot when sidebar is collapsed */
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+              <div title={`Status: ${currentStatus}`} style={{ width: 8, height: 8, borderRadius: '50%', background: currentStatus === 'approved' ? GD : currentStatus === 'rejected' ? GD2 : GL, animation: currentStatus !== 'approved' && currentStatus !== 'rejected' ? 'status-pulse 2s ease-in-out infinite' : 'none' }} />
             </div>
           )}
           <button onClick={handleLogout}
@@ -304,19 +359,20 @@ export default function BusinessLayout() {
             <button onClick={() => setProfileOpen(false)} style={{ position: 'absolute', top: 14, right: 18, background: 'none', border: 'none', cursor: 'pointer', color: W4, fontSize: 18 }}>✕</button>
 
             <div style={{ padding: '32px 32px 32px' }}>
-              {/* Header */}
               <div style={{ fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', color: GL, fontWeight: 700, fontFamily: FD, marginBottom: 6 }}>Business Account</div>
               <h2 style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: W, marginBottom: 4 }}>
                 {profile?.fullName || session?.companyName || session?.name}
               </h2>
               <p style={{ fontSize: 12, color: W4, fontFamily: FB, marginBottom: 16 }}>{profile?.email || session?.email}</p>
 
-              {/* Status badge */}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', background: profile?.status === 'approved' ? 'rgba(192,120,24,0.12)' : 'rgba(232,168,32,0.1)', border: `1px solid ${profile?.status === 'approved' ? 'rgba(192,120,24,0.45)' : 'rgba(232,168,32,0.35)'}`, borderRadius: 3, marginBottom: 24 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: profile?.status === 'approved' ? GD : GL }} />
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: profile?.status === 'approved' ? GD : GL, fontFamily: FD }}>
-                  {profile?.status === 'approved' ? 'Approved' : profile?.status === 'pending_review' ? 'Pending Review' : profile?.status || 'Pending Review'}
-                </span>
+              {/* Live status badge — updates when admin approves/rejects */}
+              <div style={{ marginBottom: 24 }}>
+                <StatusPill status={currentStatus} />
+                {lastKnownStatus && lastKnownStatus !== currentStatus && (
+                  <span style={{ fontSize: 10, color: GL, fontFamily: FB, marginLeft: 10 }}>
+                    ✓ Status just updated
+                  </span>
+                )}
               </div>
 
               {saveMsg && (
@@ -327,11 +383,10 @@ export default function BusinessLayout() {
 
               {!editMode ? (
                 <>
-                  {/* ── COMPANY DETAILS ── */}
                   <Section label="Company Details">
                     {[
-                      { label: 'Company Name',   value: profile?.fullName },
-                      { label: 'Contact Person', value: profile?.contactName },
+                      { label: 'Company Name',    value: profile?.fullName },
+                      { label: 'Contact Person',  value: profile?.contactName },
                       { label: 'Email',           value: profile?.email },
                       { label: 'Phone',           value: profile?.phone },
                       { label: 'City',            value: profile?.city },
@@ -342,17 +397,16 @@ export default function BusinessLayout() {
                     ]}
                   </Section>
 
-                  {/* ── ACCOUNT INFO ── */}
                   <Section label="Account Information">
                     {[
-                      { label: 'Account Status',    value: profile?.status || 'pending_review' },
+                      { label: 'Account Status',    value: currentStatus },
                       { label: 'Onboarding Status', value: profile?.onboardingStatus || '—' },
                       { label: 'POPIA Consent',     value: profile?.consentPopia ? 'Yes — Consented' : 'No' },
                       { label: 'Member Since',      value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
                     ]}
                   </Section>
 
-                  {/* ── DOCUMENTS ── */}
+                  {/* Documents */}
                   <div style={{ marginBottom: 24 }}>
                     <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 14 }}>Documents</div>
                     {[
@@ -385,18 +439,17 @@ export default function BusinessLayout() {
                 </>
               ) : (
                 <>
-                  {/* Edit mode */}
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 16 }}>Edit Profile</div>
                     {[
-                      { label: 'Company Name',    key: 'fullName',     placeholder: 'Company name' },
-                      { label: 'Contact Person',  key: 'contactName',  placeholder: 'Full name of contact person' },
-                      { label: 'Phone',           key: 'phone',        placeholder: '+27 11 000 0000' },
-                      { label: 'City',            key: 'city',         placeholder: 'Johannesburg' },
-                      { label: 'Address',         key: 'address',      placeholder: '1 Business Park, Sandton' },
-                      { label: 'VAT Number',      key: 'vatNumber',    placeholder: '4410000000 (optional)' },
-                      { label: 'Industry',        key: 'industry',     placeholder: 'FMCG / Beverages' },
-                      { label: 'Website',         key: 'website',      placeholder: 'company.co.za (optional)' },
+                      { label: 'Company Name',   key: 'fullName',     placeholder: 'Company name' },
+                      { label: 'Contact Person', key: 'contactName',  placeholder: 'Full name of contact person' },
+                      { label: 'Phone',          key: 'phone',        placeholder: '+27 11 000 0000' },
+                      { label: 'City',           key: 'city',         placeholder: 'Johannesburg' },
+                      { label: 'Address',        key: 'address',      placeholder: '1 Business Park, Sandton' },
+                      { label: 'VAT Number',     key: 'vatNumber',    placeholder: '4410000000 (optional)' },
+                      { label: 'Industry',       key: 'industry',     placeholder: 'FMCG / Beverages' },
+                      { label: 'Website',        key: 'website',      placeholder: 'company.co.za (optional)' },
                     ].map(f => (
                       <div key={f.key} style={{ marginBottom: 14 }}>
                         <label style={{ display: 'block', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: W4, marginBottom: 7, fontFamily: FD }}>{f.label}</label>
@@ -412,13 +465,14 @@ export default function BusinessLayout() {
                       </div>
                     ))}
                   </div>
-                  {/* ── DOCUMENT UPLOADS ── */}
+
+                  {/* Document uploads */}
                   <div style={{ marginBottom: 24 }}>
                     <div style={{ fontSize: 9, letterSpacing: '0.24em', textTransform: 'uppercase', color: GL, fontFamily: FD, fontWeight: 700, marginBottom: 14 }}>Upload / Replace Documents</div>
                     {[
-                      { label: 'CIPC Registration Certificate', key: 'cipc', current: profile?.cipcDocUrl, file: docCipc, setFile: setDocCipc },
-                      { label: 'Tax PIN / Clearance Certificate', key: 'tax', current: profile?.taxPinUrl, file: docTax, setFile: setDocTax },
-                      { label: 'Bank Confirmation Letter', key: 'bank', current: profile?.bizBankProofUrl, file: docBank, setFile: setDocBank },
+                      { label: 'CIPC Registration Certificate',   key: 'cipc', current: profile?.cipcDocUrl,      file: docCipc, setFile: setDocCipc },
+                      { label: 'Tax PIN / Clearance Certificate', key: 'tax',  current: profile?.taxPinUrl,       file: docTax,  setFile: setDocTax  },
+                      { label: 'Bank Confirmation Letter',        key: 'bank', current: profile?.bizBankProofUrl, file: docBank, setFile: setDocBank },
                     ].map(d => (
                       <div key={d.key} style={{ marginBottom: 12 }}>
                         <label style={{ display: 'block', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: W4, marginBottom: 7, fontFamily: FD }}>{d.label}</label>

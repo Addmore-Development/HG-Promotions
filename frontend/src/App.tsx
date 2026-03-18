@@ -2,6 +2,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider }             from './shared/context/AuthContext'
+import ProtectedRoute               from './shared/routes/ProtectedRoute'
 import LandingPage                  from './shared/auth/LandingPage'
 import LoginPage                    from './shared/auth/LoginPage'
 import RegisterPage                 from './shared/auth/RegisterPage'
@@ -38,29 +39,35 @@ export default function App() {
           <Route path="/jobs"        element={<JobsPage />}      />
           <Route path="/jobs/:jobId" element={<JobDetailPage />} />
 
-          {/* ── Promoter pending approval gate ── */}
+          {/* ── Promoter pending approval gate (public — shown before approval) ── */}
           <Route path="/promoter/pending" element={<PendingApprovalPage />} />
 
-          {/* ── Promoter portal (gate enforced inside PromoterApp) ── */}
-          <Route path="/promoter/" element={<PromoterApp />} />
-          <Route path="/promoter"  element={<Navigate to="/promoter/" replace />} />
+          {/* ── Promoter portal — protected ── */}
+          <Route element={<ProtectedRoute allowedRoles={['promoter']} />}>
+            <Route path="/promoter/"  element={<PromoterApp />} />
+            <Route path="/promoter"   element={<Navigate to="/promoter/" replace />} />
+          </Route>
 
-          {/* ── Admin ── */}
-          <Route path="/admin"             element={<AdminDashboard />}           />
-          <Route path="/admin/users"       element={<FullCRUDUsers />}            />
-          <Route path="/admin/jobs"        element={<CRUDJobsLogic />}            />
-          <Route path="/admin/map"         element={<ViewLiveMap />}              />
-          <Route path="/admin/payments"    element={<ApproveExport />}            />
-          <Route path="/admin/onboarding"  element={<ReviewApproveDocs />}        />
-          <Route path="/admin/reviews"     element={<ReviewsAndComplaintsPage />} />
+          {/* ── Admin — protected ── */}
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route path="/admin"             element={<AdminDashboard />}           />
+            <Route path="/admin/users"       element={<FullCRUDUsers />}            />
+            <Route path="/admin/jobs"        element={<CRUDJobsLogic />}            />
+            <Route path="/admin/map"         element={<ViewLiveMap />}              />
+            <Route path="/admin/payments"    element={<ApproveExport />}            />
+            <Route path="/admin/onboarding"  element={<ReviewApproveDocs />}        />
+            <Route path="/admin/reviews"     element={<ReviewsAndComplaintsPage />} />
+          </Route>
 
-          {/* ── Business ── */}
-          <Route path="/business" element={<BusinessLayout />}>
-            <Route index            element={<Navigate to="/business/dashboard" replace />} />
-            <Route path="dashboard" element={<BusinessDashboard />} />
-            <Route path="jobs"      element={<BusinessJobs />}      />
-            <Route path="tracking"  element={<BusinessTracking />}  />
-            <Route path="payroll"   element={<BusinessPayroll />}   />
+          {/* ── Business — protected ── */}
+          <Route element={<ProtectedRoute allowedRoles={['business']} />}>
+            <Route path="/business" element={<BusinessLayout />}>
+              <Route index            element={<Navigate to="/business/dashboard" replace />} />
+              <Route path="dashboard" element={<BusinessDashboard />} />
+              <Route path="jobs"      element={<BusinessJobs />}      />
+              <Route path="tracking"  element={<BusinessTracking />}  />
+              <Route path="payroll"   element={<BusinessPayroll />}   />
+            </Route>
           </Route>
 
           {/* ── Fallback ── */}

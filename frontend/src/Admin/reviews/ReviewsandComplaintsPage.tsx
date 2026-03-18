@@ -13,10 +13,14 @@ const D2  = '#151209'
 const D3  = '#1C1709'
 const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
-const W   = '#FAF3E8'
-const W85 = 'rgba(250,243,232,0.85)'
-const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
+
+const W   = '#CEC5B2'
+const W85 = 'rgba(210,198,180,0.95)'
+const W75 = 'rgba(195,182,162,0.82)'
+const W55 = 'rgba(192,178,158,0.80)'
+const W35 = 'rgba(168,152,130,0.55)'
+const W28 = 'rgba(172,158,136,0.65)'
+
 const FD  = "'Playfair Display', Georgia, serif"
 
 function hex2rgba(hex: string, alpha: number): string {
@@ -27,7 +31,6 @@ function hex2rgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-// No reviews — only complaints and enquiries
 type EntryType   = 'complaint' | 'enquiry'
 type EntryStatus = 'open' | 'resolved' | 'escalated'
 
@@ -130,9 +133,9 @@ function TypeBadge({ type }: { type: EntryType }) {
 
 function StatusBadge({ status }: { status: EntryStatus }) {
   const map: Record<EntryStatus, { color:string; bg:string; border:string }> = {
-    open:      { color:G4,         bg:hex2rgba(G4,0.10),  border:hex2rgba(G4,0.38)  },
-    resolved:  { color:G3,         bg:hex2rgba(G3,0.10),  border:hex2rgba(G3,0.38)  },
-    escalated: { color:'#E8D5A8',  bg:hex2rgba(G5,0.35),  border:hex2rgba(G2,0.55)  },
+    open:      { color:G4,        bg:hex2rgba(G4,0.10),  border:hex2rgba(G4,0.38)  },
+    resolved:  { color:G3,        bg:hex2rgba(G3,0.10),  border:hex2rgba(G3,0.38)  },
+    escalated: { color:'#C8B898', bg:hex2rgba(G5,0.35),  border:hex2rgba(G2,0.55)  },
   }
   const s = map[status]
   return (
@@ -214,7 +217,7 @@ function DetailModal({ entry, onClose, onUpdate }: { entry:Entry; onClose:()=>vo
                   style={{ flex:1, padding:'9px 8px', fontFamily:FD, fontSize:10, fontWeight:status===s?700:400, cursor:'pointer', borderRadius:3, textTransform:'capitalize',
                     background: status===s ? hex2rgba(s==='open'?G4:s==='resolved'?G3:G2, 0.22) : 'transparent',
                     border:`1px solid ${status===s?(s==='open'?G4:s==='resolved'?G3:G2):BB}`,
-                    color: status===s ? (s==='open'?G4:s==='resolved'?G3:'#E8D5A8') : W55,
+                    color: status===s ? (s==='open'?G4:s==='resolved'?G3:'#C8B898') : W55,
                     transition:'all 0.18s',
                   }}>
                   {s}
@@ -290,10 +293,10 @@ export default function ComplaintsAndEnquiriesPage() {
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:32 }}>
-          <StatCard label="Total"           value={entries.length}    color={GL} />
-          <StatCard label="Complaints"      value={complaints.length} color={G4} />
-          <StatCard label="Enquiries"       value={enquiries.length}  color={GL} />
-          <StatCard label="Open / Unresolved" value={open.length}     color={G4} />
+          <StatCard label="Total"             value={entries.length}    color={GL} />
+          <StatCard label="Complaints"        value={complaints.length} color={G4} />
+          <StatCard label="Enquiries"         value={enquiries.length}  color={GL} />
+          <StatCard label="Open / Unresolved" value={open.length}       color={G4} />
         </div>
 
         {unread.length > 0 && (
@@ -307,13 +310,13 @@ export default function ComplaintsAndEnquiriesPage() {
 
         <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-            <FilterBtn label={`All (${entries.length})`}              active={typeF==='all'}        color={GL} onClick={()=>setTypeF('all')} />
-            <FilterBtn label={`Complaints (${complaints.length})`}    active={typeF==='complaint'}  color={G4} onClick={()=>setTypeF('complaint')} />
-            <FilterBtn label={`Enquiries (${enquiries.length})`}      active={typeF==='enquiry'}    color={GL} onClick={()=>setTypeF('enquiry')} />
+            <FilterBtn label={`All (${entries.length})`}           active={typeF==='all'}       color={GL} onClick={()=>setTypeF('all')} />
+            <FilterBtn label={`Complaints (${complaints.length})`} active={typeF==='complaint'} color={G4} onClick={()=>setTypeF('complaint')} />
+            <FilterBtn label={`Enquiries (${enquiries.length})`}   active={typeF==='enquiry'}   color={GL} onClick={()=>setTypeF('enquiry')} />
           </div>
           <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
             {(['all','open','resolved','escalated'] as const).map(s => (
-              <FilterBtn key={s} label={s==='all'?'All Status':s} active={statusF===s} color={s==='escalated'?'#E8D5A8':s==='resolved'?G3:G4} onClick={()=>setStatusF(s)} />
+              <FilterBtn key={s} label={s==='all'?'All Status':s} active={statusF===s} color={s==='escalated'?'#C8B898':s==='resolved'?G3:G4} onClick={()=>setStatusF(s)} />
             ))}
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>

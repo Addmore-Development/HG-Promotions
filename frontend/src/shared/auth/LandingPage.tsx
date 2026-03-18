@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
 
-// ── Color tokens ──────────────────────────────────────────────────────────────
+// ── Updated Color tokens ──────────────────────────────────────────────────────
 const GL  = '#E8A820'
 const G   = '#D4880A'
 const G3  = '#C07818'
@@ -10,9 +10,12 @@ const G5  = '#6B3F10'
 const B   = '#0C0A07'
 const D1  = '#141008'
 const D2  = '#1A1408'
-const W   = '#FAF3E8'
-const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
+// Updated palette — consistent with admin panel
+const W   = '#CEC5B2'                    // warm mid-cream
+const WM  = 'rgba(200,188,168,0.88)'     // warm readable mid-grey
+const WD  = 'rgba(168,152,130,0.55)'     // visible warm grey
+const W85 = 'rgba(210,198,180,0.95)'     // near-full warm grey
+const W65 = 'rgba(192,178,158,0.80)'     // bright readable mid-grey
 const BB  = 'rgba(212,136,10,0.16)'
 const JB6 = 'rgba(12,10,7,0.60)'
 const JBB = 'rgba(12,10,7,0.22)'
@@ -47,12 +50,12 @@ const GLOBAL_CSS = `
     transition: transform 0.55s cubic-bezier(0.22,1,0.36,1), box-shadow 0.55s ease, z-index 0s;
   }
 
-  .nav-link { color: ${W55}; background: none; border: none; cursor: pointer; font-family: ${FD}; font-size: 12px; font-weight: 400; letter-spacing: 0.12em; padding: 0; transition: color 0.25s; }
+  .nav-link { color: ${W65}; background: none; border: none; cursor: pointer; font-family: ${FD}; font-size: 12px; font-weight: 400; letter-spacing: 0.12em; padding: 0; transition: color 0.25s; }
   .nav-link:hover { color: ${GL}; }
 
   .ticker-wrap { overflow: hidden; border-top: 1px solid ${BB}; border-bottom: 1px solid ${BB}; background: ${D1}; }
   .ticker-inner { display: flex; white-space: nowrap; animation: ticker 28s linear infinite; }
-  .ticker-item { padding: 0 56px; font-size: 10px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: ${W28}; display: flex; align-items: center; gap: 24px; height: 42px; font-family: ${FD}; }
+  .ticker-item { padding: 0 56px; font-size: 10px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(192,178,158,0.82); display: flex; align-items: center; gap: 24px; height: 42px; font-family: ${FD}; }
   .ticker-item span { color: ${GL}; font-size: 8px; }
 
   .feat-slide-enter { animation: feature-in 0.65s cubic-bezier(0.22,1,0.36,1) both; }
@@ -72,7 +75,6 @@ const GLOBAL_CSS = `
 `
 
 // ── Reveal hook ───────────────────────────────────────────────────────────────
-// Returns a callback ref so the element type is always HTMLElement (never null at assignment)
 function useReveal() {
   const ref = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -83,7 +85,6 @@ function useReveal() {
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
-  // Return a callback ref — accepts HTMLElement | null safely
   const setRef = (el: HTMLElement | null) => { ref.current = el }
   return setRef
 }
@@ -170,10 +171,10 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
 
         <div style={{ padding: '20px 20px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: isFeatured ? GL : W28, fontFamily: FD, padding: isFeatured ? '3px 8px' : '0', background: isFeatured ? 'rgba(232,168,32,0.1)' : 'transparent', border: isFeatured ? `1px solid rgba(232,168,32,0.2)` : 'none' }}>
+            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: isFeatured ? GL : WD, fontFamily: FD, padding: isFeatured ? '3px 8px' : '0', background: isFeatured ? 'rgba(232,168,32,0.1)' : 'transparent', border: isFeatured ? `1px solid rgba(232,168,32,0.2)` : 'none' }}>
               {isFeatured ? '★ Featured' : job.type}
             </span>
-            <span style={{ fontSize: 8, color: W28, fontFamily: FD }}>{job.slotsLeft} left</span>
+            <span style={{ fontSize: 8, color: WD, fontFamily: FD }}>{job.slotsLeft} left</span>
           </div>
 
           <div style={{ fontSize: 10, color: isFeatured ? GL : G3, fontWeight: 700, letterSpacing: '0.04em', fontFamily: FD, marginBottom: 4 }}>{job.company}</div>
@@ -182,16 +183,16 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 10 }}>
             <span style={{ fontFamily: FD, fontSize: isFeatured ? 26 : 20, fontWeight: 900, color: GL, lineHeight: 1 }}>{job.pay}</span>
-            <span style={{ fontSize: 10, color: W28, fontFamily: FD }}>{job.payPer}</span>
+            <span style={{ fontSize: 10, color: 'rgba(192,178,158,0.82)', fontFamily: FD }}>{job.payPer}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 8, color: GL }}>◎</span>
-            <span style={{ fontSize: 10, color: W55, fontFamily: FD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.location}</span>
+            <span style={{ fontSize: 10, color: WM, fontFamily: FD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.location}</span>
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <div style={{ height: 2, background: 'rgba(250,243,232,0.07)', overflow: 'hidden' }}>
+            <div style={{ height: 2, background: 'rgba(206,197,178,0.08)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${fillPct}%`, background: `linear-gradient(90deg, ${G5}, ${accent})`, transition: 'width 0.7s ease' }} />
             </div>
           </div>
@@ -203,7 +204,7 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
               View Details →
             </button>
           ) : (
-            <button onClick={onLock} style={{ width: '100%', padding: '9px', border: `1px solid ${BB}`, background: 'transparent', color: W55, fontFamily: FD, fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <button onClick={onLock} style={{ width: '100%', padding: '9px', border: `1px solid ${BB}`, background: 'transparent', color: WM, fontFamily: FD, fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <span style={{ fontSize: 9 }}>⬡</span> Login to Apply
             </button>
           )}
@@ -287,20 +288,20 @@ function LoginPromptModal({ onClose, onLogin, onRegister }: { onClose: () => voi
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: `rgba(212,136,10,0.12)`, border: `1px solid rgba(232,168,32,0.35)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 26, animation: 'float 3s ease-in-out infinite' }}>⬡</div>
         <div style={{ fontSize: 9, letterSpacing: '0.38em', textTransform: 'uppercase', color: GL, marginBottom: 12, fontFamily: FD }}>Members Only</div>
         <h2 style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: W, marginBottom: 14, lineHeight: 1.2 }}>Unlock Job Details</h2>
-        <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, marginBottom: 36, fontFamily: FD }}>Create a free account or sign in to view full job details, requirements, and apply for promoter positions.</p>
+        <p style={{ fontSize: 13, color: WM, lineHeight: 1.75, marginBottom: 36, fontFamily: FD }}>Create a free account or sign in to view full job details, requirements, and apply for promoter positions.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button onClick={onRegister} style={{ width: '100%', padding: '15px', background: GL, border: 'none', color: B, fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
             onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = GL; e.currentTarget.style.transform = 'translateY(0)' }}>
             Create Free Account
           </button>
-          <button onClick={onLogin} style={{ width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${BB}`, color: W55, fontFamily: FD, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
+          <button onClick={onLogin} style={{ width: '100%', padding: '15px', background: 'transparent', border: `1px solid ${BB}`, color: WM, fontFamily: FD, fontSize: 11, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.25s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.45)`; e.currentTarget.style.color = GL }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W55 }}>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = WM }}>
             Already Have an Account
           </button>
         </div>
-        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: W28, fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: WD, fontSize: 18 }}>✕</button>
       </div>
     </div>
   )
@@ -333,11 +334,11 @@ function FeatureSlideshow() {
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '8px 0 24px' }}>
                 <h3 style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, lineHeight: 1.2, color: W, marginBottom: 16, letterSpacing: '-0.01em' }}>{f.title}</h3>
-                <p style={{ fontSize: 13, lineHeight: 1.8, color: W55, fontFamily: FD }}>{f.body}</p>
+                <p style={{ fontSize: 13, lineHeight: 1.8, color: WM, fontFamily: FD }}>{f.body}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingTop: 24, borderTop: `1px solid ${i === 1 ? 'rgba(171,141,63,0.2)' : BB}` }}>
                 <span style={{ fontSize: 32, fontWeight: 900, color: f.accent, fontFamily: FD, lineHeight: 1 }}>{f.stat}</span>
-                <span style={{ fontSize: 11, color: W28, fontFamily: FD, letterSpacing: '0.06em' }}>{f.statLabel}</span>
+                <span style={{ fontSize: 11, color: WD, fontFamily: FD, letterSpacing: '0.06em' }}>{f.statLabel}</span>
               </div>
             </div>
           </div>
@@ -380,11 +381,9 @@ export default function LandingPage() {
   const heroSlideRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [allJobs, setAllJobs] = useState<ReturnType<typeof getActiveJobs>>([])
 
-  // Use separate refs for section elements — avoids the RefObject<HTMLElement | null> conflict
   const secFeaturesRef = useRef<HTMLElement | null>(null)
   const secJobsRef     = useRef<HTMLElement | null>(null)
 
-  // Callback refs returned from useReveal
   const rFeatures = useReveal()
   const rJobs     = useReveal()
 
@@ -451,11 +450,11 @@ export default function LandingPage() {
           {session ? (
             <>
               <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = G} onMouseLeave={e => e.currentTarget.style.background = GL}>My Dashboard</button>
-              <button onClick={handleLogout} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>Log Out</button>
+              <button onClick={handleLogout} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(206,197,178,0.3)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(206,197,178,0.3)'; e.currentTarget.style.color = WM }}>Log Out</button>
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/login')} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: W, padding: '11px 22px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = W }}>LOG IN</button>
+              <button onClick={() => navigate('/login')} style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'transparent', border: '1px solid rgba(206,197,178,0.3)', color: WM, padding: '11px 22px', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(206,197,178,0.3)'; e.currentTarget.style.color = WM }}>LOG IN</button>
               <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = G} onMouseLeave={e => e.currentTarget.style.background = GL}>REGISTER</button>
             </>
           )}
@@ -489,15 +488,15 @@ export default function LandingPage() {
             <span style={{ color: W, display: 'inline-block', maxWidth: '46%' }}>CENTRE STAGE</span>
           </h1>
           {session ? (
-            <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(255,255,255,0.7)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
+            <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(206,197,178,0.7)'; e.currentTarget.style.color = WM }}>
               ▶ MY DASHBOARD
             </button>
           ) : (
-            <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(255,255,255,0.7)', color: W, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
+            <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.7)'; e.currentTarget.style.color = W }}>
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(206,197,178,0.7)'; e.currentTarget.style.color = WM }}>
               ▶ JOIN AS PROMOTER
             </button>
           )}
@@ -623,12 +622,12 @@ export default function LandingPage() {
             <div>
               <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, marginBottom: 32, letterSpacing: '0.01em' }}><span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span></div>
               <h3 style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: W, marginBottom: 12, lineHeight: 1.2 }}>Newsletter Sign-Up</h3>
-              <p style={{ fontSize: 13, color: W55, lineHeight: 1.75, fontFamily: FD, marginBottom: 28, maxWidth: 300 }}>Subscribe to receive our latest opportunities and platform updates directly to your inbox.</p>
+              <p style={{ fontSize: 13, color: WM, lineHeight: 1.75, fontFamily: FD, marginBottom: 28, maxWidth: 300 }}>Subscribe to receive our latest opportunities and platform updates directly to your inbox.</p>
               <div style={{ marginBottom: 12 }}>
-                <input type="text" placeholder="YOUR NAME" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: W55, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
+                <input type="text" placeholder="YOUR NAME" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: WM, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
               </div>
               <div style={{ marginBottom: 20 }}>
-                <input type="email" placeholder="YOUR EMAIL" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: W55, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
+                <input type="email" placeholder="YOUR EMAIL" style={{ width: '100%', background: 'transparent', border: `1px solid ${BB}`, borderRadius: 0, padding: '14px 16px', fontFamily: FD, fontSize: 11, fontWeight: 500, letterSpacing: '0.12em', color: WM, outline: 'none' }} onFocus={e => e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`} onBlur={e => e.currentTarget.style.borderColor = BB} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', paddingBottom: 6, borderBottom: `1px solid ${BB}`, width: 'fit-content' }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = GL }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = BB }}>
                 <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: W }}>SUBMIT</span>
@@ -637,8 +636,8 @@ export default function LandingPage() {
             </div>
             <div style={{ paddingTop: 8 }}>
               {[{ label: 'Jobs Board', href: '/jobs' }, { label: 'Features', href: '/#features' }, { label: 'About', href: '/#about' }, { label: 'News & Updates', href: '#' }, { label: 'Contact', href: '#' }].map(link => (
-                <div key={link.label} style={{ padding: '14px 0', borderBottom: `1px solid ${BB}`, cursor: 'pointer' }} onClick={() => link.href !== '#' && navigate(link.href)} onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }} onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = W55 }}>
-                  <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W55, transition: 'color 0.2s' }}>{link.label}</span>
+                <div key={link.label} style={{ padding: '14px 0', borderBottom: `1px solid ${BB}`, cursor: 'pointer' }} onClick={() => link.href !== '#' && navigate(link.href)} onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }} onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = WM }}>
+                  <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: WM, transition: 'color 0.2s' }}>{link.label}</span>
                 </div>
               ))}
             </div>
@@ -651,14 +650,14 @@ export default function LandingPage() {
               ))}
               <div style={{ display: 'flex', gap: 10, marginBottom: 40 }}>
                 {[{ label: 'LI', title: 'LinkedIn' }, { label: 'IG', title: 'Instagram' }, { label: 'FB', title: 'Facebook' }].map(s => (
-                  <div key={s.label} title={s.title} style={{ width: 38, height: 38, border: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.25s', fontSize: 10, fontWeight: 700, color: W28, fontFamily: FD, letterSpacing: '0.04em' }} onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL; e.currentTarget.style.background = `rgba(232,168,32,0.06)` }} onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = W28; e.currentTarget.style.background = 'transparent' }}>{s.label}</div>
+                  <div key={s.label} title={s.title} style={{ width: 38, height: 38, border: `1px solid ${BB}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.25s', fontSize: 10, fontWeight: 700, color: WD, fontFamily: FD, letterSpacing: '0.04em' }} onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(232,168,32,0.5)`; e.currentTarget.style.color = GL; e.currentTarget.style.background = `rgba(232,168,32,0.06)` }} onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = WD; e.currentTarget.style.background = 'transparent' }}>{s.label}</div>
                 ))}
               </div>
               <div style={{ borderTop: `1px solid ${BB}`, paddingTop: 24 }}>
-                <p style={{ fontSize: 11, color: W28, fontFamily: FD, marginBottom: 12 }}>©2026 Honey Group Promotions. All rights reserved.</p>
+                <p style={{ fontSize: 11, color: WD, fontFamily: FD, marginBottom: 12 }}>©2026 Honey Group Promotions. All rights reserved.</p>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                   {['Privacy Policy', 'POPIA Compliant', 'Terms of Use'].map(t => (
-                    <span key={t} style={{ fontSize: 10, color: W28, letterSpacing: '0.06em', fontFamily: FD, cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = GL} onMouseLeave={e => e.currentTarget.style.color = W28}>{t}</span>
+                    <span key={t} style={{ fontSize: 10, color: WD, letterSpacing: '0.06em', fontFamily: FD, cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = GL} onMouseLeave={e => e.currentTarget.style.color = WD}>{t}</span>
                   ))}
                 </div>
               </div>
