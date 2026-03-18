@@ -49,7 +49,7 @@ export const ALL_JOBS = [
   { id:'JB-224', title:'Distell Premium Wines — Trade Launch', company:'Distell Group', companyInitial:'D', companyColor:G3, location:'Sandton Convention Centre, Johannesburg', type:'Events & Hosting', pay:'R 1,350', payPer:'per shift', date:'Thu 17 Apr 2026', jobDate:'2026-04-17', approvedAt:'2026-03-11', slots:10, slotsLeft:7, duration:'10 hrs', tags:['Female','1.68m+','Evening wear provided','Wine knowledge a plus'], accentLine:G3, gradient:`linear-gradient(135deg, rgba(212,136,10,0.12) 0%, rgba(196,151,58,0.04) 100%)`, status:'open', contactPerson:'Francois du Toit', contactEmail:'francois@distell.co.za', contactPhone:'+27 11 555 0224', companyReg:'1988/005010/06', vatNumber:'4583456789', address:'Distell Park, Adam Tas Road, Stellenbosch, 7599', terms:`1. ENGAGEMENT TERMS\nDistell Group engages the Promoter for a premium wine trade launch.\n\n2. WINE SERVICE STANDARDS\nStrict adherence to the presentation script required.\n\n3. PAYMENT\nR 1,350 per 10-hour shift. Overtime at R 150/hr.\n\n4. CONFIDENTIALITY\nAll trade pricing and buyer information is strictly confidential.\n\n5. POPIA COMPLIANCE\nData handled in accordance with POPIA.` },
 ] as const
 
-export function getAllJobsWithAdminJobs(): typeof ALL_JOBS {
+export function getAllJobsWithAdminJobs(): any[] {
   try {
     const stored = JSON.parse(localStorage.getItem('hg_admin_jobs') || '[]') as any[]
     const adminJobs = stored.map((j: any, idx: number) => ({
@@ -58,16 +58,16 @@ export function getAllJobsWithAdminJobs(): typeof ALL_JOBS {
       accentLine:   ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
       gradient:     `linear-gradient(135deg, rgba(232,168,32,0.10) 0%, rgba(196,151,58,0.04) 100%)`,
     }))
-    return [...adminJobs, ...ALL_JOBS] as any
+    return [...adminJobs, ...ALL_JOBS]
   } catch {
-    return ALL_JOBS as any
+    return [...ALL_JOBS]
   }
 }
 
-export function getActiveJobs(allJobs: typeof ALL_JOBS) {
+export function getActiveJobs(allJobs: any[]) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  return (allJobs as any[])
+  return allJobs
     .filter((j: any) => new Date(j.jobDate) >= today)
     .sort((a: any, b: any) => {
       const d = new Date(b.approvedAt).getTime() - new Date(a.approvedAt).getTime()
