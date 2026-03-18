@@ -20,7 +20,7 @@ const CORAL = '#C4614A';
 const GREEN = '#4ade80';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const GEO_THRESHOLD_M  = 5;
+const GEO_THRESHOLD_M  = 200;
 const LOCATION_PING_MS = 30_000;
 const LATE_THRESHOLD_MS = 1 * 60 * 1000;
 
@@ -77,14 +77,24 @@ function LiveEarningsTimer({ checkInTime, hourlyRate }: { checkInTime: string; h
   const hrs = Math.floor(elapsed / 3600);
   const min = Math.floor((elapsed % 3600) / 60);
   const sec = Math.floor(elapsed % 60);
-  const earned = (elapsed / 3600) * hourlyRate;
+  const rate = hourlyRate || 0;
+  const earned = (elapsed / 3600) * rate;
+  const noRate = rate <= 0;
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 700, color: GREEN, letterSpacing: '0.1em' }}>
         {String(hrs).padStart(2, '0')}:{String(min).padStart(2, '0')}:{String(sec).padStart(2, '0')}
       </div>
-      <div style={{ fontSize: 13, color: GL, marginTop: 6, fontWeight: 700 }}>R{earned.toFixed(2)} earned so far</div>
-      <div style={{ fontSize: 11, color: WD, marginTop: 2 }}>R{hourlyRate}/hr x {(elapsed / 3600).toFixed(2)} hrs</div>
+      {noRate ? (
+        <div style={{ fontSize: 12, color: AMBER, marginTop: 8, fontWeight: 700 }}>
+          ⚠ Hourly rate not set — contact admin to update this job
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, color: GL, marginTop: 6, fontWeight: 700 }}>R{earned.toFixed(2)} earned so far</div>
+          <div style={{ fontSize: 11, color: WD, marginTop: 2 }}>R{rate}/hr x {(elapsed / 3600).toFixed(2)} hrs</div>
+        </>
+      )}
     </div>
   );
 }
@@ -268,15 +278,27 @@ export const GeoCheckInOut: React.FC = () => {
   const loadShifts = useCallback(async () => {
     if (!user) return;
     try {
-      const [shiftsRes, jobsRes] = await Promise.all([
-        fetch(`${API}/shifts/my`, { headers: authHdr() }),
-        fetch(`${API}/jobs`,      { headers: authHdr() }),
-      ]);
+      const shiftsRes = await fetch(`${API}/shifts/my`, { headers: authHdr() });
       const ss: any[] = shiftsRes.ok ? await shiftsRes.json() : [];
-      const jj: any[] = jobsRes.ok   ? await jobsRes.json()  : [];
       setShifts(ss);
+      // Build job map from embedded shift.job — this guarantees hourlyRate is included
       const map = new Map<string, any>();
-      jj.forEach((j: any) => map.set(j.id, j));
+      ss.forEach((s: any) => {
+        if (s.job) map.set(s.jobId, s.job);
+      });
+      // Also fetch /api/jobs to get any jobs not yet in shifts (for browsing)
+      try {
+        const jobsRes = await fetch(`${API}/jobs`, { headers: authHdr() });
+        if (jobsRes.ok) {
+          const jj: any[] = await jobsRes.json();
+          jj.forEach((j: any) => {
+            // Only overwrite if embedded version is missing or has no hourlyRate
+            if (!map.has(j.id) || !map.get(j.id)?.hourlyRate) {
+              map.set(j.id, j);
+            }
+          });
+        }
+      } catch {}
       setJobs(map);
     } catch (e) { console.error('[GeoCheckInOut] loadShifts error:', e); }
     setLoading(false);
@@ -359,7 +381,7 @@ export const GeoCheckInOut: React.FC = () => {
     setSelfieFile(null);
     setCameraOpen(false);
 
-    const job = jobs.get(shift.jobId);
+    const job = (shift.job && shift.job.hourlyRate != null) ? shift.job : (jobs.get(shift.jobId) || shift.job);
     if (job?.date && job?.startTime && shift.status === 'SCHEDULED') {
       setLateMinutes(calcLateMinutes(job.date, job.startTime));
     } else {
@@ -377,7 +399,7 @@ export const GeoCheckInOut: React.FC = () => {
         const { latitude: lat, longitude: lng } = pos.coords;
         const newLoc = { lat, lng };
         setLoc(newLoc); currentLocRef.current = newLoc;
-        const jobForGeo = jobs.get(shift.jobId);
+        const jobForGeo = (shift.job && shift.job.lat) ? shift.job : (jobs.get(shift.jobId) || shift.job);
         if (!jobForGeo || !jobForGeo.lat || !jobForGeo.lng) { setDistM(0); setGps('near'); return; }
         const d = haversine(lat, lng, jobForGeo.lat, jobForGeo.lng);
         setDistM(Math.round(d));
@@ -510,7 +532,9 @@ export const GeoCheckInOut: React.FC = () => {
 
       {/* Active shift banner */}
       {shifts.filter(s => s.status === 'CHECKED_IN').map(s => {
-        const job = jobs.get(s.jobId);
+        // Prefer embedded shift.job (from getMyShifts) — it always has hourlyRate
+        // Fall back to the separately-fetched jobs map
+        const job = (s.job && s.job.hourlyRate != null) ? s.job : (jobs.get(s.jobId) || s.job);
         if (!job) return null;
         return (
           <div key={s.id} style={{ padding: '20px 24px', background: 'rgba(74,222,128,0.06)', border: `1px solid rgba(74,222,128,0.3)`, borderRadius: 3, marginBottom: 24 }}>
@@ -566,7 +590,7 @@ export const GeoCheckInOut: React.FC = () => {
       ) : (
         <div style={{ background: BC, border: `1px solid ${BB}`, overflow: 'hidden', borderRadius: 2 }}>
           {filteredShifts.map((shift, i) => {
-            const job      = jobs.get(shift.jobId);
+            const job      = (shift.job && shift.job.hourlyRate != null) ? shift.job : (jobs.get(shift.jobId) || shift.job);
             const isActive = shift.status === 'CHECKED_IN';
             const isLate   = shift.issueReport?.startsWith('LATE_CHECK_IN:');
             return (
@@ -617,7 +641,7 @@ export const GeoCheckInOut: React.FC = () => {
             <button onClick={closeModal} style={{ position: 'absolute', top: 16, right: 20, background: 'none', border: 'none', cursor: 'pointer', color: WD, fontSize: 24, lineHeight: 1, zIndex: 2 }}>x</button>
 
             {(() => {
-              const job = jobs.get(activeShift.jobId);
+              const job = (activeShift.job && activeShift.job.hourlyRate != null) ? activeShift.job : (jobs.get(activeShift.jobId) || activeShift.job);
               if (!job) return null;
 
               const startDateTime = new Date(job.date);

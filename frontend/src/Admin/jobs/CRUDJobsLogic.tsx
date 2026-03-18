@@ -1,709 +1,908 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '../AdminLayout'
-import { ALL_JOBS } from '../../shared/jobs/jobsData'
+import React, { useState, useEffect } from 'react';
+import { AdminLayout } from '../AdminLayout';
 
-const G    = '#D4880A'
-const GL   = '#E8A820'
-const G2   = '#8B5A1A'
-const G3   = '#C07818'
-const G4   = '#F0C050'
-const G5   = '#6B3F10'
-const B    = '#0C0A07'
-const D1   = '#0E0C06'
-const D2   = '#151209'
-const D3   = '#1C1709'
-const BB   = 'rgba(212,136,10,0.16)'
-const BB2  = 'rgba(212,136,10,0.06)'
+const G    = '#D4880A';
+const GL   = '#E8A820';
+const G2   = '#8B5A1A';
+const G3   = '#6B3F10';
+const B    = '#0C0A07';
+const BC   = '#141008';
+const D2   = '#1A1508';
+const D3   = '#221C0C';
+const BB   = 'rgba(212,136,10,0.14)';
+const W    = '#FAF3E8';
+const WM   = 'rgba(250,243,232,0.65)';
+const WD   = 'rgba(250,243,232,0.28)';
+const FD   = "'Playfair Display', Georgia, serif";
+const FB   = "'DM Sans', system-ui, sans-serif";
+const TEAL  = '#4AABB8';
+const CORAL = '#C4614A';
+const GREEN = '#4ade80';
+const AMBER = '#E8A820';
 
-// ─── Updated text colors ──────────────────────────────────────────────────────
-const W   = '#CEC5B2'                   // warm mid-cream
-const W85 = 'rgba(210,198,180,0.95)'   // near-full warm grey
-const W75 = 'rgba(195,182,162,0.82)'   // medium-light warm grey
-const W55 = 'rgba(192,178,158,0.80)'   // bright readable mid-grey
-const W35 = 'rgba(168,152,130,0.55)'   // visible dark-grey
-const W28 = 'rgba(172,158,136,0.65)'   // was nearly invisible, now clearly readable
+const BACKEND = import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const FD   = "'Playfair Display', Georgia, serif"
-const MONO = "'DM Mono', 'Courier New', monospace"
-const WARM_ACCENTS = [GL, G3, '#AB8D3F', G, G4, GL, G3, '#AB8D3F', G, G4]
-
-function hex2rgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '')
-  const r = parseInt(h.substring(0, 2), 16)
-  const g = parseInt(h.substring(2, 4), 16)
-  const b = parseInt(h.substring(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
+function selfieUrl(p?: string | null): string | null {
+  if (!p) return null;
+  return p.startsWith('http') ? p : BACKEND + p;
 }
 
-// ─── Broadcast job change so business dashboards reload their job list ─────────
-function broadcastJobUpdate(jobId: string, action: 'created' | 'updated' | 'deleted') {
-  try {
-    const existing: any[] = JSON.parse(localStorage.getItem('hg_job_updates') || '[]')
-    localStorage.setItem('hg_job_updates', JSON.stringify([
-      { jobId, action, updatedAt: new Date().toISOString() },
-      ...existing.slice(0, 49),
-    ]))
-    window.dispatchEvent(new Event('storage'))
-  } catch { /* silent */ }
+function authHdr() {
+  const t = localStorage.getItem('hg_token');
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
-
-type JobStatus = 'open' | 'filled' | 'completed' | 'cancelled'
-type JobSource = 'base' | 'api' | 'admin'
 
 interface Job {
-  id: string; title: string; client: string; venue: string
-  date: string; startDate?: string; startTime: string; endTime: string
-  hourlyRate: number; totalSlots: number; filledSlots: number
-  status: JobStatus; city: string; category?: string
-  lat?: number; lng?: number; source: JobSource; applications?: any[]
-  termsAndConditions?: string; pay?: string; payPer?: string; jobDate?: string
-  location?: string; type?: string; duration?: string; tags?: string[]; accentLine?: string
+  id: string; title: string; client: string; clientId?: string; brand: string;
+  venue: string;
+  streetNumber?: string; streetName?: string; suburb?: string; city?: string; postalCode?: string;
+  address?: string; lat?: number; lng?: number;
+  date: string; endDate?: string; startTime: string; endTime: string;
+  hourlyRate: number; totalSlots: number; filledSlots: number;
+  status: string; filters?: any; termsAndConditions?: string;
+  applications?: any[]; createdAt?: string;
 }
 
-interface PromoterMatch {
-  id: string; name: string; email: string; city: string
-  reliabilityScore: number; profilePhotoUrl?: string; status: string; distanceKm?: number
-  appStatus?: 'ALLOCATED' | 'STANDBY' | 'DECLINED' | null; appId?: string
+interface Client { id?: string; name: string; email?: string; }
+
+const EMPTY_FORM = {
+  title: '', client: '', clientId: '',
+  brand: '', venue: '',
+  streetNumber: '', streetName: '', suburb: '', city: '', postalCode: '',
+  date: '', endDate: '', startTime: '09:00', endTime: '17:00',
+  hourlyRate: '', totalSlots: '4', filledSlots: '0',
+  status: 'OPEN', filters: {} as any, termsAndConditions: '',
+};
+
+const STATUS_OPTS = ['OPEN', 'FILLED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+const CATEGORY_OPTS = ['Brand Activation','Promotions','Events','Retail','Corporate','Exhibitions','Other'];
+
+const inp: React.CSSProperties = {
+  width: '100%', background: 'rgba(250,243,232,0.05)',
+  border: `1px solid ${BB}`, padding: '10px 14px',
+  color: W, fontFamily: FB, fontSize: 13, outline: 'none', borderRadius: 2, boxSizing: 'border-box' as any,
+};
+const lbl: React.CSSProperties = {
+  fontSize: 9, fontWeight: 700, letterSpacing: '0.15em',
+  textTransform: 'uppercase' as any, color: WM, display: 'block', marginBottom: 7,
+};
+const sel: React.CSSProperties = { ...inp, background: D3, cursor: 'pointer' };
+
+// ── JobViewModal ──────────────────────────────────────────────────────────────
+interface JobViewModalProps {
+  job: Job;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  displayAddress: (j: Job) => string;
+  statusColor: (s: string) => string;
 }
 
-interface ShortlistEntry {
-  jobId: string; promoterId: string; promoterName: string; notifiedAt: string
-  message: string; type: 'shortlisted' | 'not_needed'
-}
+function JobViewModal({ job, onClose, onEdit, onDelete, displayAddress, statusColor }: JobViewModalProps) {
+  const [shifts,        setShifts       ] = React.useState<any[]>([]);
+  const [loadingShifts, setLoadingShifts] = React.useState(true);
+  const [selectedShift, setSelectedShift] = React.useState<any>(null);
+  const [tab,           setTab          ] = React.useState<'info'|'promoters'>('info');
+  const [allPromoters,  setAllPromoters ] = React.useState<any[]>([]);
+  const [loadingPromos, setLoadingPromos] = React.useState(false);
+  const [selected,      setSelected     ] = React.useState<Set<string>>(new Set());
+  const [savingAlloc,   setSavingAlloc  ] = React.useState(false);
+  const [allocMsg,      setAllocMsg     ] = React.useState('');
+  const [promoSearch,   setPromoSearch  ] = React.useState('');
 
-interface ClientEntry { id: string; name: string; email: string }
+  // Load existing shifts for this job
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API}/shifts/all`, { headers: authHdr() as any });
+        if (res.ok) {
+          const all: any[] = await res.json();
+          const jobShifts = all.filter(s => s.jobId === job.id);
+          setShifts(jobShifts);
+          setSelected(new Set(jobShifts.map((s: any) => s.promoterId)));
+        }
+      } catch {}
+      setLoadingShifts(false);
+    };
+    load();
+  }, [job.id]);
 
-const STATUS_COLOR: Record<JobStatus, string> = { open: GL, filled: G3, completed: G, cancelled: G2 }
-const STATUS_BG: Record<JobStatus, string> = {
-  open: hex2rgba(GL, 0.10), filled: hex2rgba(G3, 0.10),
-  completed: hex2rgba(G, 0.10), cancelled: hex2rgba(G2, 0.22),
-}
-const STATUS_BORDER: Record<JobStatus, string> = {
-  open: hex2rgba(GL, 0.45), filled: hex2rgba(G3, 0.45),
-  completed: hex2rgba(G, 0.45), cancelled: hex2rgba(G2, 0.55),
-}
+  // Load all approved promoters when promoters tab opens
+  React.useEffect(() => {
+    if (tab !== 'promoters' || allPromoters.length > 0) return;
+    setLoadingPromos(true);
+    fetch(`${API}/users?role=PROMOTER`, { headers: authHdr() as any })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => setAllPromoters(data))
+      .catch(() => {})
+      .finally(() => setLoadingPromos(false));
+  }, [tab, allPromoters.length]);
 
-const CATEGORY_OPTIONS = [
-  'FMCG / Beverages','FMCG / Food','Retail','Telecoms','Automotive',
-  'Financial Services','Healthcare / Pharma','Fitness & Wellness',
-  'Fashion & Beauty','Quick Service Restaurant','Events & Entertainment','Technology','Other',
-]
+  const allocatedIds = new Set(shifts.map(s => s.promoterId));
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-function authHeader() {
-  const t = localStorage.getItem('hg_token')
-  return t ? { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
-}
+  const togglePromoter = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
-function baseJobsToAdminJobs(): Job[] {
-  return ALL_JOBS.map(j => ({
-    id: j.id, title: j.title, client: j.company,
-    venue: j.location.split(',')[0]?.trim() || j.location,
-    date: j.jobDate, startTime: '09:00', endTime: '17:00',
-    hourlyRate: parseInt(j.pay.replace(/\D/g, '')) || 0,
-    totalSlots: j.slots, filledSlots: j.slots - j.slotsLeft,
-    status: j.slotsLeft === 0 ? 'filled' : ('open' as JobStatus),
-    city: j.location.split(',').slice(-1)[0]?.trim() || '',
-    category: j.type, source: 'base' as JobSource,
-    pay: j.pay, payPer: j.payPer, jobDate: j.jobDate, location: j.location,
-    type: j.type, duration: j.duration, tags: j.tags, accentLine: j.accentLine,
-  }))
-}
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; const dLat = (lat2-lat1)*Math.PI/180; const dLng = (lng2-lng1)*Math.PI/180
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-}
-
-const CITY_COORDS: Record<string,[number,number]> = {
-  'johannesburg':[-26.2041,28.0473],'sandton':[-26.1076,28.0567],'cape town':[-33.9249,18.4241],
-  'durban':[-29.8587,31.0218],'pretoria':[-25.7479,28.2293],'midrand':[-25.9986,28.1272],
-  'soweto':[-26.2678,27.8546],'port elizabeth':[-33.9608,25.6022],
-}
-function cityCoords(city: string): [number,number] | null { return CITY_COORDS[city.toLowerCase()] || null }
-
-function StatusBadge({ status }: { status: JobStatus }) {
-  return (
-    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:STATUS_COLOR[status], background:STATUS_BG[status], border:`1px solid ${STATUS_BORDER[status]}`, padding:'3px 10px', borderRadius:3, whiteSpace:'nowrap' }}>
-      {status}
-    </span>
-  )
-}
-
-function SourceBadge({ source }: { source: JobSource }) {
-  const map: Record<JobSource,{label:string;color:string}> = { base:{label:'Base',color:W35}, api:{label:'Live',color:GL}, admin:{label:'Admin',color:G3} }
-  const s = map[source]
-  return (
-    <span style={{ fontSize:8, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:s.color, border:`1px solid ${hex2rgba(s.color,0.35)}`, padding:'2px 7px', borderRadius:3, whiteSpace:'nowrap' }}>
-      {s.label}
-    </span>
-  )
-}
-
-function Btn({ onClick, children, color=GL, outline=false, small=false, disabled=false }: any) {
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ padding:small?'7px 14px':'11px 22px', background:disabled?'rgba(255,255,255,0.05)':outline?'transparent':`linear-gradient(135deg,${color},${hex2rgba(color,0.8)})`, border:`1px solid ${disabled?BB:color}`, color:disabled?W55:outline?color:B, fontFamily:FD, fontSize:small?10:11, fontWeight:700, letterSpacing:'0.08em', cursor:disabled?'not-allowed':'pointer', textTransform:'uppercase' as const, transition:'all 0.2s', borderRadius:3 }}
-      onMouseEnter={e=>{if(!disabled){e.currentTarget.style.opacity='0.82';e.currentTarget.style.transform='translateY(-1px)'}}}
-      onMouseLeave={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='translateY(0)'}}
-    >{children}</button>
-  )
-}
-
-function FilterBtn({ label, active, color, onClick }: { label:string; active:boolean; color:string; onClick:()=>void }) {
-  return (
-    <button onClick={onClick} style={{ padding:'5px 12px', background:active?hex2rgba(color,0.18):'rgba(12,10,7,0.85)', border:`1px solid ${active?color:'rgba(212,136,10,0.22)'}`, color:active?color:W55, fontFamily:FD, fontSize:10, fontWeight:active?700:400, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3, transition:'all 0.18s', whiteSpace:'nowrap' }}>
-      {label}
-    </button>
-  )
-}
-
-const EMPTY_JOB: Omit<Job,'id'|'applications'|'source'> = {
-  title:'', client:'', venue:'', date:'', startDate:'', startTime:'09:00', endTime:'17:00',
-  hourlyRate:120, totalSlots:4, filledSlots:0, status:'open', city:'', category:'', termsAndConditions:'',
-}
-
-const FALLBACK_CLIENTS: ClientEntry[] = [
-  {id:'f1',name:'Red Bull SA',email:''},{id:'f2',name:'AB InBev',email:''},{id:'f3',name:'Nike SA',email:''},
-  {id:'f4',name:'Vodacom',email:''},{id:'f5',name:'Nedbank',email:''},{id:'f6',name:'Castle Lager SA',email:''},
-  {id:'f7',name:'Standard Bank SA',email:''},{id:'f8',name:'MTN SA',email:''},{id:'f9',name:'Coca-Cola SA',email:''},
-  {id:'f10',name:'KFC South Africa',email:''},
-]
-
-export default function CRUDJobsLogic() {
-  const [jobs,setJobs]                   = useState<Job[]>(() => baseJobsToAdminJobs())
-  const [loading,setLoading]             = useState(false)
-  const [modal,setModal]                 = useState<'create'|'edit'|'promoters'|null>(null)
-  const [editing,setEditing]             = useState<Job|null>(null)
-  const [form,setForm]                   = useState<Omit<Job,'id'|'applications'|'source'>>(EMPTY_JOB)
-  const [statusFilter,setStatusFilter]   = useState<JobStatus|'all'>('all')
-  const [sourceFilter,setSourceFilter]   = useState<JobSource|'all'>('all')
-  const [search,setSearch]               = useState('')
-  const [deleting,setDeleting]           = useState<string|null>(null)
-  const [saving,setSaving]               = useState(false)
-  const [saveError,setSaveError]         = useState('')
-  const [reqGender,setReqGender]         = useState('Any Gender')
-  const [reqLanguages,setReqLanguages]   = useState('')
-  const [reqMinHeight,setReqMinHeight]   = useState('')
-  const [reqMinAge,setReqMinAge]         = useState('')
-  const [reqExperience,setReqExperience] = useState('None')
-  const [reqAttire,setReqAttire]         = useState('Smart Casual')
-  const [reqOther,setReqOther]           = useState('')
-  const [termsText,setTermsText]         = useState('')
-  const [termsAgreed,setTermsAgreed]     = useState(false)
-  const [clients,setClients]             = useState<ClientEntry[]>(FALLBACK_CLIENTS)
-  const [clientsLoaded,setClientsLoaded] = useState(false)
-  const [otherClient,setOtherClient]     = useState('')
-  const [promoterJob,setPromoterJob]     = useState<Job|null>(null)
-  const [matchedPromos,setMatchedPromos] = useState<PromoterMatch[]>([])
-  const [promoLoading,setPromoLoading]   = useState(false)
-  const [shortlistMsg,setShortlistMsg]   = useState('')
-  const [notifications,setNotifications] = useState<ShortlistEntry[]>([])
-
-  const resetRequirements = () => {
-    setReqGender('Any Gender'); setReqLanguages(''); setReqMinHeight(''); setReqMinAge('')
-    setReqExperience('None'); setReqAttire('Smart Casual'); setReqOther(''); setTermsText(''); setTermsAgreed(false)
-  }
-
-  useEffect(() => {
-    const token = localStorage.getItem('hg_token')
-    if (!token) { setClients(FALLBACK_CLIENTS); setClientsLoaded(true); return }
-    fetch(`${API_URL}/users?role=BUSINESS&status=approved`, { headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json' } })
-      .then(async r => r.ok ? (await r.json()) as any[] : [])
-      .then((data:any[]) => {
-        const biz: ClientEntry[] = data.filter((u:any)=>u.role?.toUpperCase()==='BUSINESS').map((u:any)=>({id:u.id,name:u.fullName||u.name,email:u.email}))
-        const names = new Set(biz.map(c=>c.name.toLowerCase()))
-        setClients([...biz,...FALLBACK_CLIENTS.filter(f=>!names.has(f.name.toLowerCase()))])
-        setClientsLoaded(true)
-      })
-      .catch(()=>{ setClients(FALLBACK_CLIENTS); setClientsLoaded(true) })
-  },[])
-
-  const loadJobs = useCallback(async () => {
-    const base = baseJobsToAdminJobs()
+  const saveAllocations = async () => {
+    setSavingAlloc(true); setAllocMsg('');
     try {
-      const res = await fetch(`${API_URL}/jobs`, { headers: authHeader() as any })
+      const toAdd    = [...selected].filter(id => !allocatedIds.has(id));
+      const toRemove = shifts.filter(s => !selected.has(s.promoterId));
+
+      await Promise.all(toAdd.map(promoterId =>
+        fetch(`${API}/shifts`, {
+          method: 'POST',
+          headers: { ...authHdr(), 'Content-Type': 'application/json' } as any,
+          body: JSON.stringify({ jobId: job.id, promoterId, status: 'SCHEDULED' }),
+        })
+      ));
+      await Promise.all(toRemove.map(s =>
+        fetch(`${API}/shifts/${s.id}`, { method: 'DELETE', headers: authHdr() as any })
+      ));
+
+      // Reload
+      const res = await fetch(`${API}/shifts/all`, { headers: authHdr() as any });
       if (res.ok) {
-        const data:any[] = await res.json()
-        const apiJobs:Job[] = data.map(j=>({
-          id:j.id,title:j.title,client:j.client,venue:j.venue,
-          date:j.date?.slice(0,10)||'',startTime:j.startTime||'09:00',endTime:j.endTime||'17:00',
-          hourlyRate:j.hourlyRate||0,totalSlots:j.totalSlots||0,filledSlots:j.filledSlots||0,
-          status:(j.status?.toLowerCase()||'open') as JobStatus,
-          city:j.address?.split(',')[0]||j.city||'',category:j.filters?.category||'',
-          tags:j.filters?.tags||[],lat:j.lat,lng:j.lng,source:'api' as JobSource,
-          applications:j.applications||[],termsAndConditions:j.termsAndConditions||j.filters?.termsAndConditions||'',
-        }))
-        const apiIds = new Set(apiJobs.map(j=>j.id))
-        setJobs([...apiJobs,...base.filter(b=>!apiIds.has(b.id))])
+        const all: any[] = await res.json();
+        const updated = all.filter(s => s.jobId === job.id);
+        setShifts(updated);
+        setSelected(new Set(updated.map(s => s.promoterId)));
       }
-    } catch { /* base jobs already visible */ }
-  },[])
+      setAllocMsg(`✓ Saved — ${toAdd.length} added, ${toRemove.length} removed`);
+      setTimeout(() => setAllocMsg(''), 3000);
+    } catch { setAllocMsg('Error saving — please retry'); }
+    setSavingAlloc(false);
+  };
 
-  useEffect(()=>{ loadJobs() },[loadJobs])
+  const sc = statusColor(job.status);
+  const shiftStatusColor = (s: string) => {
+    if (s === 'CHECKED_IN')                    return GREEN;
+    if (s === 'COMPLETED' || s === 'APPROVED') return TEAL;
+    if (s === 'NO_SHOW')                       return CORAL;
+    return WM;
+  };
 
-  useEffect(()=>{
-    const publicJobs = jobs.filter(j=>j.status==='open').map((j,idx)=>{
-      if (j.source==='base') { const base=ALL_JOBS.find(b=>b.id===j.id); if(base) return base }
-      return {
-        id:j.id,title:j.title,company:j.client,companyInitial:j.client.charAt(0),
-        companyColor:WARM_ACCENTS[idx%WARM_ACCENTS.length],location:`${j.venue}, ${j.city}`,
-        type:j.category||'Brand Activation',pay:`R ${j.hourlyRate.toLocaleString('en-ZA')}`,payPer:'per hour',
-        date:j.date?new Date(j.date).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):'',
-        jobDate:j.date,approvedAt:new Date().toISOString().slice(0,10),
-        slots:j.totalSlots,slotsLeft:j.totalSlots-j.filledSlots,duration:`${j.startTime}–${j.endTime}`,
-        tags:[j.category||'Admin Posted'],accentLine:WARM_ACCENTS[idx%WARM_ACCENTS.length],
-        gradient:`linear-gradient(135deg, rgba(232,168,32,0.10) 0%, rgba(196,151,58,0.04) 100%)`,
-        status:'open',termsAndConditions:j.termsAndConditions||'',
-      }
-    })
-    localStorage.setItem('hg_admin_jobs',JSON.stringify(publicJobs))
-    window.dispatchEvent(new Event('storage'))
-  },[jobs])
-
-  const save = async () => {
-    if (!form.title.trim()) { setSaveError('Job title is required'); return }
-    const resolvedClient = form.client === '__other__' ? otherClient.trim() : form.client.trim()
-    if (!resolvedClient) { setSaveError('Client is required'); return }
-    if (!form.date) { setSaveError('Start date is required'); return }
-    if (!termsAgreed) { setSaveError('Please confirm compliance with T&Cs before saving'); return }
-    setSaveError(''); setSaving(true)
-    try {
-      const dateISO = form.date ? new Date(form.date).toISOString() : new Date().toISOString()
-      const builtTags:string[] = []
-      if (reqGender&&reqGender!=='Any Gender') builtTags.push(reqGender)
-      if (reqLanguages) builtTags.push(reqLanguages)
-      if (reqMinHeight) builtTags.push(`Min ${reqMinHeight}cm`)
-      if (reqMinAge) builtTags.push(`${reqMinAge}+`)
-      if (reqExperience&&reqExperience!=='None') builtTags.push(reqExperience)
-      if (reqAttire&&reqAttire!=='Smart Casual') builtTags.push(reqAttire)
-      if (reqOther) builtTags.push(reqOther)
-      const payload = {
-        title:form.title, client:resolvedClient, brand:resolvedClient,
-        venue:form.venue||form.city,address:`${form.venue||form.city}, ${form.city}`,
-        lat:cityCoords(form.city)?.[0]??-26.2041,lng:cityCoords(form.city)?.[1]??28.0473,
-        date:dateISO,startTime:form.startTime,endTime:form.endTime,
-        hourlyRate:Number(form.hourlyRate)||0,totalSlots:Number(form.totalSlots)||1,
-        filledSlots:Number(form.filledSlots)||0,status:form.status.toUpperCase(),
-        termsAndConditions:termsText,
-        filters:{category:form.category||'',gender:reqGender,languages:reqLanguages,
-          minHeight:reqMinHeight,minAge:reqMinAge,experience:reqExperience,attire:reqAttire,
-          other:reqOther,tags:builtTags,termsAndConditions:termsText},
-      }
-      if (editing&&editing.source!=='base') {
-        const res = await fetch(`${API_URL}/jobs/${editing.id}`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); broadcastJobUpdate(editing!.id, 'updated'); closeModal() }
-        else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Update failed (${res.status})`) }
-      } else if (editing&&editing.source==='base') {
-        const stored:any[]=JSON.parse(localStorage.getItem('hg_admin_jobs')||'[]')
-        localStorage.setItem('hg_admin_jobs',JSON.stringify(stored.map((j:any)=>j.id===editing.id?{...j,...payload,id:editing.id}:j)))
-        setJobs(prev=>prev.map(j=>j.id===editing.id?{...j,...form,source:'admin'}:j)); closeModal()
-      } else {
-        const res = await fetch(`${API_URL}/jobs`,{method:'POST',headers:authHeader() as any,body:JSON.stringify(payload)})
-        if (res.ok) { await loadJobs(); broadcastJobUpdate('new', 'created'); closeModal() }
-        else { const err=await res.json().catch(()=>({})); setSaveError(err.error||`Create failed (${res.status})`) }
-      }
-    } catch { setSaveError('Network error — backend may be offline.') }
-    finally { setSaving(false) }
-  }
-
-  const handleDelete = async (id:string) => {
-    const job=jobs.find(j=>j.id===id)
-    if (job?.source==='base') { setJobs(prev=>prev.filter(j=>j.id!==id)) }
-    else { try { await fetch(`${API_URL}/jobs/${id}`,{method:'DELETE',headers:authHeader() as any}) } catch {} setJobs(prev=>prev.filter(j=>j.id!==id)) }
-    broadcastJobUpdate(id, 'deleted')
-    setDeleting(null)
-  }
-
-  const openPromoterPanel = async (job:Job) => {
-    setPromoterJob(job); setModal('promoters'); setPromoLoading(true); setShortlistMsg('')
-    try {
-      const [usersRes,appsRes] = await Promise.all([
-        fetch(`${API_URL}/users?role=PROMOTER&status=approved`,{headers:authHeader() as any}),
-        fetch(`${API_URL}/applications/job/${job.id}`,{headers:authHeader() as any}),
-      ])
-      const users:any[]=usersRes.ok?await usersRes.json():[]
-      const apps:any[]=appsRes.ok?await appsRes.json():[]
-      const appMap=new Map(apps.map((a:any)=>[a.promoterId,a]))
-      const jobCoords=job.lat&&job.lng?[job.lat,job.lng] as [number,number]:cityCoords(job.city)
-      setMatchedPromos(users.map((u:any)=>{
-        const uc=cityCoords(u.city||'')
-        return {id:u.id,name:u.fullName,email:u.email,city:u.city||'',reliabilityScore:u.reliabilityScore||0,
-          profilePhotoUrl:u.profilePhotoUrl,status:u.status,
-          distanceKm:jobCoords&&uc?Math.round(haversineKm(jobCoords[0],jobCoords[1],uc[0],uc[1])):undefined,
-          appStatus:appMap.get(u.id)?.status||null,appId:appMap.get(u.id)?.id}
-      }).sort((a,b)=>{const aA=a.appStatus?1:0,bA=b.appStatus?1:0;if(bA!==aA) return bA-aA;if(a.distanceKm!==undefined&&b.distanceKm!==undefined) return a.distanceKm-b.distanceKm;return (b.reliabilityScore||0)-(a.reliabilityScore||0)}))
-    } catch {}
-    setPromoLoading(false)
-  }
-
-  const allocatePromoter = async (promo:PromoterMatch,jobId:string) => {
-    try {
-      if (promo.appId) await fetch(`${API_URL}/applications/${promo.appId}/status`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify({status:'ALLOCATED'})})
-      else await fetch(`${API_URL}/applications`,{method:'POST',headers:authHeader() as any,body:JSON.stringify({jobId,promoterId:promo.id})})
-      if (promoterJob) await openPromoterPanel({...promoterJob,id:jobId}); await loadJobs()
-    } catch {}
-  }
-
-  const markSlotOpen = async (job:Job) => {
-    try {
-      const appsRes=await fetch(`${API_URL}/applications/job/${job.id}`,{headers:authHeader() as any})
-      const apps:any[]=appsRes.ok?await appsRes.json():[]
-      const standby=apps.filter((a:any)=>a.status==='STANDBY').slice(0,3)
-      if (!standby.length) { setShortlistMsg('No shortlisted promoters.'); return }
-      setNotifications(prev=>[...prev,...standby.map((app:any)=>({jobId:job.id,promoterId:app.promoterId,promoterName:app.promoter?.fullName||'Promoter',notifiedAt:new Date().toISOString(),message:'Slot available',type:'shortlisted' as const}))])
-      setShortlistMsg(`✓ ${standby.length} promoter${standby.length>1?'s':''} notified.`)
-      await fetch(`${API_URL}/jobs/${job.id}`,{method:'PUT',headers:authHeader() as any,body:JSON.stringify({status:'OPEN',filledSlots:Math.max(0,job.filledSlots-1)})})
-      await loadJobs()
-    } catch {}
-  }
-
-  const notifyNotNeeded = async (job:Job) => {
-    try {
-      const appsRes=await fetch(`${API_URL}/applications/job/${job.id}`,{headers:authHeader() as any})
-      const apps:any[]=appsRes.ok?await appsRes.json():[]
-      const standby=apps.filter((a:any)=>a.status==='STANDBY').slice(0,3)
-      setNotifications(prev=>[...prev,...standby.map((app:any)=>({jobId:job.id,promoterId:app.promoterId,promoterName:app.promoter?.fullName||'Promoter',notifiedAt:new Date().toISOString(),message:'Not needed',type:'not_needed' as const}))])
-      setShortlistMsg(`✓ ${standby.length} promoter${standby.length>1?'s':''} notified not needed.`)
-    } catch {}
-  }
-
-  const openCreate = () => { setForm(EMPTY_JOB); setEditing(null); setSaveError(''); resetRequirements(); setOtherClient(''); setModal('create') }
-  const openEdit = (job:Job) => {
-    setForm({...EMPTY_JOB,...job}); setEditing(job); setSaveError('')
-    const f=(job as any).filters||{}
-    setReqGender(f.gender||'Any Gender'); setReqLanguages(f.languages||''); setReqMinHeight(f.minHeight||'')
-    setReqMinAge(f.minAge||''); setReqExperience(f.experience||'None'); setReqAttire(f.attire||'Smart Casual')
-    setReqOther(f.other||''); setTermsText(f.termsAndConditions||job.termsAndConditions||''); setTermsAgreed(false); setOtherClient(''); setModal('edit')
-  }
-  const closeModal = () => { setModal(null); setEditing(null); setPromoterJob(null); setSaveError('') }
-  const F = (key:string,value:string|number) => setForm(prev=>({...prev,[key]:value}))
-
-  const filtered = jobs.filter(j => {
-    const sm=statusFilter==='all'||j.status===statusFilter
-    const om=sourceFilter==='all'||j.source===sourceFilter
-    const qm=!search||[j.title,j.client,j.city,j.venue].some(v=>v?.toLowerCase().includes(search.toLowerCase()))
-    return sm&&om&&qm
-  })
-
-  const counts = {
-    all:jobs.length,open:jobs.filter(j=>j.status==='open').length,
-    filled:jobs.filter(j=>j.status==='filled').length,completed:jobs.filter(j=>j.status==='completed').length,
-    cancelled:jobs.filter(j=>j.status==='cancelled').length,
-    base:jobs.filter(j=>j.source==='base').length,api:jobs.filter(j=>j.source==='api').length,
-  }
-
-  const inp: React.CSSProperties = { width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'12px 16px', fontFamily:FD, fontSize:13, color:W, outline:'none', borderRadius:3 }
-  const lbl: React.CSSProperties = { fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as const, color:W55, display:'block', marginBottom:7, fontFamily:FD }
+  const confirmed   = shifts.length;
+  const newCount    = [...selected].filter(id => !allocatedIds.has(id)).length;
+  const filteredP   = allPromoters.filter(p =>
+    !promoSearch || p.fullName?.toLowerCase().includes(promoSearch.toLowerCase()) || p.city?.toLowerCase().includes(promoSearch.toLowerCase())
+  );
 
   return (
-    <AdminLayout>
-      <div style={{ padding:'40px 48px', minWidth:0, overflowX:'hidden' }}>
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(10px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:BC, border:`1px solid ${BB}`, width:'100%', maxWidth:820, maxHeight:'92vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G3},${GL},${G3})` }} />
+        <button onClick={onClose} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:WM, fontSize:20, zIndex:10 }}>✕</button>
 
-        {/* HEADER */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:24 }}>
-          <div>
-            <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Operations · Jobs</div>
-            <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Manage Jobs</h1>
-            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>
-              <strong style={{ color:W85 }}>{jobs.length}</strong> total · <span style={{ color:GL }}>{counts.open} open</span> · <span style={{ color:W35 }}>{counts.base} base · {counts.api} live API</span>
-            </p>
-          </div>
-          <Btn onClick={openCreate}>+ New Job</Btn>
-        </div>
-
-        {/* STATS */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:24 }}>
-          {[{label:'Total Jobs',value:counts.all,color:GL},{label:'Open',value:counts.open,color:GL},{label:'Filled',value:counts.filled,color:G3},{label:'Completed',value:counts.completed,color:G},{label:'Cancelled',value:counts.cancelled,color:G2}].map((s,i)=>(
-            <div key={i} style={{ background:'rgba(20,16,5,0.6)', padding:'18px 20px', position:'relative' }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${s.color},${hex2rgba(s.color,0.3)})` }} />
-              <div style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W, lineHeight:1 }}>{s.value}</div>
-              <div style={{ fontSize:9, color:W55, marginTop:6, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:FD }}>{s.label}</div>
+        {/* Header */}
+        <div style={{ padding:'28px 36px 0' }}>
+          <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:6, fontWeight:700 }}>Job Details</div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+            <div>
+              <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:6 }}>{job.title}</h2>
+              <div style={{ display:'flex', gap:14, flexWrap:'wrap', fontSize:12, color:WM }}>
+                <span>🏢 {job.client}</span>
+                {job.venue && <span>📍 {job.venue}</span>}
+                {job.date && <span>📅 {new Date(job.date).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</span>}
+                {job.startTime && <span>🕐 {job.startTime} – {job.endTime}</span>}
+                <span style={{ color:GL, fontWeight:700 }}>R{job.hourlyRate}/hr · {job.totalSlots} slots</span>
+              </div>
             </div>
-          ))}
+            <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:sc, background:`${sc}18`, border:`1px solid ${sc}44`, padding:'3px 10px', borderRadius:2, flexShrink:0 }}>{job.status}</span>
+          </div>
+          {/* Slot bar */}
+          <div style={{ height:3, background:'rgba(255,255,255,0.06)', borderRadius:2, marginBottom:4, overflow:'hidden' }}>
+            <div style={{ height:'100%', width:`${job.totalSlots>0?(confirmed/job.totalSlots)*100:0}%`, background:`linear-gradient(90deg,${GL},${G})`, borderRadius:2 }} />
+          </div>
+          <div style={{ fontSize:10, color:WD, marginBottom:16 }}>{confirmed} confirmed · {job.totalSlots} total slots</div>
+
+          {/* Tabs */}
+          <div style={{ display:'flex', borderBottom:`1px solid ${BB}` }}>
+            <button onClick={()=>setTab('info')}
+              style={{ padding:'10px 24px', background:'none', border:'none', borderBottom:tab==='info'?`2px solid ${GL}`:'2px solid transparent', color:tab==='info'?GL:WD, fontFamily:FD, fontSize:11, fontWeight:tab==='info'?700:400, cursor:'pointer', letterSpacing:'0.1em' }}>
+              📋 Job Info
+            </button>
+            <button onClick={()=>setTab('promoters')}
+              style={{ padding:'10px 24px', background:'none', border:'none', borderBottom:tab==='promoters'?`2px solid ${GL}`:'2px solid transparent', color:tab==='promoters'?GL:WD, fontFamily:FD, fontSize:11, fontWeight:tab==='promoters'?700:400, cursor:'pointer', letterSpacing:'0.1em' }}>
+              👥 Select Promoters ({selected.size} selected)
+            </button>
+          </div>
         </div>
 
-        {/* FILTERS */}
-        <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-            {(['all','open','filled','completed','cancelled'] as const).map(f=>(
-              <FilterBtn key={f} label={f==='all'?`All (${counts.all})`:`${f} (${counts[f as JobStatus]??0})`} active={statusFilter===f} color={f==='all'?GL:STATUS_COLOR[f as JobStatus]||GL} onClick={()=>setStatusFilter(f)} />
-            ))}
-          </div>
-          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-            <div style={{ display:'flex', gap:4 }}>
-              {(['all','base','api'] as const).map(s=>(
-                <FilterBtn key={s} label={s==='all'?'All Sources':s==='base'?`Base (${counts.base})`:`API (${counts.api})`} active={sourceFilter===s} color={G3} onClick={()=>setSourceFilter(s)} />
+        {/* ── TAB: Job Info ── */}
+        {tab === 'info' && (
+          <div style={{ padding:'24px 36px 32px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB, marginBottom:24 }}>
+              {[
+                { label:'Client',       value:job.client },
+                { label:'Brand',        value:job.brand  },
+                { label:'Venue',        value:job.venue  },
+                { label:'Full Address', value:displayAddress(job) },
+                { label:'Date',         value:job.date ? new Date(job.date).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'long',year:'numeric'}) : '—' },
+                { label:'Time',         value:`${job.startTime} – ${job.endTime}` },
+                { label:'Rate',         value:`R${job.hourlyRate}/hr` },
+                { label:'Slots',        value:`${job.filledSlots} filled of ${job.totalSlots}` },
+                { label:'Status',       value:job.status },
+                { label:'Coordinates',  value:job.lat ? `${job.lat.toFixed(4)}, ${job.lng?.toFixed(4)}` : 'Not geocoded' },
+              ].filter(r=>r.value).map(r=>(
+                <div key={r.label} style={{ background:D2, padding:'12px 16px' }}>
+                  <div style={{ fontSize:9, color:WD, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>{r.label}</div>
+                  <div style={{ fontSize:13, color:W, fontWeight:600 }}>{r.value||'—'}</div>
+                </div>
               ))}
             </div>
-            <div style={{ position:'relative' }}>
-              <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W35, fontSize:12, pointerEvents:'none' }}>⌕</span>
-              <input placeholder="Search jobs…" value={search} onChange={e=>setSearch(e.target.value)}
-                style={{ background:D2, border:`1px solid ${BB}`, padding:'7px 14px 7px 30px', color:W, fontFamily:FD, fontSize:11, outline:'none', borderRadius:3, width:180 }}
-                onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
-            </div>
-          </div>
-        </div>
 
-        {/* NOTIFICATIONS */}
-        {notifications.length>0&&(
-          <div style={{ background:hex2rgba(GL,0.06), border:`1px solid ${BB}`, borderRadius:4, padding:'14px 20px', marginBottom:20 }}>
-            <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD, marginBottom:10 }}>Recent Notifications</div>
-            {notifications.slice(-5).reverse().map((n,i)=>(
-              <div key={i} style={{ fontSize:11, color:W55, fontFamily:FD, display:'flex', gap:12, marginBottom:4 }}>
-                <span style={{ color:n.type==='shortlisted'?GL:G2, fontWeight:700 }}>{n.type==='shortlisted'?'⏳ Shortlisted':'✗ Not Needed'}</span>
-                <span>{n.promoterName}</span>
-                <span style={{ color:W35 }}>{new Date(n.notifiedAt).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</span>
+            {job.lat && job.lng && (
+              <div style={{ marginBottom:24 }}>
+                <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, fontWeight:700, marginBottom:8 }}>Venue Location</div>
+                <iframe width="100%" height="180" style={{ border:0, borderRadius:6, display:'block' }} loading="lazy" allowFullScreen
+                  src={`https://www.google.com/maps?q=${job.lat},${job.lng}&z=16&output=embed`} />
+                <a href={`https://www.google.com/maps?q=${job.lat},${job.lng}`} target="_blank" rel="noopener noreferrer"
+                  style={{ display:'inline-block', marginTop:6, fontSize:11, color:GL, textDecoration:'none' }}>Open in Google Maps →</a>
               </div>
-            ))}
+            )}
+
+            <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, fontWeight:700, marginBottom:12 }}>
+              Promoters on This Job ({shifts.length})
+            </div>
+            {loadingShifts ? (
+              <div style={{ padding:'16px', textAlign:'center', color:WD, fontSize:12 }}>Loading shifts…</div>
+            ) : shifts.length === 0 ? (
+              <div style={{ padding:'14px 16px', background:D2, border:`1px solid ${BB}`, borderRadius:3, fontSize:12, color:WD, marginBottom:16 }}>
+                No promoters allocated yet. Use the <strong style={{color:GL}}>Select Promoters</strong> tab to add some.
+              </div>
+            ) : shifts.map(shift => {
+              const sc2      = shiftStatusColor(shift.status);
+              const inSelfie = selfieUrl(shift.selfieInUrl  || shift.checkInSelfieUrl);
+              const outSelfie= selfieUrl(shift.selfieOutUrl || shift.checkOutSelfieUrl);
+              const isLate   = shift.issueReport?.startsWith('LATE_CHECK_IN:');
+              const lateMin  = isLate ? shift.issueReport.replace('LATE_CHECK_IN:','') : null;
+              const isExp    = selectedShift?.id === shift.id;
+              return (
+                <div key={shift.id} style={{ marginBottom:8, border:`1px solid ${isExp?GL:BB}`, borderRadius:3, overflow:'hidden' }}>
+                  <div onClick={()=>setSelectedShift(isExp?null:shift)}
+                    style={{ padding:'12px 16px', background:isExp?'rgba(232,168,32,0.06)':D2, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}
+                    onMouseEnter={e=>{if(!isExp)(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'}}
+                    onMouseLeave={e=>{if(!isExp)(e.currentTarget as HTMLElement).style.background=D2}}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', border:`2px solid ${sc2}`, flexShrink:0 }}>
+                        {(inSelfie||shift.promoter?.profilePhotoUrl||shift.promoter?.headshotUrl)
+                          ? <img src={inSelfie||shift.promoter?.profilePhotoUrl||shift.promoter?.headshotUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.target as HTMLImageElement).style.display='none'} />
+                          : <div style={{ width:'100%', height:'100%', background:'rgba(232,168,32,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color:GL, fontFamily:FD }}>{(shift.promoter?.fullName||'?').charAt(0)}</div>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{shift.promoter?.fullName||'Unknown'}</div>
+                        <div style={{ fontSize:10, color:WM }}>{shift.promoter?.email}</div>
+                        {isLate && <div style={{ fontSize:9, color:AMBER, fontWeight:700 }}>Late {lateMin} min</div>}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      {shift.checkInTime && <div style={{ textAlign:'right' }}><div style={{ fontSize:9, color:WD, textTransform:'uppercase' }}>Check-in</div><div style={{ fontSize:11, color:W, fontWeight:600 }}>{new Date(shift.checkInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div></div>}
+                      {shift.totalHours!=null && <div style={{ textAlign:'right' }}><div style={{ fontSize:9, color:WD, textTransform:'uppercase' }}>Hours</div><div style={{ fontSize:11, color:GL, fontWeight:700 }}>{shift.totalHours.toFixed(2)}h</div></div>}
+                      <span style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', color:sc2, background:`${sc2}18`, border:`1px solid ${sc2}44`, padding:'3px 8px', borderRadius:2 }}>{shift.status}</span>
+                      <span style={{ color:isExp?GL:WD, fontSize:11 }}>{isExp?'▲':'▼'}</span>
+                    </div>
+                  </div>
+                  {isExp && (
+                    <div style={{ padding:'16px 18px', background:'rgba(20,16,5,0.6)', borderTop:`1px solid ${BB}` }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:12 }}>
+                        {[
+                          {label:'Check-in',  value:shift.checkInTime  ?new Date(shift.checkInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—'},
+                          {label:'Check-out', value:shift.checkOutTime ?new Date(shift.checkOutTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}):'—'},
+                          {label:'Hours',     value:shift.totalHours!=null?shift.totalHours.toFixed(2)+'h':'—'},
+                          {label:'Earnings',  value:shift.totalHours&&job.hourlyRate?`R${(shift.totalHours*job.hourlyRate).toFixed(2)}`:'—', accent:GL},
+                        ].map(r=>(
+                          <div key={r.label} style={{ background:'rgba(212,136,10,0.05)', border:`1px solid ${BB}`, padding:'9px 11px', borderRadius:3 }}>
+                            <div style={{ fontSize:8, color:WD, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:2 }}>{r.label}</div>
+                            <div style={{ fontSize:13, fontWeight:700, color:(r as any).accent||W, fontFamily:FD }}>{r.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {shift.checkInLat && shift.checkInLng && (
+                        <div style={{ fontSize:11, color:WD, marginBottom:12 }}>
+                          Check-in: {shift.checkInLat.toFixed(5)}, {shift.checkInLng.toFixed(5)}
+                          <a href={`https://www.google.com/maps?q=${shift.checkInLat},${shift.checkInLng}`} target="_blank" rel="noopener noreferrer" style={{ color:GL, marginLeft:8, fontSize:10 }}>Map →</a>
+                        </div>
+                      )}
+                      {(inSelfie||outSelfie) && (
+                        <div style={{ display:'grid', gridTemplateColumns:inSelfie&&outSelfie?'1fr 1fr':'1fr', gap:12 }}>
+                          {inSelfie && <div><div style={{ fontSize:9, color:GREEN, fontWeight:700, textTransform:'uppercase', marginBottom:6 }}>Check-in selfie</div><img src={inSelfie} alt="" style={{ width:'100%', height:160, objectFit:'cover', borderRadius:6, border:'1px solid rgba(74,222,128,0.3)' }} onError={e=>(e.target as HTMLImageElement).style.display='none'} />{shift.checkInTime&&<div style={{ fontSize:10, color:WD, marginTop:4 }}>{new Date(shift.checkInTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}{isLate&&<span style={{ color:AMBER, marginLeft:8 }}>· {lateMin} min late</span>}</div>}</div>}
+                          {outSelfie && <div><div style={{ fontSize:9, color:CORAL, fontWeight:700, textTransform:'uppercase', marginBottom:6 }}>Check-out selfie</div><img src={outSelfie} alt="" style={{ width:'100%', height:160, objectFit:'cover', borderRadius:6, border:'1px solid rgba(196,97,74,0.4)' }} onError={e=>(e.target as HTMLImageElement).style.display='none'} />{shift.checkOutTime&&<div style={{ fontSize:10, color:WD, marginTop:4 }}>{new Date(shift.checkOutTime).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</div>}</div>}
+                        </div>
+                      )}
+                      {!inSelfie && !outSelfie && <div style={{ fontSize:11, color:WD, padding:'8px 0' }}>No selfies uploaded yet.</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {job.termsAndConditions && (
+              <div style={{ marginTop:16 }}>
+                <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:GL, fontWeight:700, marginBottom:8 }}>Terms & Conditions</div>
+                <div style={{ padding:'12px 14px', background:D2, border:`1px solid ${BB}`, borderRadius:3, fontSize:12, color:WM, lineHeight:1.7 }}>{job.termsAndConditions}</div>
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:12, marginTop:24 }}>
+              <button onClick={onEdit} style={{ flex:2, padding:'12px', background:`linear-gradient(135deg,${GL},${G})`, border:'none', color:B, fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:2 }}>Edit Job</button>
+              <button onClick={onDelete} style={{ flex:1, padding:'12px', background:`${CORAL}18`, border:`1px solid ${CORAL}`, color:CORAL, fontFamily:FB, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:2 }}>Delete</button>
+            </div>
           </div>
         )}
 
-        {/* TABLE */}
-        <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden', width:'100%' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
-            <colgroup>
-              <col style={{ width:'5%'  }} />
-              <col style={{ width:'22%' }} />
-              <col style={{ width:'11%' }} />
-              <col style={{ width:'12%' }} />
-              <col style={{ width:'9%'  }} />
-              <col style={{ width:'8%'  }} />
-              <col style={{ width:'7%'  }} />
-              <col style={{ width:'8%'  }} />
-              <col style={{ width:'7%'  }} />
-              <col style={{ width:'11%' }} />
-            </colgroup>
-            <thead>
-              <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
-                {['ID','Title / Category','Client','Location','Date','Pay','Slots','Status','Source','Actions'].map((h,i)=>(
-                  <th key={i} style={{ padding:'12px 12px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:W55, fontFamily:FD, whiteSpace:'nowrap', overflow:'hidden' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((job,i)=>{
-                const isBase = job.source==='base'
-                return (
-                  <tr key={job.id}
-                    style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', transition:'background 0.15s', background:isBase?hex2rgba(GL,0.01):'transparent' }}
-                    onMouseEnter={e=>e.currentTarget.style.background=BB2}
-                    onMouseLeave={e=>e.currentTarget.style.background=isBase?hex2rgba(GL,0.01):'transparent'}>
+        {/* ── TAB: Select Promoters ── */}
+        {tab === 'promoters' && (
+          <div style={{ padding:'24px 36px 32px' }}>
+            <p style={{ fontSize:13, color:WM, marginBottom:16, fontFamily:FB }}>
+              Select approved promoters to allocate to this job. Click a card to toggle selection, then save.
+            </p>
 
-                    <td style={{ padding:'14px 12px', fontSize:9, color:W35, fontFamily:MONO, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.id}</td>
+            {allocMsg && (
+              <div style={{ padding:'10px 14px', background:allocMsg.startsWith('✓')?'rgba(74,222,128,0.1)':'rgba(196,97,74,0.1)', border:`1px solid ${allocMsg.startsWith('✓')?'rgba(74,222,128,0.4)':'rgba(196,97,74,0.4)'}`, borderRadius:3, fontSize:12, color:allocMsg.startsWith('✓')?GREEN:CORAL, marginBottom:16 }}>
+                {allocMsg}
+              </div>
+            )}
 
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD, lineHeight:1.3, marginBottom:2 }}>{job.title}</div>
-                      {job.category&&<div style={{ fontSize:9, color:W55, fontFamily:FD, marginBottom:3 }}>{job.category}</div>}
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-                        {(job.tags&&job.tags.length>0?job.tags:(job as any).filters?.tags||[]).slice(0,2).map((t:string,ti:number)=>(
-                          <span key={ti} style={{ fontSize:8, color:GL, background:hex2rgba(GL,0.08), border:`1px solid ${hex2rgba(GL,0.22)}`, padding:'1px 6px', borderRadius:2, fontFamily:FD }}>{t}</span>
-                        ))}
+            {/* Search */}
+            <input placeholder="Search by name or city…" value={promoSearch} onChange={e=>setPromoSearch(e.target.value)}
+              style={{ ...inp, marginBottom:16, maxWidth:320 }}
+              onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+
+            {loadingPromos ? (
+              <div style={{ padding:'40px', textAlign:'center', color:WD, fontSize:13 }}>Loading promoters…</div>
+            ) : allPromoters.length === 0 ? (
+              <div style={{ padding:'40px', textAlign:'center', color:WD, fontSize:13 }}>No approved promoters found yet.</div>
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:10, marginBottom:24 }}>
+                {filteredP.map(p => {
+                  const isSel   = selected.has(p.id);
+                  const isAlloc = allocatedIds.has(p.id);
+                  const photo   = p.headshotUrl || p.profilePhotoUrl;
+                  return (
+                    <div key={p.id} onClick={()=>togglePromoter(p.id)}
+                      style={{ padding:'14px', background:isSel?'rgba(232,168,32,0.08)':D2, border:`2px solid ${isSel?GL:BB}`, borderRadius:3, cursor:'pointer', transition:'all 0.18s', position:'relative' }}
+                      onMouseEnter={e=>{if(!isSel)(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.03)'}}
+                      onMouseLeave={e=>{if(!isSel)(e.currentTarget as HTMLElement).style.background=D2}}>
+                      {/* Tick */}
+                      <div style={{ position:'absolute', top:8, right:8, width:18, height:18, borderRadius:'50%', background:isSel?GL:'transparent', border:`2px solid ${isSel?GL:BB}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:B, fontWeight:800, transition:'all 0.18s' }}>
+                        {isSel&&'✓'}
                       </div>
-                    </td>
-
-                    <td style={{ padding:'14px 12px', fontSize:11, color:W85, fontFamily:FD, verticalAlign:'middle', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {job.client}
-                      {job.clientId && <div style={{ fontSize:8, color:GL, marginTop:2 }}>Registered Business</div>}
-                    </td>
-
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:11, color:W85, fontFamily:FD, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.city||job.location?.split(',').slice(-1)[0]?.trim()}</div>
-                      <div style={{ fontSize:9, color:W55, fontFamily:FD, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{job.venue}</div>
-                    </td>
-
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:11, color:W85, fontFamily:FD, fontWeight:600, whiteSpace:'nowrap' }}>
-                        {job.jobDate||job.date?new Date(job.jobDate||job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}):'—'}
+                      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                        <div style={{ width:40, height:40, borderRadius:'50%', overflow:'hidden', border:`2px solid ${isSel?GL:BB}`, flexShrink:0 }}>
+                          {photo
+                            ? <img src={photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>(e.target as HTMLImageElement).style.display='none'} />
+                            : <div style={{ width:'100%', height:'100%', background:'rgba(232,168,32,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:700, color:GL, fontFamily:FD }}>{(p.fullName||'?').charAt(0)}</div>
+                          }
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:W, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>{p.fullName}</div>
+                          <div style={{ fontSize:10, color:WD }}>{p.city||'—'}</div>
+                        </div>
                       </div>
-                      <div style={{ fontSize:9, color:W55, fontFamily:FD, marginTop:2, whiteSpace:'nowrap' }}>{isBase&&job.duration?job.duration:`${job.startTime}–${job.endTime}`}</div>
-                    </td>
+                      {isAlloc && isSel  && <div style={{ fontSize:9, color:TEAL,  fontWeight:700 }}>✓ Already allocated</div>}
+                      {isAlloc && !isSel && <div style={{ fontSize:9, color:CORAL, fontWeight:700 }}>Will be removed</div>}
+                      {!isAlloc && isSel && <div style={{ fontSize:9, color:GREEN, fontWeight:700 }}>+ Will be added</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-                    <td style={{ padding:'14px 12px', fontSize:13, color:GL, fontWeight:700, fontFamily:FD, verticalAlign:'middle', whiteSpace:'nowrap' }}>
-                      {isBase?job.pay:`R${job.hourlyRate}/hr`}
-                    </td>
-
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}>
-                      <div style={{ fontSize:12, color:W85, fontFamily:FD, fontWeight:600 }}>{job.filledSlots}/{job.totalSlots}</div>
-                      <div style={{ marginTop:5, height:3, background:'rgba(212,136,10,0.22)', borderRadius:2, width:36 }}>
-                        <div style={{ height:'100%', borderRadius:2, background:STATUS_COLOR[job.status], width:`${job.totalSlots>0?(job.filledSlots/job.totalSlots)*100:0}%` }} />
-                      </div>
-                    </td>
-
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}><StatusBadge status={job.status} /></td>
-                    <td style={{ padding:'14px 12px', verticalAlign:'middle' }}><SourceBadge source={job.source} /></td>
-
-                    <td style={{ padding:'10px 12px', verticalAlign:'middle' }} onClick={e=>e.stopPropagation()}>
-                      <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                        <button onClick={() => openEdit(job)} title="Edit job"
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:700, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
-                          onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(GL,0.20);e.currentTarget.style.borderColor=GL}}
-                          onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(GL,0.10);e.currentTarget.style.borderColor=hex2rgba(GL,0.35)}}>
-                          ✎ Edit
-                        </button>
-                        <button onClick={() => setDeleting(job.id)} title={isBase ? 'Hide job' : 'Delete job'}
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:600, color:'rgba(220,175,130,0.90)', background:'rgba(139,90,26,0.12)', border:`1px solid rgba(139,90,26,0.40)`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
-                          onMouseEnter={e=>{e.currentTarget.style.background='rgba(139,90,26,0.25)';e.currentTarget.style.borderColor='rgba(139,90,26,0.65)'}}
-                          onMouseLeave={e=>{e.currentTarget.style.background='rgba(139,90,26,0.12)';e.currentTarget.style.borderColor='rgba(139,90,26,0.40)'}}>
-                          🗑 {isBase ? 'Hide' : 'Delete'}
-                        </button>
-                        <button onClick={() => openPromoterPanel(job)} title="Manage staff"
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', fontSize:10, fontWeight:600, color:G4, background:hex2rgba(G4,0.08), border:`1px solid ${hex2rgba(G4,0.30)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
-                          onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(G4,0.18);e.currentTarget.style.borderColor=G4}}
-                          onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(G4,0.08);e.currentTarget.style.borderColor=hex2rgba(G4,0.30)}}>
-                          👥 Staff
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {filtered.length===0&&<div style={{ padding:40, textAlign:'center', color:W55, fontSize:13, fontFamily:FD }}>No jobs match your filters.</div>}
-        </div>
-
-        <div style={{ marginTop:10, fontSize:11, color:W35, fontFamily:FD }}>
-          Showing <strong style={{ color:W55 }}>{filtered.length}</strong> of <strong style={{ color:W55 }}>{jobs.length}</strong> jobs
-        </div>
-
-        {/* DELETE CONFIRM */}
-        {deleting&&(
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300 }} onClick={e=>e.target===e.currentTarget&&setDeleting(null)}>
-            <div style={{ background:D2, border:`1px solid ${hex2rgba(G2,0.7)}`, padding:'36px 40px', maxWidth:400, width:'100%', position:'relative', borderRadius:4 }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:G2, borderRadius:'4px 4px 0 0' }} />
-              <h3 style={{ fontFamily:FD, fontSize:22, color:W, marginBottom:12 }}>
-                {jobs.find(j=>j.id===deleting)?.source==='base' ? 'Hide Job?' : 'Delete Job?'}
-              </h3>
-              <p style={{ fontSize:13, color:W55, marginBottom:8, lineHeight:1.7, fontFamily:FD }}>
-                <strong style={{ color:W85 }}>{jobs.find(j=>j.id===deleting)?.title}</strong>
-              </p>
-              <p style={{ fontSize:13, color:W55, marginBottom:28, lineHeight:1.7, fontFamily:FD }}>
-                {jobs.find(j=>j.id===deleting)?.source==='base'
-                  ? 'This base job will be hidden from this session.'
-                  : 'This job will be permanently removed from the platform. This cannot be undone.'}
-              </p>
-              <div style={{ display:'flex', gap:12 }}>
-                <button onClick={()=>setDeleting(null)} style={{ flex:1, padding:'12px', background:'transparent', border:`1px solid ${BB}`, color:W55, fontFamily:FD, fontSize:12, cursor:'pointer', borderRadius:3 }}>Cancel</button>
-                <button onClick={()=>handleDelete(deleting)} style={{ flex:1, padding:'12px', background:hex2rgba(G2,0.25), border:`1px solid ${G2}`, color:'#D8C0A0', fontFamily:FD, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:3 }}>
-                  {jobs.find(j=>j.id===deleting)?.source==='base' ? 'Hide' : 'Delete'}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:16, borderTop:`1px solid ${BB}` }}>
+              <div style={{ fontSize:12, color:WM }}>
+                {confirmed} confirmed · {newCount>0?`+${newCount} new`:' no new'} · {job.totalSlots} total slots
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={onClose} style={{ padding:'10px 18px', background:'transparent', border:`1px solid ${BB}`, color:WM, fontFamily:FB, fontSize:12, cursor:'pointer', borderRadius:2 }}>Close</button>
+                <button onClick={saveAllocations} disabled={savingAlloc}
+                  style={{ padding:'10px 24px', background:savingAlloc?BB:`linear-gradient(135deg,${GL},${G})`, border:'none', color:savingAlloc?WD:B, fontFamily:FD, fontSize:12, fontWeight:700, cursor:savingAlloc?'not-allowed':'pointer', borderRadius:2 }}>
+                  {savingAlloc?'Saving…':'Save Allocations'}
                 </button>
               </div>
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
 
-        {/* CREATE / EDIT MODAL */}
-        {(modal==='create'||modal==='edit')&&(
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-            <div style={{ background:D2, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:640, maxHeight:'90vh', overflowY:'auto', position:'relative', borderRadius:4 }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${GL},${G5})`, borderRadius:'4px 4px 0 0' }} />
-              <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
-              <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontFamily:FD, fontWeight:700 }}>{modal==='create'?'New Job':editing?.source==='base'?'Customise Base Job':'Edit Job'}</div>
-              <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:16 }}>{modal==='create'?'Create a New Job':editing?.title}</h2>
-              {editing?.source==='base'&&<div style={{ padding:'10px 14px', background:hex2rgba(GL,0.06), border:`1px solid ${hex2rgba(GL,0.22)}`, marginBottom:20, fontSize:12, color:GL, fontFamily:FD, borderRadius:3 }}>ℹ️ Editing a base job creates an admin override.</div>}
-              <div style={{ display:'flex', flexDirection:'column', gap:18, marginTop:16 }}>
-                <div><label style={lbl}>Job Title</label><input type="text" value={form.title} onChange={e=>F('title',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                <div>
-                  <label style={lbl}>Client{!clientsLoaded&&<span style={{ color:W35, fontWeight:400, marginLeft:8, fontSize:9 }}>Loading…</span>}</label>
-                  <select value={form.client} onChange={e=>F('client',e.target.value)} style={{ ...inp, background:D3, cursor:'pointer' }}>
-                    <option value="">— Select client —</option>
-                    {clients.filter(c=>c.email).length>0&&<optgroup label="── Registered Clients ──">{clients.filter(c=>c.email).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</optgroup>}
-                    <optgroup label="── Other Clients ──">{clients.filter(c=>!c.email).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</optgroup>
-                    <option value="__other__">Other (type below)</option>
-                  </select>
-                  {form.client==='__other__'&&(
-                    <input type="text" autoFocus placeholder="Enter client name…" value={otherClient} onChange={e=>setOtherClient(e.target.value)}
-                      style={{ ...inp,marginTop:8 }} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
-                  )}
-                </div>
-                <div><label style={lbl}>Category</label><select value={form.category||''} onChange={e=>F('category',e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}><option value="">— Select —</option>{CATEGORY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <div><label style={lbl}>Venue</label><input type="text" value={form.venue} onChange={e=>F('venue',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                  <div><label style={lbl}>City</label><input type="text" value={form.city} onChange={e=>F('city',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <div><label style={lbl}>Start Date *</label><input type="date" value={form.date} onChange={e=>F('date',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                  <div><label style={lbl}>End Date</label><input type="date" value={form.startDate||''} min={form.date||''} onChange={e=>F('startDate',e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  {[{label:'Start Time',key:'startTime',type:'time'},{label:'End Time',key:'endTime',type:'time'},{label:'Hourly Rate (R)',key:'hourlyRate',type:'number'},{label:'Total Slots',key:'totalSlots',type:'number'}].map(({label,key,type})=>(
-                    <div key={key}><label style={lbl}>{label}</label><input type={type} value={(form as any)[key]} onChange={e=>F(key,type==='number'?+e.target.value:e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                  ))}
-                </div>
-                <div><label style={lbl}>Status</label><select value={form.status} onChange={e=>F('status',e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}>{(['open','filled','completed','cancelled'] as JobStatus[]).map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}</select></div>
-                {modal==='edit'&&<div><label style={lbl}>Filled Slots</label><input type="number" min={0} max={form.totalSlots} value={form.filledSlots} onChange={e=>F('filledSlots',+e.target.value)} style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>}
-                <div style={{ marginTop:4 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}><div style={{ flex:1, height:1, background:BB }}/><span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontFamily:FD, whiteSpace:'nowrap' }}>Promoter Requirements</span><div style={{ flex:1, height:1, background:BB }}/></div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-                    <div><label style={lbl}>Gender Preference</label><select value={reqGender} onChange={e=>setReqGender(e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}>{['Any Gender','Female','Male','Non-binary Inclusive'].map(o=><option key={o}>{o}</option>)}</select></div>
-                    <div><label style={lbl}>Languages Required</label><input type="text" value={reqLanguages} onChange={e=>setReqLanguages(e.target.value)} placeholder="e.g. English, Zulu" style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                    <div><label style={lbl}>Min Height (cm)</label><input type="number" value={reqMinHeight} onChange={e=>setReqMinHeight(e.target.value)} placeholder="165" style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                    <div><label style={lbl}>Min Age</label><input type="number" value={reqMinAge} onChange={e=>setReqMinAge(e.target.value)} placeholder="18" style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                    <div><label style={lbl}>Experience</label><select value={reqExperience} onChange={e=>setReqExperience(e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}>{['None','6 months+','1 year+','2+ years','3+ years'].map(o=><option key={o}>{o}</option>)}</select></div>
-                    <div><label style={lbl}>Attire</label><select value={reqAttire} onChange={e=>setReqAttire(e.target.value)} style={{ ...inp,background:D3,cursor:'pointer' }}>{['Smart Casual','Formal','Brand Uniform Provided','All Black','Brand Specific'].map(o=><option key={o}>{o}</option>)}</select></div>
-                  </div>
-                  <div style={{ marginTop:14 }}><label style={lbl}>Additional Requirements</label><input type="text" value={reqOther} onChange={e=>setReqOther(e.target.value)} placeholder="e.g. Own transport" style={inp} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} /></div>
-                </div>
-                <div>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}><div style={{ flex:1, height:1, background:BB }}/><span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontFamily:FD, whiteSpace:'nowrap' }}>Terms & Conditions</span><div style={{ flex:1, height:1, background:BB }}/></div>
-                  <label style={lbl}>Campaign-Specific Terms</label>
-                  <textarea value={termsText} onChange={e=>setTermsText(e.target.value)} rows={5} placeholder="Enter any additional terms specific to this job…" style={{ ...inp,resize:'vertical' as const,lineHeight:1.6 }} onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
-                  <label style={{ display:'flex', alignItems:'flex-start', gap:10, cursor:'pointer', marginTop:12, padding:'12px 14px', background:BB2, border:`1px solid ${BB}`, borderRadius:3 }}>
-                    <input type="checkbox" checked={termsAgreed} onChange={e=>setTermsAgreed(e.target.checked)} style={{ marginTop:2, accentColor:GL, width:15, height:15, flexShrink:0, cursor:'pointer' }} />
-                    <span style={{ fontSize:12, color:W55, lineHeight:1.6, fontFamily:FD }}>I confirm this job complies with Honey Group platform standards and all applicable South African labour regulations.</span>
-                  </label>
-                </div>
-                {saveError&&<div style={{ padding:'10px 14px', background:'rgba(139,90,26,0.2)', border:'1px solid rgba(139,90,26,0.6)', borderRadius:3, fontSize:12, color:'#D8B888', fontFamily:FD }}>⚠ {saveError}</div>}
-                <Btn onClick={save} disabled={saving}>{saving?'Saving…':modal==='create'?'Create Job':'Save Changes'}</Btn>
-              </div>
-            </div>
+// ── Inner page content ────────────────────────────────────────────────────────
+const JobsPageContent: React.FC = () => {
+  const [jobs,     setJobs]     = useState<Job[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [modal,    setModal]    = useState<'create'|'edit'|'view'|null>(null);
+  const [editing,  setEditing]  = useState<Job|null>(null);
+  const [form,     setForm]     = useState({...EMPTY_FORM});
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState('');
+  const [search,   setSearch]   = useState('');
+  const [statusF,  setStatusF]  = useState('all');
+  const [clients,  setClients]  = useState<Client[]>([]);
+  const [deleting, setDeleting] = useState<string|null>(null);
+
+  const loadJobs = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/jobs`, { headers: authHdr() as any });
+      if (res.ok) setJobs(await res.json());
+    } catch(e){ console.error(e); }
+    setLoading(false);
+  };
+
+  const loadClients = async () => {
+    try {
+      const res = await fetch(`${API}/users?role=BUSINESS`, { headers: authHdr() as any });
+      if (res.ok) {
+        const data = await res.json();
+        setClients(data.map((u:any) => ({ id: u.id, name: u.fullName, email: u.email })));
+      }
+    } catch(e){ console.error(e); }
+  };
+
+  useEffect(() => { loadJobs(); loadClients(); }, []);
+
+  const F = (key: string, val: any) => setForm(f => ({ ...f, [key]: val }));
+
+  const buildAddress = (f: typeof form) => {
+    const parts = [
+      f.streetNumber && f.streetName ? `${f.streetNumber} ${f.streetName}` : f.streetName || '',
+      f.suburb, f.city, f.postalCode,
+    ].filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const geocodeAddress = async (address: string): Promise<{lat:number;lng:number}|null> => {
+    try {
+      const q = encodeURIComponent(`${address}, South Africa`);
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      if (d[0]) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
+    } catch { /* silent */ }
+    return null;
+  };
+
+  const openCreate = () => {
+    setForm({...EMPTY_FORM}); setEditing(null); setError(''); setModal('create');
+  };
+
+  const openEdit = (job: Job) => {
+    setForm({
+      title: job.title, client: job.client, clientId: job.clientId || '',
+      brand: job.brand || '', venue: job.venue || '',
+      streetNumber: job.streetNumber || '', streetName: job.streetName || '',
+      suburb: job.suburb || '', city: job.city || '', postalCode: job.postalCode || '',
+      date:    job.date    ? job.date.slice(0,10)    : '',
+      endDate: job.endDate ? job.endDate.slice(0,10) : '',
+      startTime: job.startTime || '09:00', endTime: job.endTime || '17:00',
+      hourlyRate: String(job.hourlyRate||''), totalSlots: String(job.totalSlots||4),
+      filledSlots: String(job.filledSlots||0), status: job.status||'OPEN',
+      filters: job.filters||{}, termsAndConditions: job.termsAndConditions||'',
+    });
+    setEditing(job); setError(''); setModal('edit');
+  };
+
+  const save = async () => {
+    if (!form.title || !form.client || !form.date) { setError('Title, client and date are required.'); return; }
+    if (!form.hourlyRate || Number(form.hourlyRate) <= 0) { setError('Hourly rate is required and must be greater than 0.'); return; }
+    setSaving(true); setError('');
+
+    let clientId = form.clientId || '';
+    const selectedClient = clients.find(c => c.name === form.client);
+    if (selectedClient?.email) clientId = selectedClient.id || '';
+
+    const fullAddress = buildAddress(form);
+    let lat = -26.2041, lng = 28.0473;
+    if (fullAddress) {
+      const geo = await geocodeAddress(fullAddress);
+      if (geo) { lat = geo.lat; lng = geo.lng; }
+    }
+
+    const body: any = {
+      title:   form.title,
+      client:  selectedClient?.name || form.client,
+      brand:   form.brand || form.client,
+      venue:   form.venue,
+      streetNumber: form.streetNumber,
+      streetName:   form.streetName,
+      suburb:       form.suburb,
+      city:         form.city,
+      postalCode:   form.postalCode,
+      address: fullAddress,
+      lat, lng,
+      date:        form.date,
+      endDate:     form.endDate || undefined,
+      startTime:   form.startTime,
+      endTime:     form.endTime,
+      hourlyRate:  Number(form.hourlyRate)||0,
+      totalSlots:  Number(form.totalSlots)||1,
+      filledSlots: Number(form.filledSlots)||0,
+      status:  form.status,
+      filters: form.filters||{},
+      termsAndConditions: form.termsAndConditions,
+    };
+    if (clientId) body.clientId = clientId;
+
+    try {
+      const method = modal==='edit' && editing ? 'PUT' : 'POST';
+      const url    = modal==='edit' && editing ? `${API}/jobs/${editing.id}` : `${API}/jobs`;
+      const res = await fetch(url, {
+        method,
+        headers: { ...authHdr(), 'Content-Type': 'application/json' } as any,
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { await loadJobs(); setModal(null); }
+      else { const d = await res.json(); setError(d.error || 'Failed to save job.'); }
+    } catch { setError('Network error — please try again.'); }
+    setSaving(false);
+  };
+
+  const deleteJob = async (id: string) => {
+    try {
+      await fetch(`${API}/jobs/${id}`, { method:'DELETE', headers: authHdr() as any });
+      await loadJobs(); setDeleting(null);
+      if (modal) setModal(null);
+    } catch { setError('Failed to delete job.'); }
+  };
+
+  const filtered = jobs.filter(j => {
+    const sm = statusF==='all' || j.status===statusF;
+    const qm = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.client.toLowerCase().includes(search.toLowerCase());
+    return sm && qm;
+  });
+
+  const statusColor = (s: string) =>
+    s==='OPEN' ? GL : s==='FILLED' ? G : s==='IN_PROGRESS' ? TEAL : s==='CANCELLED' ? CORAL : WD;
+
+  const displayAddress = (job: Job) => {
+    const parts = [
+      job.streetNumber && job.streetName ? `${job.streetNumber} ${job.streetName}` : job.streetName || '',
+      job.suburb, job.city, job.postalCode,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : (job.address || job.venue || '—');
+  };
+
+  return (
+    <div style={{ padding: '40px 48px' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:28 }}>
+        <div>
+          <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>Operations</div>
+          <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Manage Jobs</h1>
+          <p style={{ fontSize:13, color:WM, marginTop:4 }}>{jobs.length} total · {jobs.filter(j=>j.status==='OPEN').length} open</p>
+        </div>
+        <button onClick={openCreate} style={{ padding:'11px 24px', background:`linear-gradient(135deg,${GL},${G})`, border:'none', color:B, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', borderRadius:3, letterSpacing:'0.08em' }}>
+          New Job
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:28 }}>
+        {[
+          { label:'Total',       value:jobs.length,                                    color:GL },
+          { label:'Open',        value:jobs.filter(j=>j.status==='OPEN').length,        color:GL },
+          { label:'Filled',      value:jobs.filter(j=>j.status==='FILLED').length,      color:G },
+          { label:'In Progress', value:jobs.filter(j=>j.status==='IN_PROGRESS').length, color:TEAL },
+          { label:'Cancelled',   value:jobs.filter(j=>j.status==='CANCELLED').length,   color:CORAL },
+        ].map(s => (
+          <div key={s.label} style={{ background:D2, padding:'16px 20px', position:'relative' }}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${s.color},${s.color}44)` }} />
+            <div style={{ fontFamily:FD, fontSize:26, fontWeight:700, color:W }}>{s.value}</div>
+            <div style={{ fontSize:9, color:WM, marginTop:4, letterSpacing:'0.16em', textTransform:'uppercase' }}>{s.label}</div>
           </div>
-        )}
+        ))}
+      </div>
 
-        {/* PROMOTERS PANEL */}
-        {modal==='promoters'&&promoterJob&&(
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }} onClick={e=>e.target===e.currentTarget&&closeModal()}>
-            <div style={{ background:D2, border:`1px solid ${BB}`, width:'100%', maxWidth:760, maxHeight:'90vh', display:'flex', flexDirection:'column', position:'relative', borderRadius:4 }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G4},${GL})`, borderRadius:'4px 4px 0 0' }} />
-              <div style={{ padding:'28px 32px 20px', borderBottom:`1px solid ${BB}` }}>
-                <button onClick={closeModal} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:W35, fontSize:18 }}>✕</button>
-                <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:G4, fontWeight:700, fontFamily:FD, marginBottom:6 }}>Job · Promoters</div>
-                <h2 style={{ fontFamily:FD, fontSize:22, fontWeight:700, color:W }}>{promoterJob.title}</h2>
-                <div style={{ display:'flex', gap:20, marginTop:8, fontSize:12, color:W55, fontFamily:FD }}><span>📍 {promoterJob.venue}, {promoterJob.city}</span><span>👥 {promoterJob.filledSlots}/{promoterJob.totalSlots} filled</span></div>
-                <div style={{ display:'flex', gap:10, marginTop:14, flexWrap:'wrap', alignItems:'center' }}>
-                  {promoterJob.status==='filled'&&<button onClick={()=>markSlotOpen(promoterJob)} style={{ padding:'7px 16px', background:hex2rgba(G4,0.15), border:`1px solid ${G4}`, color:G4, fontFamily:FD, fontSize:10, fontWeight:700, cursor:'pointer', borderRadius:3 }}>⚡ Open Spot — Notify Shortlist</button>}
-                  {(promoterJob.status==='filled'||promoterJob.status==='open')&&<button onClick={()=>notifyNotNeeded(promoterJob)} style={{ padding:'7px 16px', background:hex2rgba(G2,0.15), border:`1px solid ${G2}`, color:'#C89A70', fontFamily:FD, fontSize:10, fontWeight:700, cursor:'pointer', borderRadius:3 }}>✗ Not Needed — Notify Shortlist</button>}
-                  {shortlistMsg&&<span style={{ fontSize:11, color:GL, fontFamily:FD }}>{shortlistMsg}</span>}
-                </div>
-              </div>
-              <div style={{ overflowY:'auto', flex:1 }}>
-                {promoLoading?<div style={{ padding:60, textAlign:'center', color:W35, fontFamily:FD }}>Loading promoters…</div>:matchedPromos.length===0?<div style={{ padding:60, textAlign:'center', color:W35, fontFamily:FD }}>No approved promoters found.</div>:matchedPromos.map((p,i)=>{
-                  const isAllocated=p.appStatus==='ALLOCATED',isStandby=p.appStatus==='STANDBY',accentColor=isAllocated?GL:isStandby?G4:W35
-                  return (
-                    <div key={p.id} style={{ padding:'16px 32px', borderBottom:i<matchedPromos.length-1?`1px solid ${BB}`:'none', display:'flex', alignItems:'center', gap:16, background:isAllocated?hex2rgba(GL,0.04):isStandby?hex2rgba(G4,0.03):'transparent' }}>
-                      <div style={{ width:40, height:40, borderRadius:'50%', background:BB, border:`2px solid ${accentColor}`, overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:accentColor, fontWeight:700, fontFamily:FD }}>
-                        {p.profilePhotoUrl?<img src={p.profilePhotoUrl} alt={p.name} style={{ width:'100%',height:'100%',objectFit:'cover' }}/>:p.name.charAt(0)}
-                      </div>
-                      <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD }}>{p.name}</div><div style={{ fontSize:11, color:W55, fontFamily:FD }}>{p.city}{p.distanceKm!==undefined&&<span style={{ color:W35, marginLeft:8 }}>~{p.distanceKm}km</span>}</div></div>
-                      <div style={{ flexShrink:0 }}>
-                        {isAllocated&&<span style={{ fontSize:9, fontWeight:700, color:GL, background:hex2rgba(GL,0.12), border:`1px solid ${hex2rgba(GL,0.4)}`, padding:'3px 9px', borderRadius:3, fontFamily:FD }}>Allocated</span>}
-                        {isStandby&&<span style={{ fontSize:9, fontWeight:700, color:G4, background:hex2rgba(G4,0.12), border:`1px solid ${hex2rgba(G4,0.4)}`, padding:'3px 9px', borderRadius:3, fontFamily:FD }}>Shortlisted</span>}
-                        {!p.appStatus&&<span style={{ fontSize:9, color:W35, fontFamily:FD }}>Not applied</span>}
-                      </div>
-                      <div style={{ flexShrink:0 }}>
-                        {!isAllocated&&promoterJob.filledSlots<promoterJob.totalSlots&&<Btn small onClick={()=>allocatePromoter(p,promoterJob.id)} color={GL}>Allocate</Btn>}
-                        {isAllocated&&<span style={{ fontSize:10, color:W35, fontFamily:FD }}>✓ On this job</span>}
-                      </div>
+      {/* Filters */}
+      <div style={{ display:'flex', gap:10, marginBottom:20, alignItems:'center', flexWrap:'wrap' }}>
+        <input placeholder="Search jobs or client…" value={search} onChange={e=>setSearch(e.target.value)}
+          style={{ ...inp, width:260 }}
+          onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+        <div style={{ display:'flex', gap:4 }}>
+          {['all','OPEN','FILLED','IN_PROGRESS','COMPLETED','CANCELLED'].map(s => (
+            <button key={s} onClick={()=>setStatusF(s)}
+              style={{ padding:'6px 13px', border:`1px solid ${statusF===s ? GL : BB}`, background:statusF===s ? 'rgba(232,168,32,0.12)' : 'transparent', color:statusF===s ? GL : WM, fontFamily:FB, fontSize:10, cursor:'pointer', borderRadius:2 }}>
+              {s==='all' ? 'All' : s.replace('_',' ')}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:2, overflow:'hidden' }}>
+        {loading ? (
+          <div style={{ padding:60, textAlign:'center', color:WD }}>Loading jobs…</div>
+        ) : (
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom:`1px solid ${BB}` }}>
+                {['ID','Title / Client','Venue & Address','Date','Rate','Slots','Status','Actions'].map(h => (
+                  <th key={h} style={{ padding:'12px 16px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:WD }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((job, i) => (
+                <tr key={job.id}
+                  style={{ borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', cursor:'pointer' }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,0.02)'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='transparent'}
+                  onClick={()=>{ setEditing(job); setModal('view'); }}>
+                  <td style={{ padding:'13px 16px', fontSize:10, color:WD }}>{job.id.slice(0,8)}…</td>
+                  <td style={{ padding:'13px 16px' }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:W }}>{job.title}</div>
+                    <div style={{ fontSize:11, color:WM }}>{job.client}</div>
+                    {job.clientId && <div style={{ fontSize:9, color:TEAL, marginTop:2 }}>✓ Registered client</div>}
+                  </td>
+                  <td style={{ padding:'13px 16px' }}>
+                    <div style={{ fontSize:12, color:W }}>{job.venue||'—'}</div>
+                    <div style={{ fontSize:10, color:WD, marginTop:2 }}>{displayAddress(job)}</div>
+                  </td>
+                  <td style={{ padding:'13px 16px', fontSize:12, color:WM, whiteSpace:'nowrap' }}>
+                    {job.date ? new Date(job.date).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
+                    <div style={{ fontSize:10, color:WD }}>{job.startTime}–{job.endTime}</div>
+                  </td>
+                  <td style={{ padding:'13px 16px', fontSize:13, color:GL, fontWeight:700 }}>R{job.hourlyRate}/hr</td>
+                  <td style={{ padding:'13px 16px', fontSize:12, color:W }}>{job.filledSlots}/{job.totalSlots}</td>
+                  <td style={{ padding:'13px 16px' }}>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:statusColor(job.status), background:`${statusColor(job.status)}18`, padding:'3px 10px', borderRadius:2 }}>{job.status}</span>
+                  </td>
+                  <td style={{ padding:'13px 16px' }} onClick={e=>e.stopPropagation()}>
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={()=>openEdit(job)} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer' }}>Edit</button>
+                      <span style={{ color:WD }}>·</span>
+                      <button onClick={()=>setDeleting(job.id)} style={{ fontSize:11, color:CORAL, background:'none', border:'none', cursor:'pointer' }}>Delete</button>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {!loading && filtered.length===0 && (
+          <div style={{ padding:48, textAlign:'center', color:WD, fontSize:13 }}>No jobs match your filters.</div>
         )}
       </div>
-    </AdminLayout>
-  )
-}
+
+      {/* Delete confirm */}
+      {deleting && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:400 }}>
+          <div style={{ background:BC, border:`1px solid ${CORAL}`, padding:'36px 40px', maxWidth:380, width:'100%', borderRadius:3 }}>
+            <h3 style={{ fontFamily:FD, fontSize:22, color:W, marginBottom:12 }}>Delete Job?</h3>
+            <p style={{ fontSize:13, color:WM, marginBottom:28 }}>This will permanently remove the job and all its applications.</p>
+            <div style={{ display:'flex', gap:12 }}>
+              <button onClick={()=>setDeleting(null)} style={{ flex:1, padding:'12px', background:'transparent', border:`1px solid ${BB}`, color:WM, fontFamily:FB, fontSize:12, cursor:'pointer', borderRadius:2 }}>Cancel</button>
+              <button onClick={()=>deleteJob(deleting)} style={{ flex:1, padding:'12px', background:CORAL, border:'none', color:W, fontFamily:FB, fontSize:12, fontWeight:700, cursor:'pointer', borderRadius:2 }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View modal */}
+      {modal==='view' && editing && (
+        <JobViewModal
+          job={editing}
+          onClose={()=>setModal(null)}
+          onEdit={()=>openEdit(editing)}
+          onDelete={()=>{ setModal(null); setDeleting(editing.id); }}
+          displayAddress={displayAddress}
+          statusColor={statusColor}
+        />
+      )}
+
+      {/* Create / Edit modal */}
+      {(modal==='create'||modal==='edit') && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:300, padding:24 }}
+          onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div style={{ background:BC, border:`1px solid ${BB}`, padding:'40px', width:'100%', maxWidth:640, maxHeight:'92vh', overflowY:'auto', position:'relative', borderRadius:3 }}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G3},${GL},${G3})` }} />
+            <button onClick={()=>setModal(null)} style={{ position:'absolute', top:16, right:20, background:'none', border:'none', cursor:'pointer', color:WM, fontSize:18 }}>✕</button>
+            <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700 }}>{modal==='create' ? 'New Job' : 'Edit Job'}</div>
+            <h2 style={{ fontFamily:FD, fontSize:24, fontWeight:700, color:W, marginBottom:28 }}>{modal==='create' ? 'Create a New Job' : `Editing: ${editing?.title}`}</h2>
+
+            {error && <div style={{ padding:'10px 14px', background:`${CORAL}12`, border:`1px solid ${CORAL}44`, marginBottom:20, fontSize:12, color:CORAL, borderRadius:2 }}>{error}</div>}
+
+            <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+
+              {/* Title */}
+              <div>
+                <label style={lbl}>Job Title *</label>
+                <input style={inp} value={form.title} onChange={e=>F('title',e.target.value)} placeholder="e.g. Brand Ambassador – Pick n Pay"
+                  onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+              </div>
+
+              {/* Client */}
+              <div>
+                <label style={lbl}>Client *</label>
+                <select style={sel} value={form.client} onChange={e=>{
+                  const name = e.target.value;
+                  const found = clients.find(c=>c.name===name);
+                  setForm(f=>({...f, client:name, clientId:found?.id||''}));
+                }}>
+                  <option value="">— Select client —</option>
+                  <optgroup label="Registered Clients">
+                    {clients.map(c=><option key={c.id} value={c.name}>{c.name} ✓</option>)}
+                  </optgroup>
+                  <optgroup label="Other / Manual">
+                    {['Shoprite','Checkers','Pick n Pay','Woolworths','Dis-Chem','Clicks','Vodacom','MTN','SAB','Tiger Brands','Other'].map(n=>(
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </optgroup>
+                </select>
+                {form.clientId && <div style={{ fontSize:10, color:TEAL, marginTop:5 }}>✓ Registered business — jobs will appear in their dashboard</div>}
+                {form.client && !form.clientId && (
+                  <input style={{ ...inp, marginTop:8 }} value={form.client} onChange={e=>F('client',e.target.value)} placeholder="Or type client name manually"
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                )}
+              </div>
+
+              {/* Brand & Category */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                <div>
+                  <label style={lbl}>Brand</label>
+                  <input style={inp} value={form.brand} onChange={e=>F('brand',e.target.value)} placeholder="e.g. Coca-Cola"
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>Category</label>
+                  <select style={sel} value={form.filters?.category||''} onChange={e=>F('filters',{...form.filters,category:e.target.value})}>
+                    <option value="">— Select —</option>
+                    {CATEGORY_OPTS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Venue */}
+              <div>
+                <label style={lbl}>Venue Name</label>
+                <input style={inp} value={form.venue} onChange={e=>F('venue',e.target.value)} placeholder="e.g. Sandton City Mall, Main Entrance"
+                  onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+              </div>
+
+              {/* SA Address block */}
+              <div style={{ background:'rgba(212,136,10,0.04)', border:`1px solid ${BB}`, borderRadius:3, padding:'18px 16px' }}>
+                <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, marginBottom:16, fontWeight:700 }}>
+                  📍 Venue Address — SA Format
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:12, marginBottom:12 }}>
+                  <div>
+                    <label style={lbl}>Street Number</label>
+                    <input style={inp} value={form.streetNumber} onChange={e=>F('streetNumber',e.target.value)} placeholder="12"
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Street Name</label>
+                    <input style={inp} value={form.streetName} onChange={e=>F('streetName',e.target.value)} placeholder="Rivonia Road"
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:12 }}>
+                  <div>
+                    <label style={lbl}>Suburb</label>
+                    <input style={inp} value={form.suburb} onChange={e=>F('suburb',e.target.value)} placeholder="Sandton"
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  <div>
+                    <label style={lbl}>City</label>
+                    <input style={inp} value={form.city} onChange={e=>F('city',e.target.value)} placeholder="Johannesburg"
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Postal Code</label>
+                    <input style={inp} value={form.postalCode}
+                      onChange={e=>F('postalCode', e.target.value.replace(/\D/g,'').slice(0,4))}
+                      placeholder="2196" maxLength={4}
+                      onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                  </div>
+                </div>
+                {buildAddress(form) && (
+                  <div style={{ marginTop:10, fontSize:11, color:WM, background:'rgba(212,136,10,0.06)', padding:'8px 12px', borderRadius:2 }}>
+                    📌 <strong style={{ color:GL }}>{buildAddress(form)}</strong>
+                    <span style={{ color:WD, marginLeft:8 }}>— auto-geocoded for check-in validation</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Dates & Times — END DATE IS NOW ENABLED */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                <div>
+                  <label style={lbl}>Start Date *</label>
+                  <input type="date" style={inp} value={form.date} onChange={e=>F('date',e.target.value)}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>End Date</label>
+                  <input type="date" style={inp} value={form.endDate} onChange={e=>F('endDate',e.target.value)}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>Start Time</label>
+                  <input type="time" style={inp} value={form.startTime} onChange={e=>F('startTime',e.target.value)}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>End Time</label>
+                  <input type="time" style={inp} value={form.endTime} onChange={e=>F('endTime',e.target.value)}
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+              </div>
+
+              {/* Rate & Slots */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                <div>
+                  <label style={lbl}>Hourly Rate (R)</label>
+                  <input type="number" style={inp} value={form.hourlyRate} onChange={e=>F('hourlyRate',e.target.value)} placeholder="125"
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>Total Slots</label>
+                  <input type="number" style={inp} value={form.totalSlots} onChange={e=>F('totalSlots',e.target.value)} placeholder="4"
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label style={lbl}>Status</label>
+                <select style={sel} value={form.status} onChange={e=>F('status',e.target.value)}>
+                  {STATUS_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Filters */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+                <div>
+                  <label style={lbl}>Gender</label>
+                  <select style={sel} value={form.filters?.gender||''} onChange={e=>F('filters',{...form.filters,gender:e.target.value})}>
+                    {['Any Gender','Female','Male','Non-binary'].map(g=><option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Min Height (cm)</label>
+                  <input type="number" style={inp} value={form.filters?.minHeight||''} onChange={e=>F('filters',{...form.filters,minHeight:e.target.value})} placeholder="160"
+                    onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+                </div>
+                <div>
+                  <label style={lbl}>Language</label>
+                  <select style={sel} value={form.filters?.languages||''} onChange={e=>F('filters',{...form.filters,languages:e.target.value})}>
+                    {['Any','English','Zulu','Xhosa','Sotho','Tswana','Afrikaans','Venda','Tsonga'].map(l=><option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Terms */}
+              <div>
+                <label style={lbl}>Terms & Conditions</label>
+                <textarea style={{ ...inp, minHeight:80, resize:'vertical' } as any} value={form.termsAndConditions} onChange={e=>F('termsAndConditions',e.target.value)} placeholder="Optional: dress code, expectations, requirements…"
+                  onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
+              </div>
+
+              <button onClick={save} disabled={saving}
+                style={{ padding:'15px', background:saving ? BB : `linear-gradient(135deg,${GL},${G})`, border:'none', color:saving ? WM : B, fontFamily:FD, fontSize:12, fontWeight:700, cursor:saving?'not-allowed':'pointer', letterSpacing:'0.08em', borderRadius:2, marginTop:4 }}>
+                {saving ? 'Saving & geocoding…' : modal==='create' ? 'Create Job' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CRUDJobsLogic: React.FC = () => (
+  <AdminLayout>
+    <JobsPageContent />
+  </AdminLayout>
+);
+
+export { CRUDJobsLogic };
+export default CRUDJobsLogic;

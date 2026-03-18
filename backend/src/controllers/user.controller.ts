@@ -29,8 +29,18 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
   try {
     const { role, status } = req.query;
     const where: any = {};
-    if (role)   where.role   = (role   as string).toUpperCase();
-    if (status) where.status = (status as string).toLowerCase();
+    if (role)   where.role = (role as string).toUpperCase();
+    if (status) {
+      const s = (status as string).toLowerCase();
+      // 'approved' → exact match; 'any' or missing → no filter
+      // For promoter listings we also accept 'pending_review' users
+      if (s === 'approved') {
+        where.status = 'approved';
+      } else if (s === 'active') {
+        where.status = { in: ['approved', 'pending_review', 'active'] };
+      }
+      // if status === 'all' or anything else, no filter applied
+    }
 
     const users = await prisma.user.findMany({
       where,

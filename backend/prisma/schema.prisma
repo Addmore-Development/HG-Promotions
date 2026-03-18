@@ -46,8 +46,6 @@ model User {
   branchCode       String?
   headshotUrl      String?
   fullBodyPhotoUrl String?
-  sentMessages     ChatMessage[] @relation("SentMessages")
-  receivedMessages ChatMessage[] @relation("ReceivedMessages")
   profilePhotoUrl  String?
   cvUrl            String?
   createdJobs  Job[]         @relation("JobCreator")
@@ -55,6 +53,9 @@ model User {
   payments     Payment[]     @relation("PromoterPayments")
   applications Application[] @relation("PromoterApplications")
   @@map("users")
+  sentMessages     ChatMessage[] @relation("SentMessages")
+  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+
 }
 
 model Client {
@@ -197,6 +198,7 @@ model ChatMessage {
 
   @@map("chat_messages")
 }
+
 
 enum Role {
   PROMOTER

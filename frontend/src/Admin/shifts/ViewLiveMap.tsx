@@ -1,450 +1,473 @@
-// frontend/src/shared/auth/LoginPage.tsx
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { AdminLayout } from '../AdminLayout'
 
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const G   = '#D4880A'
+const GL  = '#E8A820'
+const G2  = '#8B5A1A'
+const G3  = '#C07818'
+const G4  = '#F0C050'
+const D1  = '#0E0C06'
+const D2  = '#151209'
+const BB  = 'rgba(212,136,10,0.16)'
+const BB2 = 'rgba(212,136,10,0.06)'
+const W   = '#FAF3E8'
+const W55 = 'rgba(250,243,232,0.55)'
+const W28 = 'rgba(250,243,232,0.28)'
+const FD  = "'Playfair Display', Georgia, serif"
 
-
-/* ─── DESIGN TOKENS — all gold/amber/brown palette ──────────── */
-const BLACK        = '#080808'
-const BLACK_CARD   = '#161616'
-const BLACK_BORDER = 'rgba(255,255,255,0.07)'
-const GOLD         = '#C4973A'
-const GOLD_LIGHT   = '#DDB55A'
-const GOLD_DIM     = 'rgba(196,151,58,0.55)'
-const GOLD_PALE    = 'rgba(196,151,58,0.28)'
-const AMBER        = '#B8820A'
-const BROWN        = '#7A5C1E'
-const WHITE        = '#F4EFE6'
-const WHITE_MUTED  = 'rgba(244,239,230,0.55)'
-const WHITE_DIM    = 'rgba(244,239,230,0.22)'
-const FD           = "'Playfair Display', Georgia, serif"
-const FB           = "'DM Sans', system-ui, sans-serif"
-
-/* ─── ROLE CONFIG — all gold shades ─────────────────────────── */
-type Role = 'promoter' | 'business' | 'admin'
-
-const ROLE_CONFIG: Record<Role, { label: string; icon: string; accentColor: string; borderColor: string; description: string }> = {
-  promoter: {
-    label:       'Promoter',
-    icon:        '◉',
-    accentColor: GOLD,
-    borderColor: `rgba(196,151,58,0.55)`,
-    description: 'Access your shifts, geo check-in, and earnings dashboard.',
-  },
-  business: {
-    label:       'Business',
-    icon:        '◈',
-    accentColor: GOLD_LIGHT,
-    borderColor: `rgba(221,181,90,0.55)`,
-    description: 'Manage your promoter teams, monitor attendance, and view reports.',
-  },
-  admin: {
-    label:       'Admin',
-    icon:        '◆',
-    accentColor: AMBER,
-    borderColor: `rgba(184,130,10,0.55)`,
-    description: 'Full platform access — users, jobs, payroll, and operations.',
-  },
+function hex2rgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `rgba(${r},${g},${b},${alpha})`
 }
 
-const DASHBOARD_ROUTE: Record<Role, string> = {
-  promoter: '/promoter/',
-  business: '/business/dashboard',
-  admin:    '/admin',
+type CheckStatus = 'checked-in' | 'late' | 'absent' | 'completed'
+
+interface LivePromoter {
+  id: string; name: string; job: string; venue: string
+  city: string; status: CheckStatus; time: string
+  lat: number; lng: number
 }
 
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { -webkit-font-smoothing: antialiased; background: ${BLACK}; }
-  @keyframes hg-fade-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .hg-form-wrap { animation: hg-fade-up 0.55s ease both; }
-  input::placeholder { color: rgba(196,151,58,0.2); }
-  input:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 30px #0e0e0e inset !important;
-    -webkit-text-fill-color: ${WHITE} !important;
-  }
-`
+const STATUS_COLOR: Record<CheckStatus, string> = {
+  'checked-in': GL,
+  'late':       G4,
+  'absent':     '#E8D5A8',
+  'completed':  G3,
+}
+const STATUS_BG: Record<CheckStatus, string> = {
+  'checked-in': hex2rgba(GL, 0.12),
+  'late':       hex2rgba(G4, 0.12),
+  'absent':     hex2rgba('#8B6840', 0.22),
+  'completed':  hex2rgba(G3, 0.12),
+}
+const STATUS_BORDER: Record<CheckStatus, string> = {
+  'checked-in': hex2rgba(GL, 0.45),
+  'late':       hex2rgba(G4, 0.42),
+  'absent':     hex2rgba('#8B6840', 0.55),
+  'completed':  hex2rgba(G3, 0.45),
+}
+const STATUS_LABEL: Record<CheckStatus, string> = {
+  'checked-in': 'Checked In',
+  'late':       'Late',
+  'absent':     'Absent',
+  'completed':  'Completed',
+}
 
-function FloatingInput({
-  label, type = 'text', placeholder, value, onChange, focused, onFocus, onBlur, accentColor,
-}: {
-  label: string; type?: string; placeholder: string; value: string
-  onChange: (v: string) => void; focused: boolean
-  onFocus: () => void; onBlur: () => void; accentColor: string
-}) {
+const MOCK_LIVE_PROMOTERS: LivePromoter[] = [
+  { id:'P001', name:'Ayanda Dlamini',  job:'Castle Lager Launch',         venue:'Sandton City',               city:'Johannesburg', status:'checked-in', time:'08:12', lat:-26.1073, lng:28.0560 },
+  { id:'P002', name:'Thabo Nkosi',     job:'MTN Brand Ambassador',         venue:'Maponya Mall, Soweto',       city:'Johannesburg', status:'checked-in', time:'08:05', lat:-26.2678, lng:27.8546 },
+  { id:'P003', name:'Zanele Motha',    job:'Absolut Vodka Night',          venue:'Rosebank Mall',              city:'Johannesburg', status:'late',       time:'—',     lat:-26.1452, lng:28.0408 },
+  { id:'P004', name:'Bongani Khumalo', job:"Nando's In-Store Tasting",     venue:'Fourways Mall',              city:'Johannesburg', status:'checked-in', time:'09:00', lat:-26.0154, lng:28.0103 },
+  { id:'P005', name:'Sipho Mhlongo',   job:'Listerine Sampling',           venue:'Noord Taxi Rank',            city:'Johannesburg', status:'absent',     time:'—',     lat:-26.2008, lng:28.0436 },
+  { id:'P006', name:'Lerato Mokoena',  job:'Distell Premium Wines',        venue:'Sandton Convention Centre',  city:'Johannesburg', status:'completed',  time:'07:45', lat:-26.1076, lng:28.0567 },
+  { id:'P007', name:'Marco van Wyk',   job:'Red Bull Sampling',            venue:'V&A Waterfront',             city:'Cape Town',    status:'checked-in', time:'08:30', lat:-33.9030, lng:18.4185 },
+  { id:'P008', name:'Mia Louw',        job:'Woolworths Food Tasting',      venue:'Cavendish Square',           city:'Cape Town',    status:'checked-in', time:'08:22', lat:-33.9878, lng:18.4695 },
+  { id:'P009', name:'Lungelo Mgqibi',  job:'Coca-Cola Spaza Activation',   venue:'Khayelitsha',                city:'Cape Town',    status:'late',       time:'—',     lat:-34.0350, lng:18.6732 },
+  { id:'P010', name:'Chanel Botha',    job:'Vodacom Product Demo',         venue:'Canal Walk',                 city:'Cape Town',    status:'completed',  time:'07:55', lat:-33.8668, lng:18.5102 },
+  { id:'P011', name:'Nomsa Zulu',      job:"Jack Daniel's Whisky Night",   venue:'uShaka Marine World',        city:'Durban',       status:'checked-in', time:'08:10', lat:-29.8625, lng:31.0452 },
+  { id:'P012', name:'Priya Naidoo',    job:'Dove Beauty Sampling',         venue:'Gateway Theatre of Shopping',city:'Durban',       status:'checked-in', time:'08:35', lat:-29.7280, lng:31.0670 },
+  { id:'P013', name:'Sibusiso Vilak',  job:'Pick n Pay Smart Shopper',     venue:'Pavilion Shopping Centre',   city:'Durban',       status:'absent',     time:'—',     lat:-29.8728, lng:30.9648 },
+  { id:'P014', name:'Ruan Kotze',      job:'FreshBrands In-Store',         venue:'Musgrave Centre',            city:'Durban',       status:'late',       time:'—',     lat:-29.8618, lng:31.0026 },
+  { id:'P015', name:'Pieter Joubert',  job:'Menlyn Fashion Night',         venue:'Menlyn Mall',                city:'Pretoria',     status:'checked-in', time:'09:05', lat:-25.7823, lng:28.2773 },
+  { id:'P016', name:'Andile Nxumalo',  job:'Hyundai Test Drive',           venue:'Menlyn Park',                city:'Pretoria',     status:'completed',  time:'07:50', lat:-25.7820, lng:28.2755 },
+  { id:'P017', name:'Tebogo Radebe',   job:'Shoprite Easter Promos',       venue:'Woodlands Boulevard',        city:'Pretoria',     status:'checked-in', time:'08:48', lat:-25.8099, lng:28.2826 },
+  { id:'P018', name:'Kagiso Motsepe',  job:'Standard Bank Career Expo',    venue:'Hatfield Plaza',             city:'Pretoria',     status:'absent',     time:'—',     lat:-25.7503, lng:28.2328 },
+]
+
+function StatusBadge({ status }: { status: CheckStatus }) {
   return (
-    <div>
-      <label style={{
-        display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
-        letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: focused ? accentColor : GOLD_DIM,
-        marginBottom: 8, transition: 'color 0.2s',
-      }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        style={{
-          width: '100%',
-          background: 'rgba(196,151,58,0.03)',
-          border: `1px solid ${focused ? accentColor : 'rgba(196,151,58,0.15)'}`,
-          padding: '14px 16px',
-          fontFamily: FB, fontSize: 14, color: WHITE,
-          outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
-          boxShadow: focused ? `0 0 0 3px ${accentColor}18` : 'none',
-        }}
-      />
+    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:FD, color:STATUS_COLOR[status], background:STATUS_BG[status], border:`1px solid ${STATUS_BORDER[status]}`, padding:'3px 8px', borderRadius:3 }}>
+      {STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+function StatCard({ count, label, status, active, onClick }: { count:number; label:string; status:CheckStatus; active:boolean; onClick:()=>void }) {
+  const color = STATUS_COLOR[status]
+  return (
+    <div onClick={onClick}
+      style={{ background:'rgba(20,16,5,0.6)', padding:'18px 20px', position:'relative', overflow:'hidden', cursor:'pointer', transition:'all 0.2s', borderRadius:2, border:`1px solid ${active?color:BB}` }}>
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${color},${hex2rgba(color,0.3)})` }} />
+      <div style={{ fontFamily:FD, fontSize:32, fontWeight:700, color, lineHeight:1 }}>{count}</div>
+      <div style={{ fontSize:9, color:W55, marginTop:8, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:FD }}>{label}</div>
     </div>
   )
 }
 
-export default function LoginPage() {
-  const navigate                   = useNavigate()
-  const { login }                  = useAuth()
-  const [role, setRole]            = useState<Role>('promoter')
-  const [email, setEmail]          = useState('')
-  const [password, setPassword]    = useState('')
-  const [error, setError]          = useState<string | null>(null)
-  const [loading, setLoading]      = useState(false)
-  const [success, setSuccess]      = useState(false)
-  const [focusedField, setFocused] = useState<string | null>(null)
+// ─── Google Maps loader ───────────────────────────────────────────────────────
+declare global {
+  interface Window { google: any; initHGMap: () => void }
+}
 
-  // ── Change-password panel (admin only) ──────────────────────────────────────
-  const [showChangePw, setShowChangePw] = useState(false)
-  const [cpCurrent,    setCpCurrent]    = useState('')
-  const [cpNew,        setCpNew]        = useState('')
-  const [cpConfirm,    setCpConfirm]    = useState('')
-  const [cpError,      setCpError]      = useState<string | null>(null)
-  const [cpSuccess,    setCpSuccess]    = useState(false)
-  const [cpLoading,    setCpLoading]    = useState(false)
-  const [cpFocused,    setCpFocused]    = useState<string | null>(null)
+const GMAP_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
 
-  const handleChangePassword = async () => {
-    setCpError(null)
-    if (!cpCurrent || !cpNew || !cpConfirm) { setCpError('All fields are required.'); return }
-    if (cpNew.length < 8)                   { setCpError('New password must be at least 8 characters.'); return }
-    if (cpNew !== cpConfirm)                { setCpError('New passwords do not match.'); return }
-    setCpLoading(true)
+// ── Use a stable mapId — required for AdvancedMarkerElement ──────────────────
+const MAP_ID = 'hg-live-map'
+
+function loadGoogleMaps(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.google?.maps?.marker) { resolve(); return }
+    if (document.getElementById('hg-gmaps-script')) {
+      const interval = setInterval(() => {
+        if (window.google?.maps?.marker) { clearInterval(interval); resolve() }
+      }, 100)
+      return
+    }
+    window.initHGMap = () => resolve()
+    const script    = document.createElement('script')
+    script.id       = 'hg-gmaps-script'
+    // ✅ loading=async fixes the "loaded directly" warning
+    // ✅ &libraries=marker loads the AdvancedMarkerElement library
+    script.src      = `https://maps.googleapis.com/maps/api/js?key=${GMAP_KEY}&libraries=marker&loading=async&callback=initHGMap`
+    script.async    = true
+    script.defer    = true
+    script.onerror  = () => reject(new Error('Google Maps failed to load'))
+    document.head.appendChild(script)
+  })
+}
+
+// ─── Dark gold map style ──────────────────────────────────────────────────────
+const MAP_STYLES = [
+  { elementType:'geometry',                stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.stroke',      stylers:[{ color:'#0C0A07' }] },
+  { elementType:'labels.text.fill',        stylers:[{ color:'#6B4F1A' }] },
+  { featureType:'administrative',          elementType:'geometry',           stylers:[{ color:'#1C1709' }] },
+  { featureType:'administrative.country',  elementType:'labels.text.fill',   stylers:[{ color:'#9D8A5A' }] },
+  { featureType:'administrative.province', elementType:'labels.text.fill',   stylers:[{ color:'#7A6535' }] },
+  { featureType:'landscape',               stylers:[{ color:'#0E0C06' }] },
+  { featureType:'poi',                     stylers:[{ visibility:'off' }] },
+  { featureType:'road',                    elementType:'geometry',           stylers:[{ color:'#1C1709' }] },
+  { featureType:'road',                    elementType:'geometry.stroke',    stylers:[{ color:'#0E0C06' }] },
+  { featureType:'road',                    elementType:'labels.text.fill',   stylers:[{ color:'#5A4520' }] },
+  { featureType:'road.highway',            elementType:'geometry',           stylers:[{ color:'#2A1F08' }] },
+  { featureType:'road.highway',            elementType:'geometry.stroke',    stylers:[{ color:'#1A1305' }] },
+  { featureType:'road.highway',            elementType:'labels.text.fill',   stylers:[{ color:'#D4880A' }] },
+  { featureType:'transit',                 stylers:[{ visibility:'off' }] },
+  { featureType:'water',                   elementType:'geometry',           stylers:[{ color:'#040503' }] },
+  { featureType:'water',                   elementType:'labels.text.fill',   stylers:[{ color:'#2A2008' }] },
+]
+
+// ─── Build a styled SVG pin element for AdvancedMarkerElement ─────────────────
+function makePinElement(color: string): HTMLElement {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+      <path d="M14 0C6.27 0 0 6.27 0 14c0 9.63 14 22 14 22S28 23.63 28 14C28 6.27 21.73 0 14 0z"
+            fill="${color}" stroke="#0C0A07" stroke-width="1.5"/>
+      <circle cx="14" cy="14" r="5" fill="#0C0A07" opacity="0.6"/>
+    </svg>`
+  const div       = document.createElement('div')
+  div.innerHTML   = svg.trim()
+  div.style.cursor = 'pointer'
+  return div
+}
+
+export default function ViewLiveMap() {
+  const mapRef        = useRef<HTMLDivElement>(null)
+  const mapInstance   = useRef<any>(null)
+  const markersRef    = useRef<Map<string, any>>(new Map())
+  const infoWindowRef = useRef<any>(null)
+
+  const [promoters,    setPromoters   ] = useState<LivePromoter[]>(MOCK_LIVE_PROMOTERS)
+  const [selected,     setSelected    ] = useState<LivePromoter | null>(null)
+  const [filterStatus, setFilterStatus] = useState<CheckStatus | 'all'>('all')
+  const [filterCity,   setFilterCity  ] = useState<string>('all')
+  const [mapReady,     setMapReady    ] = useState(false)
+  const [mapError,     setMapError    ] = useState('')
+  const [pulse,        setPulse       ] = useState(true)
+  const [lastUpdated,  setLastUpdated ] = useState<Date>(new Date())
+
+  useEffect(() => {
+    const t = setInterval(() => setPulse(p => !p), 1500)
+    return () => clearInterval(t)
+  }, [])
+
+  // ── Try to load real data; fall back to mock silently ─────────────────────
+  const loadPromoters = useCallback(async () => {
     try {
       const token = localStorage.getItem('hg_token')
-      if (!token) throw new Error('Not logged in — please log in first.')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/change-password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ currentPassword: cpCurrent, newPassword: cpNew }),
+      if (!token) { setLastUpdated(new Date()); return }
+
+      const [shiftsRes, locRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/shifts/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/shifts/live-locations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ])
+
+      if (!shiftsRes.ok) { setLastUpdated(new Date()); return }
+
+      const shifts: any[]        = await shiftsRes.json()
+      const liveLocations: any[] = locRes.ok ? await locRes.json() : []
+      const locMap               = new Map(liveLocations.map((l: any) => [l.userId, l]))
+
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+      const today      = shifts.filter((s: any) => {
+        const d = s.job?.date ? new Date(s.job.date) : null
+        return d && d >= todayStart
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed' }))
-        throw new Error(err.error || 'Password change failed.')
+
+      if (today.length === 0) { setLastUpdated(new Date()); return }
+
+      const result: LivePromoter[] = today.map((s: any) => {
+        const loc       = locMap.get(s.promoterId)
+        const rawStatus = s.status?.toLowerCase() || ''
+        let checkStatus: CheckStatus = 'absent'
+        if (rawStatus === 'checked_in' || rawStatus === 'checked-in') checkStatus = 'checked-in'
+        else if (rawStatus === 'approved' || rawStatus === 'pending_approval') checkStatus = 'completed'
+        else if (rawStatus === 'scheduled') {
+          const jobDate = s.job?.date ? new Date(s.job.date) : null
+          const [h, m]  = (s.job?.startTime || '09:00').split(':').map(Number)
+          if (jobDate) {
+            const start = new Date(jobDate); start.setHours(h, m, 0, 0)
+            checkStatus = Date.now() - start.getTime() > 15 * 60 * 1000 ? 'late' : 'absent'
+          }
+        }
+        return {
+          id:     s.promoterId,
+          name:   s.promoter?.fullName || 'Unknown Promoter',
+          job:    s.job?.title  || 'Unknown Job',
+          venue:  s.job?.venue  || 'Unknown Venue',
+          city:   s.job?.address?.split(',')[0] || '',
+          status: checkStatus,
+          time:   s.checkInTime
+            ? new Date(s.checkInTime).toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' })
+            : '—',
+          lat: loc?.lat ?? s.job?.lat ?? -26.2041,
+          lng: loc?.lng ?? s.job?.lng ?? 28.0473,
+        }
+      })
+
+      setPromoters(result)
+      setLastUpdated(new Date())
+    } catch {
+      setLastUpdated(new Date())
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPromoters()
+    const interval = setInterval(loadPromoters, 30_000)
+    return () => clearInterval(interval)
+  }, [loadPromoters])
+
+  // ── Init map ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current) return
+    loadGoogleMaps()
+      .then(() => {
+        if (!mapRef.current || mapInstance.current) return
+        mapInstance.current = new window.google.maps.Map(mapRef.current, {
+          center:            { lat: -28.7, lng: 25.5 },
+          zoom:              6,
+          mapId:             MAP_ID,           // ✅ required for AdvancedMarkerElement
+          styles:            MAP_STYLES,
+          disableDefaultUI:  false,
+          zoomControl:       true,
+          mapTypeControl:    false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        })
+        infoWindowRef.current = new window.google.maps.InfoWindow()
+        setMapReady(true)
+      })
+      .catch(() => setMapError('Google Maps unavailable — check VITE_GOOGLE_MAPS_KEY in your .env'))
+  }, [])
+
+  // ── Draw / update markers using AdvancedMarkerElement ─────────────────────
+  useEffect(() => {
+    if (!mapReady || !mapInstance.current) return
+
+    const { AdvancedMarkerElement } = window.google.maps.marker
+
+    const filtered    = promoters.filter(p =>
+      (filterStatus === 'all' || p.status === filterStatus) &&
+      (filterCity   === 'all' || p.city   === filterCity)
+    )
+    const filteredIds = new Set(filtered.map(p => p.id))
+
+    // Remove markers no longer in the filtered set
+    markersRef.current.forEach((marker, id) => {
+      if (!filteredIds.has(id)) {
+        marker.map = null
+        markersRef.current.delete(id)
       }
-      setCpSuccess(true)
-      setCpCurrent(''); setCpNew(''); setCpConfirm('')
-      setTimeout(() => { setCpSuccess(false); setShowChangePw(false) }, 2200)
-    } catch (err: any) {
-      setCpError(err.message || 'Password change failed.')
-    } finally {
-      setCpLoading(false)
-    }
+    })
+
+    filtered.forEach(p => {
+      const color = STATUS_COLOR[p.status]
+
+      if (markersRef.current.has(p.id)) {
+        // Update position of existing marker
+        const existing        = markersRef.current.get(p.id)
+        existing.position     = { lat: p.lat, lng: p.lng }
+        existing.content      = makePinElement(color)
+      } else {
+        // ✅ AdvancedMarkerElement replaces deprecated google.maps.Marker
+        const marker = new AdvancedMarkerElement({
+          position:  { lat: p.lat, lng: p.lng },
+          map:       mapInstance.current,
+          title:     p.name,
+          content:   makePinElement(color),
+        })
+
+        marker.addListener('click', () => {
+          setSelected(p)
+          infoWindowRef.current?.setContent(`
+            <div style="background:#151209;color:#FAF3E8;padding:10px 14px;font-family:'DM Sans',sans-serif;min-width:170px;border-radius:4px;">
+              <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${p.name}</div>
+              <div style="font-size:11px;color:#D4880A;margin-bottom:2px;">${p.venue}</div>
+              <div style="font-size:10px;color:rgba(250,243,232,0.55);">${p.job}</div>
+              <div style="font-size:10px;margin-top:6px;color:${color};font-weight:600;">${STATUS_LABEL[p.status]}${p.time !== '—' ? ' · In at ' + p.time : ''}</div>
+              <div style="font-size:10px;color:rgba(250,243,232,0.35);margin-top:2px;">${p.city}</div>
+            </div>
+          `)
+          infoWindowRef.current?.open({ map: mapInstance.current, anchor: marker })
+        })
+
+        markersRef.current.set(p.id, marker)
+      }
+    })
+  }, [promoters, filterStatus, filterCity, mapReady])
+
+  const filtered = promoters.filter(p =>
+    (filterStatus === 'all' || p.status === filterStatus) &&
+    (filterCity   === 'all' || p.city   === filterCity)
+  )
+
+  const counts: Record<CheckStatus, number> = {
+    'checked-in': promoters.filter(p => p.status === 'checked-in').length,
+    'late':       promoters.filter(p => p.status === 'late').length,
+    'absent':     promoters.filter(p => p.status === 'absent').length,
+    'completed':  promoters.filter(p => p.status === 'completed').length,
   }
 
-  const cfg = ROLE_CONFIG[role]
-
-  const handleLogin = async () => {
-    setError(null)
-    if (!email || !password) { setError('Please enter your email and password.'); return }
-    setLoading(true)
-    try {
-      await login(email, password)
-      setSuccess(true)
-      setTimeout(() => navigate(DASHBOARD_ROUTE[role]), 900)
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Check your credentials.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleLogin()
-  }
+  const cities = ['all', ...Array.from(new Set(promoters.map(p => p.city))).sort()]
 
   return (
-    <div
-      onKeyDown={handleKeyDown}
-      style={{
-        minHeight: '100vh', background: BLACK,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: FB, padding: '40px 16px', position: 'relative', overflow: 'hidden',
-      }}
-    >
-      <style>{GLOBAL_CSS}</style>
+    <AdminLayout>
+      <div style={{ padding:'40px 48px' }}>
 
-      {/* Grid background — amber tint */}
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.03,
-        backgroundImage: `linear-gradient(${GOLD} 1px,transparent 1px),linear-gradient(90deg,${GOLD} 1px,transparent 1px)`,
-        backgroundSize: '72px 72px',
-      }} />
-
-      {/* Radial glow — shifts with role accent */}
-      <div style={{
-        position: 'fixed', top: '-10%', left: '50%', transform: 'translateX(-50%)',
-        width: 700, height: 400, borderRadius: '50%', zIndex: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse, ${cfg.accentColor}14 0%, transparent 70%)`,
-        transition: 'background 0.6s ease',
-      }} />
-
-      {/* Decorative rings */}
-      <div style={{
-        position: 'fixed', right: -240, top: '50%', transform: 'translateY(-50%)',
-        width: 600, height: 600, borderRadius: '50%',
-        border: `1px solid rgba(196,151,58,0.07)`, pointerEvents: 'none', zIndex: 0,
-      }}>
-        <div style={{ position: 'absolute', inset: 80, borderRadius: '50%', border: `1px solid rgba(196,151,58,0.04)` }} />
-      </div>
-
-      <div className="hg-form-wrap" style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 460 }}>
-
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
-            <span style={{ color: GOLD }}>HONEY</span>
-            <span style={{ color: WHITE }}> GROUP</span>
+        {/* HEADER */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
+          <div>
+            <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>Operations · Live</div>
+            <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Live Operations Map</h1>
+            <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>Real-time attendance across all active shifts — {promoters.length} promoters on shift today.</p>
           </div>
-          <div style={{ width: 32, height: 1, background: GOLD, margin: '0 auto 18px' }} />
-          <p style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.38em', textTransform: 'uppercase', color: GOLD_DIM }}>
-            Platform Login
-          </p>
-        </div>
-
-        {/* Role tabs */}
-        <div style={{
-          display: 'flex', background: '#0d0d0d',
-          border: `1px solid rgba(196,151,58,0.12)`, padding: 4, marginBottom: 28, gap: 4,
-        }}>
-          {(Object.keys(ROLE_CONFIG) as Role[]).map(r => {
-            const c = ROLE_CONFIG[r]
-            const active = role === r
-            return (
-              <button key={r} onClick={() => { setRole(r); setError(null) }}
-                style={{
-                  flex: 1, padding: '11px 8px',
-                  background: active ? `${c.accentColor}14` : 'transparent',
-                  border: active ? `1px solid ${c.accentColor}55` : '1px solid transparent',
-                  color: active ? c.accentColor : GOLD_PALE,
-                  fontFamily: FB, fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.14em', textTransform: 'uppercase',
-                  cursor: 'pointer', transition: 'all 0.3s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = GOLD_DIM }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = GOLD_PALE }}
-              >
-                <span style={{ fontSize: 13 }}>{c.icon}</span>
-                {c.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Card */}
-        <div style={{
-          background: BLACK_CARD, border: `1px solid rgba(196,151,58,0.12)`,
-          padding: '44px 40px', position: 'relative',
-          boxShadow: `0 40px 100px rgba(0,0,0,0.6), 0 0 60px ${cfg.accentColor}08`,
-          transition: 'box-shadow 0.5s',
-        }}>
-          {/* Top accent bar — gold gradient */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-            background: `linear-gradient(90deg, ${BROWN}, ${cfg.accentColor}, ${GOLD_LIGHT}, ${cfg.accentColor}, ${BROWN})`,
-            transition: 'background 0.4s',
-          }} />
-
-          {/* Role description — amber tinted */}
-          <div style={{
-            background: `${cfg.accentColor}0c`,
-            border: `1px solid ${cfg.accentColor}28`,
-            padding: '10px 14px', marginBottom: 32, transition: 'all 0.4s',
-          }}>
-            <p style={{ fontFamily: FB, fontSize: 12, color: cfg.accentColor, margin: 0, lineHeight: 1.5, transition: 'color 0.4s' }}>
-              {cfg.description}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <FloatingInput
-              label="Email Address" type="email" placeholder="you@honeygroup.co.za"
-              value={email} onChange={setEmail}
-              focused={focusedField === 'email'}
-              onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
-              accentColor={cfg.accentColor}
-            />
-            <FloatingInput
-              label="Password" type="password" placeholder="••••••••"
-              value={password} onChange={setPassword}
-              focused={focusedField === 'password'}
-              onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
-              accentColor={cfg.accentColor}
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              marginTop: 18, padding: '10px 14px',
-              background: 'rgba(184,130,10,0.10)', border: `1px solid ${AMBER}44`,
-              fontFamily: FB, fontSize: 12, color: AMBER,
-            }}>
-              {error}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:'50%', background:GL, opacity:pulse?1:0.25, transition:'opacity 0.5s' }} />
+              <span style={{ fontSize:11, color:W55, fontFamily:FD }}>Live · {lastUpdated.toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' })}</span>
             </div>
-          )}
-
-          {success && (
-            <div style={{
-              marginTop: 18, padding: '10px 14px',
-              background: `${cfg.accentColor}12`, border: `1px solid ${cfg.accentColor}40`,
-              fontFamily: FB, fontSize: 12, color: cfg.accentColor,
-            }}>
-              ✓ Login successful — redirecting to your dashboard…
-            </div>
-          )}
-
-          <button
-            onClick={handleLogin}
-            disabled={loading || success}
-            style={{
-              marginTop: 28, width: '100%', padding: '16px 0',
-              background: success ? `${cfg.accentColor}18` : `linear-gradient(90deg, ${AMBER}, ${cfg.accentColor}, ${GOLD_LIGHT})`,
-              border: success ? `1px solid ${cfg.accentColor}50` : 'none',
-              fontFamily: FB, fontSize: 11, fontWeight: 600,
-              letterSpacing: '0.22em', textTransform: 'uppercase',
-              color: success ? cfg.accentColor : BLACK,
-              cursor: loading ? 'wait' : 'pointer',
-              transition: 'all 0.3s',
-            }}
-            onMouseEnter={e => { if (!loading && !success) { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
-          >
-            {success ? `✓ Logged in` : loading ? 'Authenticating…' : `Log In as ${cfg.label}`}
-          </button>
-
-          {/* Footer links */}
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            {role !== 'admin' && (
-              <p style={{ fontFamily: FB, fontSize: 12, color: GOLD_DIM, marginBottom: 0 }}>
-                Don't have an account?{' '}
-                <button
-                  onClick={() => navigate('/register')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 12, color: GOLD, fontWeight: 600, padding: 0 }}
-                >
-                  Register
-                </button>
-              </p>
-            )}
-            {role === 'admin' && (
-              <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.1em' }}>
-                Admin accounts are created by invitation only{'  '}
-                <button
-                  onClick={() => { setShowChangePw(v => !v); setCpError(null); setCpSuccess(false) }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: AMBER, padding: 0, textDecoration: 'underline' }}
-                >
-                  {showChangePw ? 'Cancel' : 'Change Password'}
-                </button>
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* ── Change-password panel (admin only) ── */}
-        {role === 'admin' && showChangePw && (
-          <div style={{
-            background: BLACK_CARD, border: `1px solid rgba(184,130,10,0.22)`,
-            padding: '32px 40px', marginTop: 12, position: 'relative',
-          }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-              background: `linear-gradient(90deg, ${BROWN}, ${AMBER}, ${GOLD_LIGHT})` }} />
-            <p style={{ fontFamily: FB, fontSize: 9, fontWeight: 600, letterSpacing: '0.28em',
-              textTransform: 'uppercase', color: AMBER, marginBottom: 20 }}>
-              Change Admin Password
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {(['cpCurrent','cpNew','cpConfirm'] as const).map((field, i) => {
-                const labels   = ['Current Password', 'New Password', 'Confirm New Password']
-                const values   = [cpCurrent, cpNew, cpConfirm]
-                const setters  = [setCpCurrent, setCpNew, setCpConfirm]
-                return (
-                  <div key={field}>
-                    <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600,
-                      letterSpacing: '0.18em', textTransform: 'uppercase',
-                      color: cpFocused === field ? AMBER : GOLD_DIM, marginBottom: 8, transition: 'color 0.2s' }}>
-                      {labels[i]}
-                    </label>
-                    <input
-                      type="password" placeholder="••••••••" value={values[i]}
-                      onChange={e => setters[i](e.target.value)}
-                      onFocus={() => setCpFocused(field)} onBlur={() => setCpFocused(null)}
-                      style={{ width: '100%', background: 'rgba(184,130,10,0.03)',
-                        border: `1px solid ${cpFocused === field ? AMBER : 'rgba(184,130,10,0.15)'}`,
-                        padding: '12px 16px', fontFamily: FB, fontSize: 14, color: WHITE,
-                        outline: 'none', transition: 'border-color 0.2s',
-                        boxShadow: cpFocused === field ? `0 0 0 3px ${AMBER}18` : 'none' }}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-
-            {cpError && (
-              <div style={{ marginTop: 14, padding: '9px 14px',
-                background: 'rgba(184,130,10,0.08)', border: `1px solid ${AMBER}40`,
-                fontFamily: FB, fontSize: 12, color: AMBER }}>
-                {cpError}
-              </div>
-            )}
-            {cpSuccess && (
-              <div style={{ marginTop: 14, padding: '9px 14px',
-                background: 'rgba(192,120,24,0.10)', border: `1px solid ${GOLD}50`,
-                fontFamily: FB, fontSize: 12, color: GOLD }}>
-                ✓ Password changed successfully
-              </div>
-            )}
-
-            <button
-              onClick={handleChangePassword} disabled={cpLoading || cpSuccess}
-              style={{ marginTop: 20, width: '100%', padding: '13px 0',
-                background: `linear-gradient(90deg, ${BROWN}, ${AMBER}, ${GOLD_LIGHT})`,
-                border: 'none', fontFamily: FB, fontSize: 11, fontWeight: 600,
-                letterSpacing: '0.2em', textTransform: 'uppercase',
-                color: BLACK, cursor: cpLoading ? 'wait' : 'pointer', transition: 'all 0.3s' }}
-              onMouseEnter={e => { if (!cpLoading) e.currentTarget.style.opacity = '0.88' }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-            >
-              {cpSuccess ? '✓ Updated' : cpLoading ? 'Updating…' : 'Update Password'}
+            <button onClick={loadPromoters} style={{ fontSize:10, color:GL, background:'none', border:`1px solid ${BB}`, padding:'5px 12px', cursor:'pointer', fontFamily:FD, borderRadius:3 }}>
+              Refresh
             </button>
           </div>
-        )}
+        </div>
 
-        {/* Back to home */}
-        <div style={{ textAlign: 'center', marginTop: 28 }}>
-          <button
-            onClick={() => navigate('/')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FB, fontSize: 11, color: GOLD_PALE, letterSpacing: '0.16em', textTransform: 'uppercase', transition: 'color 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
-            onMouseLeave={e => (e.currentTarget.style.color = GOLD_PALE)}
-          >
-            ← Back to Home
-          </button>
+        {/* STAT CARDS */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, background:BB, marginBottom:28 }}>
+          {(Object.keys(counts) as CheckStatus[]).map(s => (
+            <StatCard key={s} count={counts[s]} label={STATUS_LABEL[s]} status={s} active={filterStatus===s} onClick={()=>setFilterStatus(filterStatus===s?'all':s)} />
+          ))}
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:20 }}>
+
+          {/* MAP */}
+          <div style={{ background:D2, border:`1px solid ${BB}`, position:'relative', overflow:'hidden', minHeight:520, borderRadius:4 }}>
+
+            {/* Status filter pills */}
+            <div style={{ position:'absolute', top:14, left:14, zIndex:10, display:'flex', gap:6, flexWrap:'wrap' }}>
+              {(['all','checked-in','late','absent','completed'] as const).map(s => (
+                <button key={s} onClick={()=>setFilterStatus(s)}
+                  style={{ padding:'5px 12px', background:filterStatus===s?hex2rgba(STATUS_COLOR[s as CheckStatus]||GL,0.22):'rgba(12,10,7,0.85)', border:`1px solid ${filterStatus===s?(STATUS_COLOR[s as CheckStatus]||GL):'rgba(212,136,10,0.22)'}`, color:filterStatus===s?(STATUS_COLOR[s as CheckStatus]||GL):W55, fontFamily:FD, fontSize:10, cursor:'pointer', letterSpacing:'0.08em', borderRadius:3 }}>
+                  {s === 'all' ? 'All' : STATUS_LABEL[s as CheckStatus]}
+                </button>
+              ))}
+            </div>
+
+            {/* City filter pills */}
+            <div style={{ position:'absolute', top:52, left:14, zIndex:10, display:'flex', gap:6, flexWrap:'wrap' }}>
+              {cities.map(c => (
+                <button key={c} onClick={()=>setFilterCity(c)}
+                  style={{ padding:'4px 10px', background:filterCity===c?hex2rgba(G2,0.45):'rgba(12,10,7,0.85)', border:`1px solid ${filterCity===c?G2:'rgba(212,136,10,0.18)'}`, color:filterCity===c?GL:W55, fontFamily:FD, fontSize:9, cursor:'pointer', letterSpacing:'0.06em', borderRadius:3 }}>
+                  {c === 'all' ? 'All Cities' : c}
+                </button>
+              ))}
+            </div>
+
+            <div ref={mapRef} style={{ width:'100%', height:'100%', minHeight:520 }} />
+
+            {mapError && (
+              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:D2, gap:12 }}>
+                <div style={{ fontSize:28 }}>Map</div>
+                <div style={{ fontSize:13, color:W55, fontFamily:FD, textAlign:'center', maxWidth:300, lineHeight:1.6 }}>{mapError}</div>
+                <div style={{ fontSize:10, color:W28, fontFamily:FD }}>Add VITE_GOOGLE_MAPS_KEY to your frontend .env and restart the dev server</div>
+              </div>
+            )}
+
+            {/* Legend */}
+            <div style={{ position:'absolute', bottom:32, left:14, background:'rgba(10,8,4,0.92)', border:`1px solid ${BB}`, padding:'10px 14px', display:'flex', flexDirection:'row', gap:14, borderRadius:3, zIndex:5 }}>
+              {(Object.keys(STATUS_COLOR) as CheckStatus[]).map(s => (
+                <div key={s} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:STATUS_COLOR[s], flexShrink:0 }} />
+                  <span style={{ fontSize:10, color:W55, letterSpacing:'0.05em', fontFamily:FD, whiteSpace:'nowrap' }}>{STATUS_LABEL[s]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PROMOTER LIST */}
+          <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ padding:'18px 20px 14px', borderBottom:`1px solid ${BB}`, background:D1 }}>
+              <div style={{ fontSize:9, letterSpacing:'0.25em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>Active Promoters</div>
+              <div style={{ fontSize:12, color:W55, marginTop:4, fontFamily:FD }}>{filtered.length} showing</div>
+            </div>
+            <div style={{ overflowY:'auto', flex:1 }}>
+              {filtered.map((p, i) => (
+                <div key={p.id}
+                  onClick={() => {
+                    setSelected(selected?.id===p.id ? null : p)
+                    if (mapReady && mapInstance.current && p.lat && p.lng) {
+                      mapInstance.current.panTo({ lat: p.lat, lng: p.lng })
+                      mapInstance.current.setZoom(14)
+                      const marker = markersRef.current.get(p.id)
+                      if (marker) window.google?.maps?.event?.trigger(marker, 'click')
+                    }
+                  }}
+                  style={{ padding:'14px 20px', borderBottom:i<filtered.length-1?`1px solid ${BB}`:'none', cursor:'pointer', background:selected?.id===p.id?hex2rgba(GL,0.06):'transparent', transition:'background 0.18s' }}
+                  onMouseEnter={e=>{ if(selected?.id!==p.id) e.currentTarget.style.background=BB2 }}
+                  onMouseLeave={e=>{ if(selected?.id!==p.id) e.currentTarget.style.background='transparent' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD }}>{p.name}</div>
+                      <div style={{ fontSize:11, color:W55, marginTop:2, fontFamily:FD }}>{p.venue}</div>
+                      <div style={{ fontSize:10, color:W28, marginTop:2, fontFamily:FD }}>{p.job}</div>
+                      <div style={{ fontSize:9, color:W28, marginTop:2, fontFamily:FD, letterSpacing:'0.1em' }}>{p.city.toUpperCase()}</div>
+                    </div>
+                    <div style={{ textAlign:'right', flexShrink:0, marginLeft:8 }}>
+                      <StatusBadge status={p.status} />
+                      {p.time !== '—' && <div style={{ fontSize:10, color:W28, marginTop:6, fontFamily:FD }}>In at {p.time}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div style={{ padding:40, textAlign:'center', color:W28, fontSize:13, fontFamily:FD }}>
+                  No promoters match this filter.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   )
 }
