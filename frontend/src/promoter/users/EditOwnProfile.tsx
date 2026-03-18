@@ -190,7 +190,7 @@ export const EditOwnProfile: React.FC = () => {
             {/* Profile photo / headshot */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div style={{ width: 90, height: 90, borderRadius: '50%', overflow: 'hidden', background: `linear-gradient(135deg, ${G}, ${GL})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 900, color: B, border: `2px solid ${GL}80` }}>
-                {profile?.headshotUrl || profile?.profilePhotoUrl ? (
+                {profile.urls?.headshotUrl || profile.urls?.profilePhotoUrl ? (
                   <img src={profile.headshotUrl || profile.profilePhotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                 ) : displayName.charAt(0).toUpperCase()}
               </div>
@@ -253,7 +253,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* Headshot */}
           <DocumentCard
             label="Headshot Photo"
-            url={profile?.headshotUrl}
+            url={profile.urls?.headshotUrl}
             onUpload={file => handleDocUpload('headshot', file)}
             uploading={uploading}
             accept="image/*"
@@ -262,7 +262,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* Full Body Photo */}
           <DocumentCard
             label="Full Body Photo"
-            url={profile?.fullBodyPhotoUrl}
+            url={profile.urls?.fullBodyPhotoUrl}
             onUpload={file => handleDocUpload('fullBodyPhoto', file)}
             uploading={uploading}
             accept="image/*"
@@ -271,7 +271,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* CV / ID Proof */}
           <DocumentCard
             label="CV / ID Proof"
-            url={profile?.cvUrl}
+            url={profile.urls?.cvUrl}
             onUpload={file => handleDocUpload('cv', file)}
             uploading={uploading}
             accept=".pdf,.jpg,.jpeg,.png"
@@ -280,7 +280,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* Profile Photo */}
           <DocumentCard
             label="Profile Photo"
-            url={profile?.profilePhotoUrl}
+            url={profile.urls?.profilePhotoUrl}
             onUpload={file => handleDocUpload('profilePhoto', file)}
             uploading={uploading}
             accept="image/*"

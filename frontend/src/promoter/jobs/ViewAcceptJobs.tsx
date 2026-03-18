@@ -84,13 +84,11 @@ export const ViewAcceptJobs: React.FC = () => {
 
     if (meRes.ok) {
       const profileData = await meRes.json();
-      console.log('Profile data:', profileData);
       setProfile(profileData);
     }
 
     if (appsRes.ok) {
       const appsData = await appsRes.json();
-      console.log('Applications data:', appsData);
       setApplications(appsData);
     }
 
