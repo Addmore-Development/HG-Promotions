@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { showToast } from '../../shared/utils/toast';
@@ -19,6 +18,7 @@ const FB  = "'DM Sans', system-ui, sans-serif";
 const TEAL   = '#4AABB8';
 const CORAL  = '#C4614A';
 
+const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 function authHdr() {
   const t = localStorage.getItem('hg_token');
@@ -123,6 +123,7 @@ export const EditOwnProfile: React.FC = () => {
       if (res.ok) {
         setSuccessMsg(`${field} uploaded successfully`);
         await loadProfile();
+        console.log('Document upload response:', await res.json());
         setTimeout(() => setSuccessMsg(''), 3000);
       } else {
         setError('Upload failed');
@@ -158,6 +159,12 @@ export const EditOwnProfile: React.FC = () => {
 
   const displayName = profile?.fullName || user?.name || 'Promoter';
 
+  // Helper to build absolute URL
+  const getFullUrl = (url?: string) => {
+    if (!url) return null;
+    return url.startsWith('http') ? url : BACKEND + url;
+  };
+
   return (
     <div style={{ padding: '40px 48px' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -190,9 +197,13 @@ export const EditOwnProfile: React.FC = () => {
             {/* Profile photo / headshot */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div style={{ width: 90, height: 90, borderRadius: '50%', overflow: 'hidden', background: `linear-gradient(135deg, ${G}, ${GL})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 900, color: B, border: `2px solid ${GL}80` }}>
-                {profile.urls?.headshotUrl || profile.urls?.profilePhotoUrl ? (
-                  <img src={profile.headshotUrl || profile.profilePhotoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
-                ) : displayName.charAt(0).toUpperCase()}
+                {(() => {
+                  const avatarUrl = profile?.headshotUrl || profile?.profilePhotoUrl;
+                  const fullAvatarUrl = avatarUrl ? (avatarUrl.startsWith('http') ? avatarUrl : BACKEND + avatarUrl) : null;
+                  return fullAvatarUrl ? (
+                    <img src={fullAvatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                  ) : displayName.charAt(0).toUpperCase();
+                })()}
               </div>
               <label style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: GL, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, color: B, border: `2px solid ${D2}` }}
                 title="Upload headshot">
@@ -249,11 +260,11 @@ export const EditOwnProfile: React.FC = () => {
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${GL}, ${G2})` }} />
         <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>My Documents & Photos</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
           {/* Headshot */}
           <DocumentCard
             label="Headshot Photo"
-            url={profile.urls?.headshotUrl}
+            url={profile?.headshotUrl}
             onUpload={file => handleDocUpload('headshot', file)}
             uploading={uploading}
             accept="image/*"
@@ -262,7 +273,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* Full Body Photo */}
           <DocumentCard
             label="Full Body Photo"
-            url={profile.urls?.fullBodyPhotoUrl}
+            url={profile?.fullBodyPhotoUrl}
             onUpload={file => handleDocUpload('fullBodyPhoto', file)}
             uploading={uploading}
             accept="image/*"
@@ -271,7 +282,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* CV / ID Proof */}
           <DocumentCard
             label="CV / ID Proof"
-            url={profile.urls?.cvUrl}
+            url={profile?.cvUrl}
             onUpload={file => handleDocUpload('cv', file)}
             uploading={uploading}
             accept=".pdf,.jpg,.jpeg,.png"
@@ -280,7 +291,7 @@ export const EditOwnProfile: React.FC = () => {
           {/* Profile Photo */}
           <DocumentCard
             label="Profile Photo"
-            url={profile.urls?.profilePhotoUrl}
+            url={profile?.profilePhotoUrl}
             onUpload={file => handleDocUpload('profilePhoto', file)}
             uploading={uploading}
             accept="image/*"
@@ -393,17 +404,20 @@ function DocumentCard({ label, url, onUpload, uploading, accept, icon }: {
   const WM = 'rgba(250,243,232,0.65)';
   const WD = 'rgba(250,243,232,0.28)';
   const TEAL = '#4AABB8';
-  const isImage = url && /\.(jpg|jpeg|png|webp)/i.test(url);
+  const BACKEND = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+  const fullUrl = url?.startsWith('http') ? url : (url ? BACKEND + url : null);
+  const isImage = fullUrl && /\.(jpg|jpeg|png|webp)/i.test(fullUrl);
 
   return (
     <div style={{ background: 'rgba(212,136,10,0.04)', border: `1px solid ${BB}`, borderRadius: 2, overflow: 'hidden' }}>
       {/* Preview */}
       <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', position: 'relative' }}>
-        {url ? (
+        {fullUrl ? (
           isImage ? (
-            <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+            <img src={fullUrl} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
           ) : (
-            <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: GL, fontSize: 13, textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <a href={fullUrl} target="_blank" rel="noopener noreferrer" style={{ color: GL, fontSize: 13, textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 32 }}>📄</span>
               <span style={{ fontSize: 10 }}>View File</span>
             </a>
@@ -414,7 +428,7 @@ function DocumentCard({ label, url, onUpload, uploading, accept, icon }: {
             <div style={{ fontSize: 10 }}>Not uploaded</div>
           </div>
         )}
-        {url && (
+        {fullUrl && (
           <div style={{ position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: '50%', background: TEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✓</div>
         )}
       </div>
@@ -423,7 +437,7 @@ function DocumentCard({ label, url, onUpload, uploading, accept, icon }: {
         <div style={{ fontSize: 11, color: WM, marginBottom: 8, fontWeight: 600 }}>{label}</div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(232,168,32,0.08)', border: `1px solid rgba(232,168,32,0.25)`, borderRadius: 2, cursor: 'pointer', fontSize: 10, color: GL, fontWeight: 700 }}>
           <input type="file" accept={accept} style={{ display: 'none' }} disabled={uploading} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
-          {url ? '↑ Replace' : '↑ Upload'}
+          {fullUrl ? '↑ Replace' : '↑ Upload'}
         </label>
       </div>
     </div>
