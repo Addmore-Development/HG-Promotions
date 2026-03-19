@@ -15,8 +15,8 @@ const router = Router();
 
 // ── Own profile ──────────────────────────────────────────────────────────────
 router.get('/me',       protect, getUserById);                      // GET    /api/users/me
-router.put('/me',       protect, updateMyProfile);                  // PUT    /api/users/me
-router.post('/me/docs', protect, documentUpload, uploadDocuments);  // POST   /api/users/me/docs
+router.put('/me/profile',       protect, updateMyProfile);                  // PUT    /api/users/me
+router.post('/me/documents', protect, documentUpload, uploadDocuments);  // POST   /api/users/me/docs
 
 // ── Admin: all users ─────────────────────────────────────────────────────────
 router.get('/eligible', protect, adminOnly, getEligiblePromoters);  // GET    /api/users/eligible

@@ -13,6 +13,7 @@ import applicationRoutes from "./routes/application.routes";
 import shiftRoutes from "./routes/shift.routes";
 import paymentRoutes from "./routes/payment.routes";
 import adminRoutes from "./routes/admin.routes";
+import chatRoutes from "./routes/chat.routes";
 
 const app = express();
 app.use(cors({ origin: FRONTEND_URL, credentials: true }));
@@ -31,6 +32,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

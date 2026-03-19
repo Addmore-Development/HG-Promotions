@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
 
-// ── Updated Color tokens ──────────────────────────────────────────────────────
+// ── Color tokens ──────────────────────────────────────────────────────────────
 const GL  = '#E8A820'
 const G   = '#D4880A'
 const G3  = '#C07818'
@@ -10,15 +10,19 @@ const G5  = '#6B3F10'
 const B   = '#0C0A07'
 const D1  = '#141008'
 const D2  = '#1A1408'
-// Updated palette — consistent with admin panel
-const W   = '#CEC5B2'                    // warm mid-cream
-const WM  = 'rgba(200,188,168,0.88)'     // warm readable mid-grey
-const WD  = 'rgba(168,152,130,0.55)'     // visible warm grey
-const W85 = 'rgba(210,198,180,0.95)'     // near-full warm grey
-const W65 = 'rgba(192,178,158,0.80)'     // bright readable mid-grey
+const W   = '#CEC5B2'
+const WM  = 'rgba(200,188,168,0.88)'
+const WD  = 'rgba(168,152,130,0.55)'
 const BB  = 'rgba(212,136,10,0.16)'
 const JB6 = 'rgba(12,10,7,0.60)'
 const JBB = 'rgba(12,10,7,0.22)'
+
+// ── Filter button colors for the GOLD section background (#AB8D3F) ────────────
+// High-contrast dark text on gold — much more readable
+const FILTER_ACTIVE_BG    = 'rgba(0,0,0,0.72)'
+const FILTER_ACTIVE_TEXT  = '#F5E6C0'           // near-white warm cream
+const FILTER_IDLE_BG      = 'rgba(0,0,0,0.28)'
+const FILTER_IDLE_TEXT    = '#1A1000'           // very dark brown — strong contrast on gold
 
 const FD = "'Work Sans', 'worksans', sans-serif"
 
@@ -50,16 +54,13 @@ const GLOBAL_CSS = `
     transition: transform 0.55s cubic-bezier(0.22,1,0.36,1), box-shadow 0.55s ease, z-index 0s;
   }
 
-  .nav-link { color: ${W65}; background: none; border: none; cursor: pointer; font-family: ${FD}; font-size: 12px; font-weight: 400; letter-spacing: 0.12em; padding: 0; transition: color 0.25s; }
+  .nav-link { color: rgba(192,178,158,0.80); background: none; border: none; cursor: pointer; font-family: ${FD}; font-size: 12px; font-weight: 400; letter-spacing: 0.12em; padding: 0; transition: color 0.25s; }
   .nav-link:hover { color: ${GL}; }
 
   .ticker-wrap { overflow: hidden; border-top: 1px solid ${BB}; border-bottom: 1px solid ${BB}; background: ${D1}; }
   .ticker-inner { display: flex; white-space: nowrap; animation: ticker 28s linear infinite; }
   .ticker-item { padding: 0 56px; font-size: 10px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(192,178,158,0.82); display: flex; align-items: center; gap: 24px; height: 42px; font-family: ${FD}; }
   .ticker-item span { color: ${GL}; font-size: 8px; }
-
-  .feat-slide-enter { animation: feature-in 0.65s cubic-bezier(0.22,1,0.36,1) both; }
-  .feat-slide-exit  { animation: feature-out 0.45s cubic-bezier(0.22,1,0.36,1) both; }
 
   .job-card-hover:hover { transform: translateY(-6px) !important; }
   .job-card-hover:hover .card-inner { border-color: rgba(232,168,32,0.5) !important; box-shadow: 0 24px 48px rgba(0,0,0,0.7), 0 0 32px rgba(232,168,32,0.12) !important; }
@@ -69,9 +70,107 @@ const GLOBAL_CSS = `
   .triptych-img.center img { filter: grayscale(0%) !important; }
   .triptych-img:hover img { transform: scale(1.04); }
 
-  .jobs-grid-scroll::-webkit-scrollbar { height: 4px; }
-  .jobs-grid-scroll::-webkit-scrollbar-track { background: rgba(12,10,7,0.3); }
-  .jobs-grid-scroll::-webkit-scrollbar-thumb { background: ${GL}; border-radius: 2px; }
+  /* ── Filter buttons on gold background — HIGH contrast ── */
+  .filter-btn {
+    padding: 6px 14px;
+    border-radius: 2px;
+    font-family: ${FD};
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.18s;
+    border: 1px solid rgba(0,0,0,0.35);
+    white-space: nowrap;
+  }
+  .filter-btn.active {
+    background: ${FILTER_ACTIVE_BG};
+    color: ${FILTER_ACTIVE_TEXT};
+    border-color: rgba(0,0,0,0.55);
+  }
+  .filter-btn.idle {
+    background: ${FILTER_IDLE_BG};
+    color: ${FILTER_IDLE_TEXT};
+    border-color: rgba(0,0,0,0.22);
+  }
+  .filter-btn.idle:hover {
+    background: rgba(0,0,0,0.45);
+    color: #F5E6C0;
+    border-color: rgba(0,0,0,0.5);
+  }
+
+  /* ── Responsive: Mobile-first breakpoints ── */
+
+  /* Nav mobile */
+  @media (max-width: 768px) {
+    .nav-desktop-links { display: none !important; }
+    .nav-root { padding: 0 16px !important; height: 58px !important; }
+    .nav-logo { font-size: 16px !important; }
+    .nav-cta-group { gap: 6px !important; }
+    .nav-cta-group button { font-size: 10px !important; padding: 8px 12px !important; }
+  }
+
+  /* Hero mobile */
+  @media (max-width: 768px) {
+    .hero-root { height: 72vh !important; min-height: 420px !important; padding: 12px 16px !important; margin-top: 58px !important; flex-direction: column !important; }
+    .hero-media-panel { top: 12px !important; left: 12px !important; right: 12px !important; bottom: 12px !important; }
+    .hero-copy { padding: 0 0 0 16px !important; }
+    .hero-copy h1 { font-size: clamp(36px,10vw,64px) !important; }
+    .hero-copy h1 span { max-width: 100% !important; }
+    .hero-cta-btn { max-width: 100% !important; font-size: 10px !important; padding: 10px 16px !important; }
+  }
+
+  /* Jobs section mobile */
+  @media (max-width: 900px) {
+    .jobs-section-root { padding: 36px 20px 44px !important; }
+    .jobs-header-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+    .jobs-grid-4col { grid-template-columns: repeat(2, 1fr) !important; }
+    .filter-row { flex-direction: column !important; gap: 8px !important; align-items: flex-start !important; }
+    .filter-divider { display: none !important; }
+    .filter-count { margin-left: 0 !important; }
+  }
+  @media (max-width: 540px) {
+    .jobs-grid-4col { grid-template-columns: 1fr !important; }
+    .jobs-section-root { padding: 28px 12px 36px !important; }
+    .filter-btn { font-size: 8px !important; padding: 5px 10px !important; }
+  }
+
+  /* Features section mobile */
+  @media (max-width: 900px) {
+    .features-section-root { padding: 48px 20px 64px !important; }
+    .features-grid-3col { grid-template-columns: 1fr !important; gap: 16px !important; }
+    .feat-card-0, .feat-card-1, .feat-card-2 { transform: none !important; z-index: 1 !important; }
+    .features-header-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+    .features-header-row h2 { text-align: left !important; }
+  }
+  @media (max-width: 540px) {
+    .features-section-root { padding: 32px 12px 48px !important; }
+  }
+
+  /* Triptych mobile */
+  @media (max-width: 768px) {
+    .triptych-grid { grid-template-columns: 1fr !important; height: auto !important; }
+    .triptych-side { display: none !important; }
+    .triptych-center { height: 320px !important; }
+  }
+
+  /* Footer mobile */
+  @media (max-width: 900px) {
+    .footer-grid-3col { grid-template-columns: 1fr !important; gap: 40px !important; }
+    .footer-root { padding: 48px 20px 40px !important; }
+  }
+  @media (max-width: 540px) {
+    .footer-root { padding: 36px 12px 32px !important; }
+  }
+
+  /* Section padding mobile */
+  @media (max-width: 768px) {
+    .section-padded { padding-left: 20px !important; padding-right: 20px !important; }
+  }
+  @media (max-width: 540px) {
+    .section-padded { padding-left: 12px !important; padding-right: 12px !important; }
+  }
 `
 
 // ── Reveal hook ───────────────────────────────────────────────────────────────
@@ -239,38 +338,52 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
     <div style={{ position: 'relative' }}>
       <GlitterField />
 
-      <div style={{ position: 'relative', zIndex: 2, marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filter row */}
+      <div className="filter-row" style={{ position: 'relative', zIndex: 2, marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* City filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {cities.map(c => (
-            <button key={c} onClick={() => setCityFilter(c)} style={{ padding: '5px 12px', background: cityFilter === c ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)', border: `1px solid ${cityFilter === c ? JBB : 'rgba(12,10,7,0.3)'}`, color: cityFilter === c ? B : JB6, fontFamily: FD, fontSize: 9, fontWeight: cityFilter === c ? 700 : 500, cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.18s', borderRadius: 2 }}>
+            <button
+              key={c}
+              onClick={() => setCityFilter(c)}
+              className={`filter-btn ${cityFilter === c ? 'active' : 'idle'}`}
+            >
               {c}
             </button>
           ))}
         </div>
 
-        <div style={{ width: 1, height: 16, background: JBB, flexShrink: 0 }} />
+        {/* Divider */}
+        <div className="filter-divider" style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.35)', flexShrink: 0 }} />
 
+        {/* Type filters */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {types.map(t => (
-            <button key={t} onClick={() => setTypeFilter(t)} style={{ padding: '5px 12px', background: typeFilter === t ? 'rgba(12,10,7,0.75)' : 'rgba(12,10,7,0.45)', border: `1px solid ${typeFilter === t ? JBB : 'rgba(12,10,7,0.3)'}`, color: typeFilter === t ? B : JB6, fontFamily: FD, fontSize: 9, fontWeight: typeFilter === t ? 700 : 500, cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.18s', borderRadius: 2 }}>
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`filter-btn ${typeFilter === t ? 'active' : 'idle'}`}
+            >
               {t === 'All' ? 'All Types' : t}
             </button>
           ))}
         </div>
 
-        <div style={{ marginLeft: 'auto', fontSize: 10, color: JB6, fontFamily: FD }}>
+        {/* Count */}
+        <div className="filter-count" style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#1A1000', fontFamily: FD }}>
           {filtered.length} position{filtered.length !== 1 ? 's' : ''}
         </div>
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      {/* Jobs grid */}
+      <div className="jobs-grid-4col" style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {visible.map((job, i) => (
           <JobCard key={job.id} job={job} index={i} isLoggedIn={isLoggedIn} onLock={onLock} onView={onView} />
         ))}
       </div>
 
       {filtered.length === 0 && (
-        <div style={{ padding: '40px 0', textAlign: 'center', color: JB6, fontFamily: FD, fontSize: 13 }}>
+        <div style={{ padding: '40px 0', textAlign: 'center', color: '#1A1000', fontFamily: FD, fontSize: 13 }}>
           No jobs match your filters.
         </div>
       )}
@@ -316,7 +429,7 @@ function FeatureSlideshow() {
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, alignItems: 'flex-start', perspective: '1200px' }}>
+    <div className="features-grid-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, alignItems: 'flex-start', perspective: '1200px' }}>
       {features.map((f, i) => (
         <div key={i} className={`feat-card-${i}`}
           style={{ transform: `rotate(${f.rotate}) translateY(${f.translateY})`, zIndex: f.zIndex, transition: 'transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s ease', transformStyle: 'preserve-3d', cursor: 'default', position: 'relative' }}
@@ -352,18 +465,18 @@ function FeatureSlideshow() {
 function ImageTriptych() {
   return (
     <section style={{ position: 'relative', overflow: 'hidden', background: B, borderTop: `1px solid ${BB}` }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', height: 520 }}>
-        <div className="triptych-img" style={{ position: 'relative' }}>
+      <div className="triptych-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', height: 520 }}>
+        <div className="triptych-img triptych-side" style={{ position: 'relative' }}>
           <img src="/leftFooter.jpg" alt="Concert crowd" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(12,10,7,0.3), transparent)' }} />
         </div>
-        <div className="triptych-img center" style={{ position: 'relative', zIndex: 2 }}>
+        <div className="triptych-img center triptych-center" style={{ position: 'relative', zIndex: 2 }}>
           <img src="/centreFooter.jpg" alt="Promoter at event" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', filter: 'brightness(1.05) saturate(1.1)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, border: `2px solid ${GL}`, pointerEvents: 'none', opacity: 0.4 }} />
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GL}, transparent)` }} />
         </div>
-        <div className="triptych-img" style={{ position: 'relative' }}>
+        <div className="triptych-img triptych-side" style={{ position: 'relative' }}>
           <img src="/rightFooter.jpg" alt="Street crowd" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', filter: 'grayscale(100%) brightness(0.7)', transition: 'transform 0.8s cubic-bezier(0.22,1,0.36,1)' }} onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.04)' }} onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.transform = 'scale(1)' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to left, rgba(12,10,7,0.3), transparent)' }} />
         </div>
@@ -431,11 +544,13 @@ export default function LandingPage() {
       <style>{GLOBAL_CSS}</style>
 
       {/* ── NAV ── */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '0 48px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#000' }}>
-        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.01em', flexShrink: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <nav className="nav-root" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '0 48px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#000' }}>
+        <div className="nav-logo" style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.01em', flexShrink: 0 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span>
         </div>
-        <ul style={{ display: 'flex', gap: 52, listStyle: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+
+        {/* Desktop nav links — hidden on mobile */}
+        <ul className="nav-desktop-links" style={{ display: 'flex', gap: 52, listStyle: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
           {[{ label: 'Jobs', ref: secJobsRef }, { label: 'Features', ref: secFeaturesRef }].map(({ label, ref }) => (
             <li key={label}>
               <button onClick={() => scrollTo(ref)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FD, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: W, transition: 'color 0.2s', padding: 0 }}
@@ -446,7 +561,8 @@ export default function LandingPage() {
             </li>
           ))}
         </ul>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+
+        <div className="nav-cta-group" style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           {session ? (
             <>
               <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GL, border: 'none', color: B, padding: '11px 24px', cursor: 'pointer', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = G} onMouseLeave={e => e.currentTarget.style.background = GL}>My Dashboard</button>
@@ -462,8 +578,8 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ height: '75vh', minHeight: 540, maxHeight: 820, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'stretch', background: '#000', marginTop: 68, padding: '28px 48px' }}>
-        <div style={{ position: 'absolute', top: 28, left: '48%', right: 48, bottom: 28, borderRadius: 16, overflow: 'hidden', zIndex: 1 }}>
+      <section className="hero-root" style={{ height: '75vh', minHeight: 540, maxHeight: 820, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'stretch', background: '#000', marginTop: 68, padding: '28px 48px' }}>
+        <div className="hero-media-panel" style={{ position: 'absolute', top: 28, left: '48%', right: 48, bottom: 28, borderRadius: 16, overflow: 'hidden', zIndex: 1 }}>
           {heroMedia.map((media, idx) => (
             <div key={idx} style={{ position: 'absolute', inset: 0, opacity: heroSlide === idx ? 1 : 0, transition: 'opacity 1s ease', zIndex: heroSlide === idx ? 1 : 0 }}>
               {media.type === 'video' ? (
@@ -482,19 +598,19 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '100%', zIndex: 5, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 48px', pointerEvents: 'none' }}>
+        <div className="hero-copy" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '100%', zIndex: 5, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 48px', pointerEvents: 'none' }}>
           <h1 style={{ fontFamily: "'Bodoni Moda', 'Modern No. 20', 'Didot', Georgia, serif", fontSize: 'clamp(58px, 7.8vw, 112px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.02em', textTransform: 'uppercase', marginBottom: 36, fontStyle: 'italic' }}>
             <span style={{ color: W, display: 'block' }}>WE PUT <span style={{ color: GL }}>PROMOTERS</span></span>
             <span style={{ color: W, display: 'inline-block', maxWidth: '46%' }}>CENTRE STAGE</span>
           </h1>
           {session ? (
-            <button onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
+            <button className="hero-cta-btn" onClick={handleDashboard} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(206,197,178,0.7)'; e.currentTarget.style.color = WM }}>
               ▶ MY DASHBOARD
             </button>
           ) : (
-            <button onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
+            <button className="hero-cta-btn" onClick={() => navigate('/register')} style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'transparent', border: '2px solid rgba(206,197,178,0.7)', color: WM, padding: '11px 20px', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: 8, pointerEvents: 'all', width: 'fit-content', whiteSpace: 'nowrap', maxWidth: '38%' }}
               onMouseEnter={e => { e.currentTarget.style.background = GL; e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = B }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(206,197,178,0.7)'; e.currentTarget.style.color = WM }}>
               ▶ JOIN AS PROMOTER
@@ -518,17 +634,18 @@ export default function LandingPage() {
           rJobs(el)
           secJobsRef.current = el
         }}
-        className="reveal"
+        className="reveal jobs-section-root"
         style={{ padding: '48px 80px 56px', background: '#AB8D3F', borderBottom: `1px solid rgba(120,75,0,0.4)`, position: 'relative', overflow: 'hidden' }}
       >
+        {/* Ambient glow */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'radial-gradient(ellipse at 15% 40%, rgba(255,210,90,0.22) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(90,45,0,0.18) 0%, transparent 50%)' }} />
 
+        {/* Corner star decorations */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
           {[{top:12,left:16,size:28,opacity:0.55,delay:'0s',dur:'2.6s'},{top:10,left:64,size:16,opacity:0.40,delay:'0.5s',dur:'3.2s'},{top:38,left:36,size:12,opacity:0.35,delay:'1.0s',dur:'2.9s'},{top:8,left:108,size:10,opacity:0.28,delay:'0.3s',dur:'3.7s'},{top:60,left:14,size:20,opacity:0.45,delay:'1.4s',dur:'2.4s'},{top:52,left:72,size:8,opacity:0.25,delay:'0.8s',dur:'4.0s'},{top:80,left:44,size:14,opacity:0.32,delay:'2.0s',dur:'3.0s'},{top:28,left:148,size:7,opacity:0.22,delay:'1.7s',dur:'3.5s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', top:s.top, left:s.left, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
           ))}
         </div>
-
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 340, height: 340, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
           {[{bottom:12,right:16,size:28,opacity:0.55,delay:'0.2s',dur:'2.6s'},{bottom:10,right:64,size:16,opacity:0.40,delay:'0.7s',dur:'3.2s'},{bottom:38,right:36,size:12,opacity:0.35,delay:'1.2s',dur:'2.9s'},{bottom:60,right:14,size:20,opacity:0.45,delay:'1.6s',dur:'2.4s'},{bottom:80,right:44,size:14,opacity:0.32,delay:'2.1s',dur:'3.0s'}].map((s,i) => (
             <div key={i} style={{ position:'absolute', bottom:s.bottom, right:s.right, fontSize:s.size, color:W, opacity:s.opacity, animation:`twinkle ${s.dur} ${s.delay} ease-in-out infinite`, lineHeight:1 }}>✦</div>
@@ -536,37 +653,36 @@ export default function LandingPage() {
         </div>
 
         <div style={{ maxWidth: 1360, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
-              <div>
-                <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em', marginBottom: 8 }}>
-                  <span style={{ color: B }}>Live </span>
-                  <span style={{ color: B, fontStyle: 'italic' }}>Jobs.</span>
-                </h2>
-                <p style={{ fontSize: 13, color: JB6, lineHeight: 1.6, fontFamily: FD }}>
-                  {allJobs.length} active positions across South Africa.
-                  {!session && <> <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/login')}>Login</span> or <span style={{ color: B, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/register')}>register</span> to apply.</>}
-                </p>
-              </div>
-              <div style={{ flexShrink: 0 }}>
-                {!session ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(12,10,7,0.10)`, border: `1px solid ${JBB}` }}>
-                    <span style={{ fontSize: 12, color: B }}>⬡</span>
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Members Only</div>
-                      <div style={{ fontSize: 11, color: JB6, marginTop: 1, fontFamily: FD }}>Login to apply</div>
-                    </div>
+          {/* Section header */}
+          <div className="jobs-header-row" style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+            <div>
+              <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,4vw,52px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-0.03em', marginBottom: 8 }}>
+                <span style={{ color: B }}>Live </span>
+                <span style={{ color: B, fontStyle: 'italic' }}>Jobs.</span>
+              </h2>
+              <p style={{ fontSize: 13, color: '#1A1000', fontWeight: 600, lineHeight: 1.6, fontFamily: FD }}>
+                {allJobs.length} active positions across South Africa.
+                {!session && <> <span style={{ color: B, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/login')}>Login</span> or <span style={{ color: B, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }} onClick={() => navigate('/register')}>register</span> to apply.</>}
+              </p>
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              {!session ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(0,0,0,0.18)`, border: `1px solid rgba(0,0,0,0.28)` }}>
+                  <span style={{ fontSize: 12, color: B }}>⬡</span>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Members Only</div>
+                    <div style={{ fontSize: 11, color: '#1A1000', marginTop: 1, fontFamily: FD }}>Login to apply</div>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(12,10,7,0.10)`, border: `1px solid ${JBB}` }}>
-                    <span style={{ fontSize: 12, color: B }}>◉</span>
-                    <div>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Logged In</div>
-                      <div style={{ fontSize: 11, color: JB6, marginTop: 1, fontFamily: FD }}>{session.name}</div>
-                    </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: `rgba(0,0,0,0.18)`, border: `1px solid rgba(0,0,0,0.28)` }}>
+                  <span style={{ fontSize: 12, color: B }}>◉</span>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: B, fontFamily: FD }}>Logged In</div>
+                    <div style={{ fontSize: 11, color: '#1A1000', marginTop: 1, fontFamily: FD }}>{session.name}</div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -590,10 +706,10 @@ export default function LandingPage() {
           rFeatures(el)
           secFeaturesRef.current = el
         }}
-        className="reveal"
+        className="reveal features-section-root"
         style={{ padding: '80px 80px 100px', background: B, borderBottom: `1px solid ${BB}` }}>
         <div style={{ maxWidth: 1360, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 56, borderBottom: `1px solid ${BB}`, paddingBottom: 32 }}>
+          <div className="features-header-row" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 56, borderBottom: `1px solid ${BB}`, paddingBottom: 32 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.42em', textTransform: 'uppercase', color: GL, fontFamily: FD }}>Platform Capabilities</div>
             <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,48px)', fontWeight: 900, lineHeight: 1, textAlign: 'right' }}>Built for <span style={{ color: GL, fontStyle: 'italic' }}>precision.</span></h2>
           </div>
@@ -617,8 +733,9 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer style={{ background: B }}>
-        <div style={{ padding: '72px 80px 56px' }}>
-          <div style={{ maxWidth: 1360, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 1fr', gap: 80, alignItems: 'start' }}>
+        <div className="footer-root" style={{ padding: '72px 80px 56px' }}>
+          <div className="footer-grid-3col" style={{ maxWidth: 1360, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 1fr', gap: 80, alignItems: 'start' }}>
+            {/* Newsletter */}
             <div>
               <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, marginBottom: 32, letterSpacing: '0.01em' }}><span style={{ color: GL }}>HONEY</span><span style={{ color: W }}> GROUP</span></div>
               <h3 style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: W, marginBottom: 12, lineHeight: 1.2 }}>Newsletter Sign-Up</h3>
@@ -634,6 +751,8 @@ export default function LandingPage() {
                 <span style={{ fontSize: 16, color: GL }}>↗</span>
               </div>
             </div>
+
+            {/* Nav links */}
             <div style={{ paddingTop: 8 }}>
               {[{ label: 'Jobs Board', href: '/jobs' }, { label: 'Features', href: '/#features' }, { label: 'About', href: '/#about' }, { label: 'News & Updates', href: '#' }, { label: 'Contact', href: '#' }].map(link => (
                 <div key={link.label} style={{ padding: '14px 0', borderBottom: `1px solid ${BB}`, cursor: 'pointer' }} onClick={() => link.href !== '#' && navigate(link.href)} onMouseEnter={e => { (e.currentTarget.firstChild as HTMLElement).style.color = GL }} onMouseLeave={e => { (e.currentTarget.firstChild as HTMLElement).style.color = WM }}>
@@ -641,6 +760,8 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+
+            {/* Contact + social */}
             <div style={{ paddingTop: 8 }}>
               {[{ label: 'Partnership Opportunities', email: 'partnerships@honeygroup.co.za' }, { label: 'Career Opportunities', email: 'careers@honeygroup.co.za' }, { label: 'Press', email: 'press@honeygroup.co.za' }].map(c => (
                 <div key={c.label} style={{ marginBottom: 32 }}>
