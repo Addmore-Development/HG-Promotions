@@ -161,7 +161,20 @@ export default function BusinessDashboard() {
         fetch(`${API}/jobs`, { headers: authHdr() as any }),
         fetch(`${API}/applications`, { headers: authHdr() as any }),
       ])
-      if (jobsRes.ok) setJobs(await jobsRes.json())
+      const apiJobs = jobsRes.ok ? await jobsRes.json() : []
+      // Merge admin-created jobs from localStorage
+      try {
+        const sessionStr = localStorage.getItem('hg_session')
+        const session = sessionStr ? JSON.parse(sessionStr) : null
+        const myClientId = session?.userId || session?.id
+        const stored: any[] = JSON.parse(localStorage.getItem('hg_admin_jobs') || '[]')
+        const apiIds = new Set(apiJobs.map((j: any) => j.id))
+        // Only show this business's jobs or all if no match
+        const extraJobs = stored.filter((j: any) => !apiIds.has(j.id) && (!myClientId || j.clientId === myClientId || !j.clientId))
+        setJobs([...apiJobs, ...extraJobs])
+      } catch {
+        setJobs(apiJobs)
+      }
       if (appsRes.ok) setApplications(await appsRes.json())
     } catch {}
     setLoading(false)

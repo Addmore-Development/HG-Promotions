@@ -40,9 +40,15 @@ function apiToJob(j: any): Job {
 export const jobsService = {
 
   async getAvailableJobs(_promoterId?: string): Promise<Job[]> {
-    await delay(400)
-    const jobs = await apiFetch<any[]>('/jobs')
-    return jobs.map(apiToJob)
+    try {
+      const jobs = await apiFetch<any[]>('/jobs')
+      return jobs
+        .filter(j => ['OPEN', 'FILLED', 'IN_PROGRESS', 'open', 'filled', 'in_progress'].includes(j.status || 'OPEN'))
+        .map(apiToJob)
+    } catch (err) {
+      console.error('[jobsService] getAvailableJobs error:', err)
+      return []
+    }
   },
 
   async getJobById(jobId: string): Promise<Job | null> {

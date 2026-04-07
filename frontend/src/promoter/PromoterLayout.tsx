@@ -124,7 +124,7 @@ export const PromoterLayout: React.FC<{ children: ReactNode }> = ({ children }) 
             )
           })}
 
-          <button onClick={()=>window.open('/','_blank')} title={collapsed?'Browse Site':undefined}
+          <button onClick={()=>navigate('/')} title={collapsed?'Browse Site':undefined}
             style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:collapsed?'12px 0':'11px 20px', justifyContent:collapsed?'center':'flex-start', background:'transparent', borderLeft:'3px solid transparent', border:'none', cursor:'pointer', transition:'all 0.2s', color:WD, marginTop:8, borderTop:`1px solid ${BB}` }}
             onMouseEnter={e=>{e.currentTarget.style.background='rgba(212,136,10,0.06)';e.currentTarget.style.color=GL}}
             onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=WD}}>
@@ -171,7 +171,7 @@ export const PromoterLayout: React.FC<{ children: ReactNode }> = ({ children }) 
             </p>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <button onClick={()=>window.open('/','_blank')} style={{ background:'none', border:`1px solid ${BB}`, cursor:'pointer', fontFamily:FB, fontSize:10, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:WD, padding:'6px 14px', transition:'all 0.2s', borderRadius:2 }}
+            <button onClick={()=>navigate('/')} style={{ background:'none', border:`1px solid ${BB}`, cursor:'pointer', fontFamily:FB, fontSize:10, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:WD, padding:'6px 14px', transition:'all 0.2s', borderRadius:2 }}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=GL;e.currentTarget.style.color=GL}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=BB;e.currentTarget.style.color=WD}}>
               Browse Site

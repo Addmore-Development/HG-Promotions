@@ -55,6 +55,29 @@ export const EditOwnProfile: React.FC = () => {
     bankName: '', accountNumber: '', accountType: 'Cheque', branchCode: '',
   });
 
+  // ── Categories, languages, experience (chip selectors) ───────────────────────
+  const [categories,  setCategories]  = useState<string[]>([]);
+  const [languages,   setLanguages]   = useState<string[]>([]);
+  const [experience,  setExperience]  = useState('');
+
+  const PROMOTER_CATEGORIES = [
+    'Brand Activation', 'Sampling & Demonstrations', 'In-Store Promotions',
+    'Events & Exhibitions', 'Field Marketing', 'Merchandising',
+    'Customer Service', 'Hospitality', 'Fitness & Wellness', 'Fashion & Beauty',
+    'Financial Services', 'Telecoms', 'Quick Service Restaurant', 'Automotive', 'Other',
+  ];
+  const SA_LANGUAGES = [
+    'English', 'Zulu', 'Xhosa', 'Afrikaans', 'Sotho', 'Tswana',
+    'Venda', 'Tsonga', 'Swati', 'Ndebele', 'Pedi',
+  ];
+  const EXPERIENCE_OPTIONS = [
+    'No experience — willing to learn', '6 months – 1 year',
+    '1 – 2 years', '2 – 3 years', '3+ years',
+  ];
+
+  const toggleCat  = (c: string) => setCategories(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  const toggleLang = (l: string) => setLanguages(prev  => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
+
   const loadProfile = async () => {
     if (!user) return;
     setLoading(true);
@@ -76,6 +99,9 @@ export const EditOwnProfile: React.FC = () => {
           accountType: 'Cheque',
           branchCode: p.branchCode ?? '',
         });
+        // Restore chip selections from stored comma-separated industry field
+        if (p.industry) setCategories(p.industry.split(',').map((s: string) => s.trim()).filter(Boolean));
+        if (p.address)  setLanguages(p.address.split(',').map((s: string) => s.trim()).filter(Boolean));
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -96,6 +122,10 @@ export const EditOwnProfile: React.FC = () => {
           clothingSize: form.clothingSize, shoeSize: form.shoeSize,
           bankName: form.bankName, accountNumber: form.accountNumber,
           branchCode: form.branchCode,
+          // Store categories as comma-separated in industry field
+          industry: categories.join(', ') || undefined,
+          // Store languages in address field (re-used for promoters)
+          address: languages.join(', ') || undefined,
         }),
       });
       if (res.ok) {
@@ -305,6 +335,87 @@ export const EditOwnProfile: React.FC = () => {
             Uploading document…
           </div>
         )}
+      </div>
+
+      {/* ── CATEGORIES & SKILLS SECTION ── */}
+      <div style={{ background: D2, border: `1px solid ${BB}`, borderRadius: 2, marginBottom: 24, padding: 28, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${GL}, ${G2})` }} />
+        <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: GL, marginBottom: 20, fontWeight: 700 }}>Work Categories & Skills</div>
+
+        {/* Categories */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: WM }}>Promotion Categories</span>
+            {categories.length > 0 && <span style={{ fontSize: 11, color: GL, fontWeight: 700 }}>{categories.length} selected</span>}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {PROMOTER_CATEGORIES.map(cat => {
+              const active = categories.includes(cat);
+              return (
+                <button key={cat} onClick={() => toggleCat(cat)} style={{
+                  padding: '7px 14px', background: active ? 'rgba(232,168,32,0.14)' : 'transparent',
+                  border: `1px solid ${active ? GL : BB}`, color: active ? GL : WD,
+                  fontFamily: FB, fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+                  transition: 'all 0.18s', borderRadius: 2, display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}>
+                  {active && <span style={{ fontSize: 9 }}>✓</span>}
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+          {categories.length > 0 && (
+            <div style={{ marginTop: 10, padding: '10px 12px', background: 'rgba(232,168,32,0.06)', border: `1px solid rgba(232,168,32,0.2)`, borderRadius: 2 }}>
+              <p style={{ fontFamily: FB, fontSize: 10, color: WD, marginBottom: 4, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Selected</p>
+              <p style={{ fontFamily: FB, fontSize: 12, color: GL }}>{categories.join(' · ')}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Languages */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: WM }}>Languages Spoken</span>
+            {languages.length > 0 && <span style={{ fontSize: 11, color: GL, fontWeight: 700 }}>{languages.length} selected</span>}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {SA_LANGUAGES.map(lang => {
+              const active = languages.includes(lang);
+              return (
+                <button key={lang} onClick={() => toggleLang(lang)} style={{
+                  padding: '7px 14px', background: active ? 'rgba(232,168,32,0.14)' : 'transparent',
+                  border: `1px solid ${active ? GL : BB}`, color: active ? GL : WD,
+                  fontFamily: FB, fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+                  transition: 'all 0.18s', borderRadius: 2, display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}>
+                  {active && <span style={{ fontSize: 9 }}>✓</span>}
+                  {lang}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Experience */}
+        <div>
+          <label style={{ ...labelStyle, marginBottom: 10 }}>Experience Level</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {EXPERIENCE_OPTIONS.map(opt => {
+              const active = experience === opt;
+              return (
+                <button key={opt} onClick={() => setExperience(active ? '' : opt)} style={{
+                  padding: '7px 14px', background: active ? 'rgba(232,168,32,0.14)' : 'transparent',
+                  border: `1px solid ${active ? GL : BB}`, color: active ? GL : WD,
+                  fontFamily: FB, fontSize: 11, fontWeight: active ? 600 : 400, cursor: 'pointer',
+                  transition: 'all 0.18s', borderRadius: 2, display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}>
+                  {active && <span style={{ fontSize: 9 }}>✓</span>}
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Editable sections grid */}

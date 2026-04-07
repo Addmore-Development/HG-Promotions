@@ -66,32 +66,26 @@ export const ViewAcceptJobs: React.FC = () => {
   const [applying, setApplying]         = useState<string | null>(null);
   const [appliedJob,   setAppliedJob]   = useState<any>(null);   // triggers success modal
   const [selectedJob, setSelectedJob]   = useState<any>(null);
-  const [filter, setFilter]             = useState<'myCity' | 'all' | 'matched'>('myCity');
+  const [filter, setFilter]             = useState<'myCity' | 'all' | 'matched'>('all');
   const [search, setSearch]             = useState('');
   const [sortField, setSortField]       = useState<'date' | 'pay'>('date');
 
   const loadData = async () => {
     if (!user) return;
+    try {
+      // All three calls hit the real PostgreSQL-backed API
+      const [jobsRes, meRes, appsRes] = await Promise.all([
+        fetch(`${API}/jobs`,            { headers: authHdr() as any }),
+        fetch(`${API}/auth/me`,         { headers: authHdr() as any }),
+        fetch(`${API}/applications/my`, { headers: authHdr() as any }),
+      ]);
 
-    // Use jobsService to fetch available jobs – it already handles transformation & auth
-    const [jobsData, meRes, appsRes] = await Promise.all([
-      jobsService.getAvailableJobs(),                         // ✅ now using the service
-      fetch(`${API}/auth/me`, { headers: authHdr() as any }),
-      fetch(`${API}/applications/my`, { headers: authHdr() as any }),
-    ]);
-
-    setJobs(jobsData); // jobsService returns the already transformed Job[] (with nested coordinates)
-
-    if (meRes.ok) {
-      const profileData = await meRes.json();
-      setProfile(profileData);
+      if (jobsRes.ok) setJobs(await jobsRes.json());
+      if (meRes.ok)   setProfile(await meRes.json());
+      if (appsRes.ok) setApplications(await appsRes.json());
+    } catch (e) {
+      console.error('[ViewAcceptJobs] loadData error:', e);
     }
-
-    if (appsRes.ok) {
-      const appsData = await appsRes.json();
-      setApplications(appsData);
-    }
-
     setLoading(false);
   };
 
@@ -112,7 +106,7 @@ export const ViewAcceptJobs: React.FC = () => {
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(j => {
-      if (!['OPEN', 'open', 'FILLED', 'filled'].includes(j.status)) return false;
+      if (!['OPEN', 'open', 'FILLED', 'filled', 'IN_PROGRESS', 'in_progress'].includes(j.status)) return false;
       if (filter === 'myCity'  && !jobMatchesPromoterCity(j, promoterCityRaw)) return false;
       if (filter === 'matched' && !isProfileMatch(j)) return false;
       if (search) {
@@ -133,13 +127,12 @@ export const ViewAcceptJobs: React.FC = () => {
 
   const handleApply = async (job: any) => {
     if (!user) return;
-    if (!jobMatchesPromoterCity(job, promoterCityRaw)) {
-      showToast(`You can only apply for jobs in your city.`, 'error');
-      return;
-    }
     if (profile?.status !== 'approved') {
       showToast('Your account must be approved before applying for jobs.', 'error');
       return;
+    }
+    if (promoterCityRaw && !jobMatchesPromoterCity(job, promoterCityRaw)) {
+      showToast('Note: This job is outside your registered city.', 'info');
     }
     setApplying(job.id);
     try {
@@ -150,14 +143,18 @@ export const ViewAcceptJobs: React.FC = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setApplications(prev => [...prev, data]);
+        // Re-fetch from API so the applications list is always in sync with the DB
+        const appsRes = await fetch(`${API}/applications/my`, { headers: authHdr() as any });
+        if (appsRes.ok) setApplications(await appsRes.json());
         setSelectedJob(null);
-        setAppliedJob(job);   // show success modal
+        setAppliedJob(job);
+      } else if (res.status === 409) {
+        showToast('You have already applied for this job.', 'info');
       } else {
-        showToast(data.error || 'Failed to apply', 'error');
+        showToast(data.error || 'Failed to apply. Please try again.', 'error');
       }
     } catch {
-      showToast('Failed to apply', 'error');
+      showToast('Network error. Please check your connection and try again.', 'error');
     }
     setApplying(null);
   };

@@ -25,12 +25,27 @@ export const documentUpload = multer({
   { name: 'cipcDoc',       maxCount: 1 },
   { name: 'taxPin',        maxCount: 1 },
   { name: 'bizBankProof',  maxCount: 1 },
+  { name: 'bankProof',     maxCount: 1 },
 ]);
 
 // ── Normalise status — always store lowercase ────────────────────────────────
-// This handles cases where the Registrations page sends 'APPROVED' or 'approved'
 function normaliseStatus(s: string): string {
   return s.toLowerCase().trim();
+}
+
+// ── Shared helper: extract file URLs from multer fields ──────────────────────
+function extractFileUrls(files: { [fieldname: string]: Express.Multer.File[] }): Record<string, string> {
+  const data: Record<string, string> = {};
+  if (files?.headshot?.[0])      data.headshotUrl      = `/uploads/documents/${files.headshot[0].filename}`;
+  if (files?.fullBodyPhoto?.[0]) data.fullBodyPhotoUrl = `/uploads/documents/${files.fullBodyPhoto[0].filename}`;
+  if (files?.cv?.[0])            data.cvUrl            = `/uploads/documents/${files.cv[0].filename}`;
+  if (files?.profilePhoto?.[0])  data.profilePhotoUrl  = `/uploads/documents/${files.profilePhoto[0].filename}`;
+  if (files?.cipcDoc?.[0])       data.cipcDocUrl       = `/uploads/documents/${files.cipcDoc[0].filename}`;
+  if (files?.taxPin?.[0])        data.taxPinUrl        = `/uploads/documents/${files.taxPin[0].filename}`;
+  if (files?.bizBankProof?.[0])  data.bizBankProofUrl  = `/uploads/documents/${files.bizBankProof[0].filename}`;
+  // bankProof is an alias for bizBankProofUrl (promoter bank statement)
+  if (files?.bankProof?.[0])     data.bizBankProofUrl  = `/uploads/documents/${files.bankProof[0].filename}`;
+  return data;
 }
 
 // ── GET all users (admin) ───────────────────────────────────────────────────
@@ -44,7 +59,6 @@ export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void
     if (status) {
       const s = (status as string).toLowerCase().trim();
       if (s === 'approved') {
-        // Match both 'approved' (correct) and 'APPROVED' (legacy uppercase)
         where.status = { in: ['approved', 'APPROVED'] };
       } else if (s === 'pending' || s === 'pending_review') {
         where.status = { in: ['pending_review', 'pending', 'PENDING', 'PENDING_REVIEW'] };
@@ -144,19 +158,11 @@ export const updateMyProfile = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-// ── POST upload documents ───────────────────────────────────────────────────
+// ── POST upload documents (own account — /api/users/me/documents) ────────────
 export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const data: any = {};
-
-    if (files?.headshot?.[0])      data.headshotUrl      = `/uploads/documents/${files.headshot[0].filename}`;
-    if (files?.fullBodyPhoto?.[0]) data.fullBodyPhotoUrl = `/uploads/documents/${files.fullBodyPhoto[0].filename}`;
-    if (files?.cv?.[0])            data.cvUrl            = `/uploads/documents/${files.cv[0].filename}`;
-    if (files?.profilePhoto?.[0])  data.profilePhotoUrl  = `/uploads/documents/${files.profilePhoto[0].filename}`;
-    if (files?.cipcDoc?.[0])       data.cipcDocUrl       = `/uploads/documents/${files.cipcDoc[0].filename}`;
-    if (files?.taxPin?.[0])        data.taxPinUrl        = `/uploads/documents/${files.taxPin[0].filename}`;
-    if (files?.bizBankProof?.[0])  data.bizBankProofUrl  = `/uploads/documents/${files.bizBankProof[0].filename}`;
+    const data = extractFileUrls(files);
 
     if (Object.keys(data).length === 0) {
       res.status(400).json({ error: 'No files uploaded' });
@@ -171,21 +177,53 @@ export const uploadDocuments = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
+// FIX: POST upload documents by userId — /api/users/register-documents/:id
+// Called by RegisterPage.tsx right after account creation with the fresh auth token.
+// Allows uploading documents for a specific userId as long as the token owner matches
+// (either the user themselves or an admin).
+export const uploadDocumentsByUserId = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const targetId = req.params.id;
+
+    // Security: only allow the user themselves or an ADMIN to upload for a given userId
+    if (req.user!.id !== targetId && req.user!.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!existing) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const data = extractFileUrls(files);
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: 'No files uploaded' });
+      return;
+    }
+
+    const updated = await prisma.user.update({ where: { id: targetId }, data });
+    res.json({ message: 'Documents uploaded', urls: data, user: updated });
+  } catch (err) {
+    console.error('[User] uploadDocumentsByUserId error:', err);
+    res.status(500).json({ error: 'Failed to upload documents' });
+  }
+};
+
 // ── Admin: update user status / onboarding ──────────────────────────────────
-// IMPORTANT: Always normalise status to lowercase so the promoter dashboard
-// correctly reads profile.status === 'approved'
 export const adminUpdateUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const {
       status, onboardingStatus, rejectionReason,
       role, reliabilityScore, paymentStatus,
-      // Profile fields admin can also update
       fullName, phone, city,
     } = req.body;
 
     const data: any = {};
 
-    // ✅ Normalise status to lowercase — prevents 'APPROVED' vs 'approved' mismatch
     if (status           !== undefined) data.status           = normaliseStatus(status);
     if (onboardingStatus !== undefined) data.onboardingStatus = normaliseStatus(onboardingStatus);
     if (rejectionReason  !== undefined) data.rejectionReason  = rejectionReason;
@@ -215,9 +253,7 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-// ── GET chatable users — role-aware list for job promoter selection ─────────
-// Returns ALL users of the requested role (no status filter by default)
-// so pending + approved promoters all show up for allocation
+// ── GET chatable users ───────────────────────────────────────────────────────
 export const getChatableUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
@@ -270,7 +306,6 @@ export const getChatableUsers = async (req: AuthRequest, res: Response): Promise
 export const getEligiblePromoters = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { jobId } = req.query;
-    // Show ALL promoters — both approved and pending so admin can select anyone
     const where: any = { role: 'PROMOTER' };
 
     const promoters = await prisma.user.findMany({

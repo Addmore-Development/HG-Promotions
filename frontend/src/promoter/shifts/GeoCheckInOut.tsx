@@ -29,6 +29,19 @@ function authHdr(): HeadersInit {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+// ── Send real GPS location to PostgreSQL via the API ─────────────────────────
+// The backend saves lat/lng to shift.liveLat / shift.liveLng in the database.
+// The admin live map reads this via GET /shifts/live-locations.
+async function broadcastLocationToAdmin(shiftId: string, lat: number, lng: number) {
+  try {
+    await fetch(`${API}/shifts/location/update`, {
+      method: 'POST',
+      headers: { ...authHdr(), 'Content-Type': 'application/json' } as HeadersInit,
+      body: JSON.stringify({ shiftId, lat, lng }),
+    });
+  } catch { /* non-fatal — next ping will retry */ }
+}
+
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -326,7 +339,10 @@ export const GeoCheckInOut: React.FC = () => {
     watchIdRef.current = navigator.geolocation.watchPosition(
       pos => {
         const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setLoc(newLoc); currentLocRef.current = newLoc;
+        setLoc(newLoc);
+        currentLocRef.current = newLoc;
+        // Broadcast every position update to admin live map
+        broadcastLocationToAdmin(shiftId, newLoc.lat, newLoc.lng);
       },
       err => console.warn('[Location] Watch error:', err.message),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -389,29 +405,71 @@ export const GeoCheckInOut: React.FC = () => {
     }
 
     if (!navigator.geolocation) {
-      setLoc({ lat: -26.2041, lng: 28.0473 });
-      currentLocRef.current = { lat: -26.2041, lng: 28.0473 };
-      setDistM(0); setGps('near'); return;
+      setGps('denied');
+      setLoc(null);
+      currentLocRef.current = null;
+      showToast('Location services are not supported by your browser.', 'error');
+      return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const newLoc = { lat, lng };
-        setLoc(newLoc); currentLocRef.current = newLoc;
-        const jobForGeo = (shift.job && shift.job.lat) ? shift.job : (jobs.get(shift.jobId) || shift.job);
-        if (!jobForGeo || !jobForGeo.lat || !jobForGeo.lng) { setDistM(0); setGps('near'); return; }
-        const d = haversine(lat, lng, jobForGeo.lat, jobForGeo.lng);
-        setDistM(Math.round(d));
-        setGps(d <= GEO_THRESHOLD_M ? 'near' : 'far');
-      },
-      () => {
-        const fallback = { lat: -26.2041, lng: 28.0473 };
-        setLoc(fallback); currentLocRef.current = fallback;
-        setDistM(0); setGps('near');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    // ── Use the Permissions API to check current state ────────────────────────
+    // This lets us distinguish "never asked" (prompt) vs "permanently denied" (denied).
+    // When state is "prompt" the browser WILL show the allow/deny dialog.
+    // When state is "denied" we show instructions to re-enable in settings.
+    const doGetPosition = () => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          const newLoc = { lat, lng };
+          setLoc(newLoc);
+          currentLocRef.current = newLoc;
+          broadcastLocationToAdmin(shift.id, lat, lng);
+          const jobForGeo = (shift.job && shift.job.lat) ? shift.job : (jobs.get(shift.jobId) || shift.job);
+          if (!jobForGeo || !jobForGeo.lat || !jobForGeo.lng) {
+            setDistM(0); setGps('near'); return;
+          }
+          const d = haversine(lat, lng, jobForGeo.lat, jobForGeo.lng);
+          setDistM(Math.round(d));
+          setGps(d <= GEO_THRESHOLD_M ? 'near' : 'far');
+        },
+        (err) => {
+          console.warn('[GPS] error:', err.code, err.message);
+          setGps('denied');
+          setLoc(null);
+          currentLocRef.current = null;
+          setDistM(null);
+          const msg = err.code === 2
+            ? 'Location unavailable. Please check your GPS signal and try again.'
+            : err.code === 3
+            ? 'Location request timed out. Please try again.'
+            : 'Location access denied. Please enable location permissions in your browser settings.';
+          showToast(msg, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    };
+
+    // Try the Permissions API first (not available in all browsers)
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(result => {
+        if (result.state === 'denied') {
+          // Already permanently blocked — skip the silent failure, show instructions immediately
+          setGps('denied');
+          setLoc(null);
+          currentLocRef.current = null;
+          showToast('Location is blocked for this site. Please enable it in your browser settings.', 'error');
+        } else {
+          // 'granted' or 'prompt' — both will trigger the native dialog if needed
+          doGetPosition();
+        }
+      }).catch(() => {
+        // Permissions API failed — just attempt position directly (browser will prompt)
+        doGetPosition();
+      });
+    } else {
+      // No Permissions API (older browsers) — attempt directly, browser will prompt
+      doGetPosition();
+    }
   };
 
   const doCheckIn = async () => {
@@ -421,9 +479,16 @@ export const GeoCheckInOut: React.FC = () => {
     if (currentShift.status === 'CHECKED_IN') { setSelfieAction('none'); showToast('You are already checked in.', 'info'); return; }
     if (['PENDING_APPROVAL', 'APPROVED'].includes(currentShift.status)) { setSelfieAction('none'); showToast('This shift has already been completed.', 'info'); return; }
 
+    // Hard block — real GPS coordinates are required
+    const currentLoc = currentLocRef.current;
+    if (!currentLoc) {
+      showToast('Location access is required to check in. Please enable location permissions and try again.', 'error');
+      setGps('denied');
+      return;
+    }
+
     setWorking(true);
     try {
-      const currentLoc = currentLocRef.current || loc || { lat: -26.2041, lng: 28.0473 };
       const formData = new FormData();
       formData.append('lat', String(currentLoc.lat));
       formData.append('lng', String(currentLoc.lng));
@@ -435,6 +500,8 @@ export const GeoCheckInOut: React.FC = () => {
         const updated = await res.json();
         setShifts(prev => prev.map(s => s.id === updated.id ? updated : s));
         setSelfieAction('none'); setSelfiePreview(null); setSelfieFile(null);
+        // Broadcast real check-in location to admin live map
+        await broadcastLocationToAdmin(selectedId, currentLoc.lat, currentLoc.lng);
         startTracking(selectedId);
         if (updated.isLate && updated.lateMinutes > 0) {
           showToast(`Checked in — you are ${updated.lateMinutes} minute${updated.lateMinutes > 1 ? 's' : ''} late.`, 'info');
@@ -459,9 +526,16 @@ export const GeoCheckInOut: React.FC = () => {
     if (!currentShift) { showToast('Shift not found', 'error'); return; }
     if (currentShift.status !== 'CHECKED_IN') { setSelfieAction('none'); showToast('You need to check in before checking out.', 'error'); return; }
 
+    // Hard block — real GPS coordinates are required
+    const currentLoc = currentLocRef.current;
+    if (!currentLoc) {
+      showToast('Location access is required to check out. Please enable location permissions and try again.', 'error');
+      setGps('denied');
+      return;
+    }
+
     setWorking(true);
     try {
-      const currentLoc = currentLocRef.current || loc || { lat: -26.2041, lng: 28.0473 };
       const formData = new FormData();
       formData.append('lat', String(currentLoc.lat));
       formData.append('lng', String(currentLoc.lng));
@@ -719,19 +793,50 @@ export const GeoCheckInOut: React.FC = () => {
                   )}
 
                   {/* Map + GPS status */}
-                  {job.lat && job.lng && (
+                  {/* ── Location status ── */}
+                  {gps === 'denied' && (
+                    <div style={{ marginBottom: 24, padding: '18px 20px', background: 'rgba(196,97,74,0.10)', border: `2px solid ${CORAL}`, borderRadius: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                        <span style={{ fontSize: 28, flexShrink: 0 }}>📍</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 14, color: CORAL, fontWeight: 700, marginBottom: 6, fontFamily: FD }}>
+                            Location Access Required
+                          </p>
+                          <p style={{ fontSize: 13, color: WM, marginBottom: 12, lineHeight: 1.6, fontFamily: FB }}>
+                            Your GPS location is required to check in. When you tap <strong style={{ color: GL }}>Request Location</strong> below, your browser will ask for permission — tap <strong style={{ color: GL }}>Allow</strong>.
+                          </p>
+                          <p style={{ fontSize: 12, color: WD, marginBottom: 16, lineHeight: 1.6, fontFamily: FB }}>
+                            If you previously blocked location, go to your browser address bar → the 🔒 lock icon → Site settings → Location → Allow, then tap Request Location again.
+                          </p>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            <button onClick={() => checkGps(activeShift)}
+                              style={{ padding: '10px 20px', background: `linear-gradient(135deg,${GL},${G})`, border: 'none', color: B, fontFamily: FD, fontSize: 12, fontWeight: 700, cursor: 'pointer', borderRadius: 6, letterSpacing: '0.08em' }}>
+                              📍 Request Location
+                            </button>
+                            <a href="https://support.google.com/chrome/answer/142065" target="_blank" rel="noopener noreferrer"
+                              style={{ padding: '10px 16px', background: 'transparent', border: `1px solid ${BB}`, color: WM, fontFamily: FB, fontSize: 11, cursor: 'pointer', borderRadius: 6, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                              How to enable location ↗
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {job.lat && job.lng && gps !== 'denied' && (
                     <div style={{ marginBottom: 24 }}>
                       <iframe width="100%" height="200" style={{ border: 0, borderRadius: 6 }} loading="lazy" allowFullScreen
                         src={`https://www.google.com/maps?q=${job.lat},${job.lng}&z=18&output=embed`} />
                       <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: hex2rgba(GL, 0.04), padding: '12px 16px', borderRadius: 6 }}>
                         <div style={{ fontSize: 13, color: WM, fontFamily: FB }}>
-                          {loc ? <>You are <strong style={{ color: GL }}>{distM !== null ? `${distM}m` : '—'}</strong> from the venue.</> : 'Waiting for your location...'}
+                          {gps === 'checking' && 'Getting your location...'}
+                          {gps === 'idle'     && 'Tap Refresh Location to check your distance.'}
+                          {loc && (gps === 'near' || gps === 'far') && <>You are <strong style={{ color: gps === 'near' ? GREEN : CORAL }}>{distM !== null ? `${distM}m` : '—'}</strong> from the venue.</>}
                         </div>
                         <div>
-                          {gps === 'near'     && <span style={{ color: GREEN, fontWeight: 700 }}>Within radius</span>}
-                          {gps === 'far'      && <span style={{ color: CORAL, fontWeight: 700 }}>Too far</span>}
-                          {gps === 'checking' && <span style={{ color: GL, fontWeight: 700 }}>Checking...</span>}
-                          {gps === 'denied'   && <span style={{ color: CORAL, fontWeight: 700 }}>Location denied</span>}
+                          {gps === 'near'     && <span style={{ fontSize: 12, color: GREEN, fontWeight: 700 }}>✓ Within radius</span>}
+                          {gps === 'far'      && <span style={{ fontSize: 12, color: CORAL, fontWeight: 700 }}>Too far away</span>}
+                          {gps === 'checking' && <span style={{ fontSize: 12, color: GL, fontWeight: 700 }}>Checking...</span>}
                         </div>
                       </div>
                     </div>
@@ -814,7 +919,7 @@ export const GeoCheckInOut: React.FC = () => {
                         Shift completed — {activeShift.totalHours ? `${activeShift.totalHours}h worked · R${Math.round(activeShift.totalHours * (job?.hourlyRate || 0))} earned` : 'pending approval'}
                       </div>
                     )}
-                    {(gps === 'idle' || gps === 'far' || (activeShift.status === 'SCHEDULED' && (isBeforeStart || isAfterEnd))) && (
+                    {(gps === 'idle' || gps === 'far' || (activeShift.status === 'SCHEDULED' && (isBeforeStart || isAfterEnd))) && gps !== 'denied' && (
                       <button onClick={() => checkGps(activeShift)}
                         style={{ padding: '12px', background: 'transparent', border: `1px solid ${BB}`, color: WM, fontFamily: FB, fontSize: 13, cursor: 'pointer', borderRadius: 6 }}>
                         Refresh Location

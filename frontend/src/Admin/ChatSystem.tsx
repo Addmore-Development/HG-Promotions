@@ -22,7 +22,7 @@ const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
 const W   = '#FAF3E8'
 const W55 = 'rgba(250,243,232,0.55)'
-const W28 = 'rgba(250,243,232,0.28)'
+const W28 = 'rgba(250,243,232,0.65)'
 const FD  = "'Playfair Display', Georgia, serif"
 const FB  = "'DM Sans', system-ui, sans-serif"
 

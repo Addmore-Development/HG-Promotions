@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActiveJobs, getAllJobsWithAdminJobs } from '../jobs/jobsData';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 // ── Color tokens ──────────────────────────────────────────────────────────────
 const GL  = '#E8A820'
 const G   = '#D4880A'
@@ -225,12 +227,15 @@ function GlitterField() {
 }
 
 // ── Single Job Card ───────────────────────────────────────────────────────────
-function JobCard({ job, index, isLoggedIn, onLock, onView }: {
+function JobCard({ job, index, isLoggedIn, isPromoter, applyingJobId, onLock, onView, onApply }: {
   job: ReturnType<typeof getActiveJobs>[0]
   index: number
   isLoggedIn: boolean
+  isPromoter: boolean
+  applyingJobId: string | null
   onLock: () => void
   onView: (id: string) => void
+  onApply: (job: any) => void
 }) {
   const fillPct = Math.round(((job.slots - job.slotsLeft) / job.slots) * 100)
   const isFeatured = index === 0
@@ -296,7 +301,23 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
             </div>
           </div>
 
-          {isLoggedIn ? (
+          {isLoggedIn && isPromoter ? (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => onApply(job)}
+                disabled={applyingJobId === job.id}
+                style={{ flex: 1, padding: '9px', border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.6)' : 'rgba(232,168,32,0.35)'}`, background: applyingJobId === job.id ? 'rgba(232,168,32,0.06)' : isFeatured ? 'rgba(232,168,32,0.14)' : 'rgba(232,168,32,0.08)', color: GL, fontFamily: FD, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: applyingJobId === job.id ? 'wait' : 'pointer', transition: 'all 0.2s', opacity: applyingJobId === job.id ? 0.6 : 1 }}
+                onMouseEnter={e => { if(applyingJobId !== job.id){ e.currentTarget.style.background = 'rgba(232,168,32,0.22)'; e.currentTarget.style.borderColor = GL }}}
+                onMouseLeave={e => { e.currentTarget.style.background = isFeatured ? 'rgba(232,168,32,0.14)' : 'rgba(232,168,32,0.08)'; e.currentTarget.style.borderColor = isFeatured ? 'rgba(232,168,32,0.6)' : 'rgba(232,168,32,0.35)' }}>
+                {applyingJobId === job.id ? 'Applying…' : 'Apply →'}
+              </button>
+              <button onClick={() => onView(job.id)} style={{ padding: '9px 10px', border: `1px solid ${BB}`, background: 'transparent', color: WM, fontFamily: FD, fontSize: 9, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = GL; e.currentTarget.style.color = GL }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = BB; e.currentTarget.style.color = WM }}>
+                Details
+              </button>
+            </div>
+          ) : isLoggedIn ? (
             <button onClick={() => onView(job.id)} style={{ width: '100%', padding: '9px', border: `1px solid ${isFeatured ? 'rgba(232,168,32,0.45)' : BB}`, background: isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent', color: GL, fontFamily: FD, fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,168,32,0.14)'; e.currentTarget.style.borderColor = GL }}
               onMouseLeave={e => { e.currentTarget.style.background = isFeatured ? 'rgba(232,168,32,0.08)' : 'transparent'; e.currentTarget.style.borderColor = isFeatured ? 'rgba(232,168,32,0.45)' : BB }}>
@@ -314,11 +335,14 @@ function JobCard({ job, index, isLoggedIn, onLock, onView }: {
 }
 
 // ── Jobs Section ──────────────────────────────────────────────────────────────
-function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
+function JobsSection({ jobs, isLoggedIn, isPromoter, applyingJobId, onLock, onView, onApply }: {
   jobs: ReturnType<typeof getActiveJobs>
   isLoggedIn: boolean
+  isPromoter: boolean
+  applyingJobId: string | null
   onLock: () => void
   onView: (id: string) => void
+  onApply: (job: any) => void
 }) {
   const [cityFilter, setCityFilter] = useState('All')
   const [typeFilter, setTypeFilter] = useState('All')
@@ -378,7 +402,7 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
       {/* Jobs grid */}
       <div className="jobs-grid-4col" style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
         {visible.map((job, i) => (
-          <JobCard key={job.id} job={job} index={i} isLoggedIn={isLoggedIn} onLock={onLock} onView={onView} />
+          <JobCard key={job.id} job={job} index={i} isLoggedIn={isLoggedIn} isPromoter={isPromoter} applyingJobId={applyingJobId} onLock={onLock} onView={onView} onApply={onApply} />
         ))}
       </div>
 
@@ -387,6 +411,97 @@ function JobsSection({ jobs, isLoggedIn, onLock, onView }: {
           No jobs match your filters.
         </div>
       )}
+    </div>
+  )
+}
+
+
+// ── Extra color constants needed by the modal components ──────────────────────
+const BC  = '#1A1408'   // card background (matches promoter dark)
+const G2  = '#8B5A1A'   // deep gold
+const G4  = '#8B5A1A'   // alias
+const FB  = "'DM Sans', system-ui, sans-serif"  // body font
+
+// ── Terms & Conditions Modal (shared with JobsPage) ─────────────────────────
+function TermsModal({ job, onAccept, onClose }: { job:any; onAccept:()=>void; onClose:()=>void }) {
+  const [agreed,setAgreed]=useState(false)
+  const [scrolled,setScrolled]=useState(false)
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16 }}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:BC, border:`1px solid ${BB}`, width:'100%', maxWidth:640, maxHeight:'90vh', display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', borderRadius:4 }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G5},${G},${GL},${G},${G5})` }} />
+        <div style={{ padding:'24px 24px 18px', borderBottom:`1px solid ${BB}`, flexShrink:0 }}>
+          <div style={{ fontSize:9, letterSpacing:'0.35em', textTransform:'uppercase', color:G, marginBottom:6, fontFamily:FB }}>Terms & Conditions</div>
+          <h2 style={{ fontFamily:FD, fontSize:20, fontWeight:700, color:W, lineHeight:1.3, marginBottom:8 }}>{job.title}</h2>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 20px' }}>
+            {[['Company',job.company],['Pay',`${job.pay} ${job.payPer}`],['Duration',job.duration]].map(([l,v])=>(
+              <div key={l} style={{ fontSize:11, color:WM, fontFamily:FB }}><span style={{ color:WD }}>{l}: </span>{v}</div>
+            ))}
+          </div>
+          <button onClick={onClose} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', cursor:'pointer', color:WD, fontSize:18 }}>✕</button>
+        </div>
+        <div onScroll={e=>{const el=e.currentTarget;if(el.scrollTop+el.clientHeight>=el.scrollHeight-40)setScrolled(true)}}
+          style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
+          {!scrolled&&<div style={{ background:'rgba(232,168,32,0.06)', border:`1px solid rgba(232,168,32,0.22)`, padding:'10px 14px', marginBottom:16, fontSize:11, color:G, display:'flex', alignItems:'center', gap:8, fontFamily:FB }}>↓ Please scroll through all terms before accepting</div>}
+          <div style={{ whiteSpace:'pre-line', fontSize:13, lineHeight:1.85, color:WM, fontFamily:FB }}>{job.terms||'Standard Honey Group Promoter Terms & Conditions apply.'}</div>
+        </div>
+        <div style={{ padding:'16px 24px 22px', borderTop:`1px solid ${BB}`, flexShrink:0 }}>
+          <label style={{ display:'flex', alignItems:'flex-start', gap:12, cursor:'pointer', marginBottom:16 }}>
+            <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{ marginTop:2, accentColor:G, width:16, height:16, flexShrink:0 }} />
+            <span style={{ fontSize:12, color:WM, lineHeight:1.6, fontFamily:FB }}>I have read and understand the Terms & Conditions. I accept this engagement as an independent contractor.</span>
+          </label>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={onAccept} disabled={!agreed} style={{ flex:1, padding:'13px', background:agreed?G:'rgba(206,197,178,0.05)', border:'none', color:agreed?B:WD, fontFamily:FB, fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', cursor:agreed?'pointer':'not-allowed', transition:'all 0.25s', borderRadius:2 }}>Accept & Continue</button>
+            <button onClick={onClose} style={{ padding:'13px 18px', background:'transparent', border:`1px solid ${BB}`, color:WM, fontFamily:FB, fontSize:11, cursor:'pointer', borderRadius:2 }}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Payment Modal ─────────────────────────────────────────────────────────────
+function PaymentModal({ job, onClose, onSuccess }: { job:any; onClose:()=>void; onSuccess:()=>void }) {
+  const [step,setStep]=useState<'select'|'processing'|'done'>('select')
+  const [method,setMethod]=useState<'card'|'eft'|'wallet'>('card')
+  const [cardNum,setCardNum]=useState(''); const [expiry,setExpiry]=useState(''); const [cvv,setCvv]=useState(''); const [name,setName]=useState('')
+  const fmtCard=(v:string)=>v.replace(/\D/g,'').slice(0,16).replace(/(.{4})/g,'$1 ').trim()
+  const fmtExpiry=(v:string)=>{const d=v.replace(/\D/g,'').slice(0,4);return d.length>2?d.slice(0,2)+'/'+d.slice(2):d}
+  const handlePay=()=>{setStep('processing');setTimeout(()=>{setStep('done');setTimeout(onSuccess,1800)},2200)}
+  const inp:React.CSSProperties={width:'100%',padding:'11px 12px',background:B,border:`1px solid ${BB}`,color:W,fontFamily:FB,fontSize:13,outline:'none',marginBottom:10,boxSizing:'border-box',borderRadius:2}
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', backdropFilter:'blur(16px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1001, padding:16 }}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:BC, border:`1px solid ${BB}`, width:'100%', maxWidth:440, position:'relative', overflow:'hidden', borderRadius:4 }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${G5},${G},${GL},${G},${G5})` }} />
+        {step==='processing'&&<div style={{ padding:'72px 40px', textAlign:'center' }}><div style={{ fontSize:44, color:G, marginBottom:16, display:'inline-block', animation:'spin 1.2s linear infinite' }}>◎</div><div style={{ fontFamily:FD, fontSize:20, color:W, marginBottom:6 }}>Processing</div><div style={{ fontSize:13, color:WM, fontFamily:FB }}>Securing your slot...</div><style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style></div>}
+        {step==='done'&&<div style={{ padding:'72px 40px', textAlign:'center' }}><div style={{ fontSize:52, marginBottom:14, color:G }}>✓</div><div style={{ fontFamily:FD, fontSize:22, color:GL, marginBottom:8 }}>Application Submitted!</div><div style={{ fontSize:13, color:WM, lineHeight:1.6, fontFamily:FB }}>Your slot for <strong style={{ color:W }}>{job.title}</strong> has been reserved.</div></div>}
+        {step==='select'&&(
+          <>
+            <div style={{ padding:'22px 24px 16px', borderBottom:`1px solid ${BB}` }}>
+              <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:G, marginBottom:4, fontFamily:FB }}>Demo Payment Gateway</div>
+              <h2 style={{ fontFamily:FD, fontSize:18, color:W, marginBottom:4 }}>Confirm Application</h2>
+              <div style={{ fontSize:12, color:WM, fontFamily:FB }}>{job.title} — {job.company}</div>
+              <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(232,168,32,0.08)', border:`1px solid rgba(232,168,32,0.22)`, display:'flex', justifyContent:'space-between', alignItems:'center', borderRadius:2 }}>
+                <span style={{ fontSize:11, color:WM, fontFamily:FB }}>Application Fee (Demo)</span>
+                <span style={{ fontFamily:FD, fontSize:16, color:G, fontWeight:700 }}>R 25.00</span>
+              </div>
+              <button onClick={onClose} style={{ position:'absolute', top:14, right:16, background:'none', border:'none', cursor:'pointer', color:WD, fontSize:18 }}>✕</button>
+            </div>
+            <div style={{ padding:'16px 24px 22px' }}>
+              <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+                {(['card','eft','wallet'] as const).map(m=><button key={m} onClick={()=>setMethod(m)} style={{ flex:1, padding:'9px 6px', background:method===m?'rgba(196,151,58,0.16)':'transparent', border:`1px solid ${method===m?G:BB}`, color:method===m?G:WM, fontFamily:FB, fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s', borderRadius:2 }}>{m==='card'?'💳 Card':m==='eft'?'🏦 EFT':'👜 Wallet'}</button>)}
+              </div>
+              {method==='card'&&<><input placeholder="Cardholder Name" value={name} onChange={e=>setName(e.target.value)} style={inp} /><input placeholder="Card Number" value={cardNum} onChange={e=>setCardNum(fmtCard(e.target.value))} style={inp} maxLength={19} /><div style={{ display:'flex', gap:10 }}><input placeholder="MM/YY" value={expiry} onChange={e=>setExpiry(fmtExpiry(e.target.value))} style={{ ...inp, flex:1 }} maxLength={5} /><input placeholder="CVV" value={cvv} onChange={e=>setCvv(e.target.value.replace(/\D/g,'').slice(0,4))} style={{ ...inp, flex:1 }} maxLength={4} type="password" /></div></>}
+              {method==='eft'&&<div style={{ padding:'14px', background:'rgba(206,197,178,0.03)', border:`1px solid ${BB}`, marginBottom:10, borderRadius:2 }}>{[['Bank','Honey Group Bank (Demo)'],['Account','1234 5678 9012'],['Branch','250655'],['Reference',`HG-${job.id}`]].map(([l,v])=><div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}><span style={{ fontSize:11, color:WD, fontFamily:FB }}>{l}</span><span style={{ fontSize:11, color:W, fontWeight:600, fontFamily:FB }}>{v}</span></div>)}</div>}
+              {method==='wallet'&&<div style={{ padding:'14px', background:'rgba(206,197,178,0.03)', border:`1px solid ${BB}`, marginBottom:10, borderRadius:2 }}><div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}><span style={{ fontSize:12, color:WM, fontFamily:FB }}>HG Wallet Balance (Demo)</span><span style={{ fontFamily:FD, fontSize:16, color:G, fontWeight:700 }}>R 250.00</span></div><div style={{ fontSize:11, color:WD, fontFamily:FB }}>R 25.00 will be deducted.</div></div>}
+              <button onClick={handlePay} style={{ width:'100%', padding:'13px', background:`linear-gradient(90deg,${G5},${G},${GL})`, border:'none', color:B, fontFamily:FB, fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', cursor:'pointer', borderRadius:2 }}>{method==='eft'?'Confirm EFT (Demo)':'Pay R 25.00 (Demo)'}</button>
+              <div style={{ textAlign:'center', marginTop:8, fontSize:10, color:WD, fontFamily:FB }}>🔒 Demo Mode · POPIA Compliant</div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -493,6 +608,12 @@ export default function LandingPage() {
   const [heroSlide, setHeroSlide] = useState(0)
   const heroSlideRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [allJobs, setAllJobs] = useState<ReturnType<typeof getActiveJobs>>([])
+  const [applyingJob,  setApplyingJob]  = useState<any>(null)
+  const [applySuccess, setApplySuccess] = useState<string | null>(null)
+  const [applyError,   setApplyError]   = useState<string | null>(null)
+  // T&C + Payment modal flow (same as JobsPage)
+  const [termsJob,     setTermsJob]     = useState<any>(null)
+  const [paymentJob,   setPaymentJob]   = useState<any>(null)
 
   const secFeaturesRef = useRef<HTMLElement | null>(null)
   const secJobsRef     = useRef<HTMLElement | null>(null)
@@ -521,12 +642,134 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    const load = () => setAllJobs(getActiveJobs(getAllJobsWithAdminJobs()))
-    load()
-    window.addEventListener('storage', load)
-    const interval = setInterval(load, 2000)
-    return () => { window.removeEventListener('storage', load); clearInterval(interval) }
+    // Merge localStorage (admin broadcast) jobs with live API jobs so
+    // newly created admin jobs appear immediately without a page refresh.
+    const mergeAndSet = (apiJobs: any[] = []) => {
+      const GL2  = '#E8A820'
+      const ACCENT_PALETTE = [GL2,'#D4880A','#AB8D3F','#C4973A','#8B5A1A']
+      const mapped = apiJobs.map((j: any, idx: number) => ({
+        id: j.id,
+        title: j.title,
+        company: j.client || j.brand || '',
+        companyInitial: (j.client || '?').charAt(0),
+        companyColor: ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
+        location: [j.venue, j.city].filter(Boolean).join(', ') || j.address || '',
+        type: j.filters?.category || 'Brand Activation',
+        pay: `R ${Number(j.hourlyRate).toLocaleString('en-ZA')}`,
+        payPer: '/hr',
+        date: j.date ? new Date(j.date).toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short', year:'numeric' }) : '',
+        jobDate: j.date || new Date().toISOString(),
+        approvedAt: j.createdAt || new Date().toISOString(),
+        slots: j.totalSlots || 1,
+        slotsLeft: (j.totalSlots || 1) - (j.filledSlots || 0),
+        duration: j.startTime && j.endTime ? `${j.startTime}–${j.endTime}` : '',
+        tags: [j.filters?.gender, j.filters?.category].filter(Boolean),
+        accentLine: ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
+        gradient: 'linear-gradient(135deg, rgba(232,168,32,0.10) 0%, rgba(196,151,58,0.04) 100%)',
+        status: (j.status || 'OPEN').toLowerCase(),
+        filters: j.filters,
+        termsAndConditions: j.termsAndConditions,
+        hourlyRate: j.hourlyRate,
+      }))
+
+      // API jobs take precedence; fill remaining slots from localStorage
+      const apiIds = new Set(mapped.map((j: any) => j.id))
+      const localJobs = getActiveJobs(getAllJobsWithAdminJobs()).filter(j => !apiIds.has(j.id))
+      const combined = [...mapped, ...localJobs] as ReturnType<typeof getActiveJobs>
+      setAllJobs(getActiveJobs(combined))
+    }
+
+    // Immediately load from localStorage while API call is in-flight
+    mergeAndSet([])
+
+    const fetchFromApi = async () => {
+      try {
+        const token = localStorage.getItem('hg_token')
+        const headers: Record<string, string> = {}
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        let res = await fetch(`${API_URL}/jobs`, { headers })
+        // If auth fails, retry without token (public endpoint now supports no-auth)
+        if (!res.ok && token) res = await fetch(`${API_URL}/jobs`)
+        if (res.ok) {
+          const data = await res.json()
+          mergeAndSet(data)
+          // Also broadcast to localStorage for other pages
+          localStorage.setItem('hg_admin_jobs', JSON.stringify(data.map((j: any, idx: number) => ({
+            id: j.id, title: j.title, company: j.client, client: j.client,
+            location: [j.venue, j.city].filter(Boolean).join(', '),
+            type: j.filters?.category || 'Brand Activation',
+            pay: `R ${j.hourlyRate}`, payPer: '/hr', hourlyRate: j.hourlyRate,
+            jobDate: j.date, approvedAt: j.createdAt,
+            slots: j.totalSlots, slotsLeft: j.totalSlots - (j.filledSlots || 0),
+            status: (j.status || 'open').toLowerCase(),
+            tags: [j.filters?.gender, j.filters?.category].filter(Boolean),
+            accentLine: '#E8A820', gradient: 'transparent',
+            companyInitial: (j.client || '?').charAt(0),
+            filters: j.filters,
+          }))))
+        }
+      } catch { /* API offline — localStorage jobs still show */ }
+    }
+
+    fetchFromApi()
+    // Re-fetch when localStorage changes (admin dashboard broadcast)
+    const onStorage = () => { fetchFromApi() }
+    window.addEventListener('storage', onStorage)
+    const interval = setInterval(fetchFromApi, 30000)
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval) }
   }, [])
+
+  // T&C accepted → open payment modal
+  const handleTermsAccepted = () => { if (!termsJob) return; setPaymentJob(termsJob); setTermsJob(null) }
+
+  // Payment done → POST application to API
+  const handlePaymentSuccess = async () => {
+    if (!paymentJob) return
+    const token = localStorage.getItem('hg_token')
+    if (token) {
+      const isStaticJob = /^JB-\d+$/.test(paymentJob.id)
+      if (!isStaticJob) {
+        try {
+          const res = await fetch(`${API_URL}/applications`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobId: paymentJob.id }),
+          })
+          if (!res.ok && res.status !== 409) {
+            const err = await res.json().catch(() => ({ error: 'Failed' }))
+            setApplyError(err.error || 'Application failed.')
+            setTimeout(() => setApplyError(null), 4000)
+            setPaymentJob(null); return
+          }
+        } catch {
+          setApplyError('Could not connect. Please try again.')
+          setTimeout(() => setApplyError(null), 4000)
+          setPaymentJob(null); return
+        }
+      }
+    }
+    setApplySuccess(`Applied for "${paymentJob.title}"! Check your dashboard.`)
+    setTimeout(() => setApplySuccess(null), 6000)
+    setPaymentJob(null)
+  }
+
+  const handleApply = (job: any) => {
+    if (!session) { setLoginPrompt(true); return }
+    if (session.role !== 'promoter') {
+      setApplyError('Only promoter accounts can apply for jobs.')
+      setTimeout(() => setApplyError(null), 4000)
+      return
+    }
+    // Open T&C modal — same flow as the full Jobs page
+    setTermsJob({
+      ...job,
+      company: job.company || job.client || '',
+      pay: job.pay || (job.hourlyRate ? `R ${job.hourlyRate}` : ''),
+      payPer: job.payPer || '/hr',
+      duration: job.duration || '',
+      terms: job.terms || job.termsAndConditions || '',
+    })
+  }
 
   const handleLogout = () => { localStorage.removeItem('hg_session'); setSession(null) }
   const handleDashboard = () => {
@@ -686,7 +929,17 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <JobsSection jobs={allJobs} isLoggedIn={!!session} onLock={() => setLoginPrompt(true)} onView={(id) => navigate(`/jobs/${id}`)} />
+          {applySuccess && (
+            <div style={{ position:'fixed', bottom: 28, left:'50%', transform:'translateX(-50%)', zIndex:999, padding: '14px 28px', background: 'rgba(20,40,20,0.97)', border: '1px solid rgba(74,171,100,0.6)', color: '#6DEFA0', fontFamily: FD, fontSize: 13, borderRadius: 6, boxShadow:'0 8px 32px rgba(0,0,0,0.5)', whiteSpace:'nowrap', maxWidth:'90vw', textAlign:'center' }}>
+              ✓ {applySuccess}
+            </div>
+          )}
+          {applyError && (
+            <div style={{ position:'fixed', bottom: 28, left:'50%', transform:'translateX(-50%)', zIndex:999, padding: '14px 28px', background: 'rgba(40,10,5,0.97)', border: '1px solid rgba(196,97,74,0.6)', color: '#F0896A', fontFamily: FD, fontSize: 13, borderRadius: 6, boxShadow:'0 8px 32px rgba(0,0,0,0.5)', whiteSpace:'nowrap', maxWidth:'90vw', textAlign:'center' }}>
+              ⚠ {applyError}
+            </div>
+          )}
+          <JobsSection jobs={allJobs} isLoggedIn={!!session} isPromoter={session?.role === 'promoter'} applyingJobId={applyingJob} onLock={() => setLoginPrompt(true)} onView={(id) => navigate(`/jobs/${id}`)} onApply={handleApply} />
 
           <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 1, height: 32, background: `linear-gradient(to bottom, ${B}, transparent)` }} />
@@ -788,6 +1041,8 @@ export default function LandingPage() {
       </footer>
 
       {showLoginPrompt && <LoginPromptModal onClose={() => setLoginPrompt(false)} onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />}
+      {termsJob   && <TermsModal   job={termsJob}   onAccept={handleTermsAccepted} onClose={() => setTermsJob(null)} />}
+      {paymentJob && <PaymentModal job={paymentJob} onSuccess={handlePaymentSuccess} onClose={() => setPaymentJob(null)} />}
     </div>
   )
 }

@@ -22,8 +22,8 @@ const BB2 = 'rgba(212,136,10,0.06)'
 
 const W   = '#CEC5B2'
 const W85 = 'rgba(210,198,180,0.95)'
-const W55 = 'rgba(192,178,158,0.80)'
-const W28 = 'rgba(172,158,136,0.65)'
+const W55 = 'rgba(220,208,188,0.90)'
+const W28 = 'rgba(200,185,162,0.80)'
 const WM  = 'rgba(200,188,168,0.88)'
 
 const C_ACTIVE   = '#C07818'
@@ -108,15 +108,48 @@ const INIT_MESSAGES = [
   { id:'M004', from:'Thabo Nkosi',    fromRole:'promoter', to:'Admin', subject:'Complaint: Client was rude',      body:'During the Castle Lager event the client was dismissive.',              date:'2026-03-09', read:true,  type:'complaint', regardingName:'SABMiller'       },
 ]
 
-const ACTIVITY = [
-  { time:'2m ago',  msg:'Ayanda Dlamini checked in at Sandton City',  type:'checkin' },
-  { time:'8m ago',  msg:'New registration: Zanele Motha — Promoter',  type:'apply'   },
-  { time:'14m ago', msg:'Job #JB-204 filled — 8/8 slots taken',       type:'job'     },
-  { time:'22m ago', msg:'Sipho Mhlongo submitted ID document',         type:'doc'     },
-  { time:'31m ago', msg:'Payroll batch calculated — R12,400',          type:'payment' },
-  { time:'45m ago', msg:'Lerato Mokoena flagged late — Rosebank Mall', type:'flag'    },
+const STATIC_ACTIVITY = [
+  { time:'14m ago', msg:'Job #JB-204 filled — 8/8 slots taken',       type:'job',     ts: Date.now() - 14*60*1000 },
+  { time:'22m ago', msg:'Sipho Mhlongo submitted ID document',         type:'doc',     ts: Date.now() - 22*60*1000 },
+  { time:'31m ago', msg:'Payroll batch calculated — R12,400',          type:'payment', ts: Date.now() - 31*60*1000 },
+  { time:'45m ago', msg:'Lerato Mokoena flagged late — Rosebank Mall', type:'flag',    ts: Date.now() - 45*60*1000 },
 ]
-const TYPE_CLR: Record<string,string> = { checkin:GL, apply:G3, job:G4, doc:G2, payment:GL, flag:'#8B5A1A' }
+const TYPE_CLR: Record<string,string> = { checkin:GL, apply:G3, job:G4, doc:G2, payment:GL, flag:'#8B5A1A', approve:GL, reject:G2 }
+
+function timeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000)
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
+  return `${Math.floor(diff/86400)}d ago`
+}
+
+function buildLiveActivity(regs: any[]): { time:string; msg:string; type:string; ts:number }[] {
+  const events: { time:string; msg:string; type:string; ts:number }[] = []
+
+  // Build activity from real DB registrations (passed in from API)
+  regs.forEach(r => {
+    const raw = r._raw || r
+    const ts = raw.createdAt ? new Date(raw.createdAt).getTime() : 0
+    if (!ts) return
+    const name = r.name || raw.fullName || 'Unknown'
+    const role = r.role === 'business' ? 'Business' : 'Promoter'
+
+    if (r.status === 'approved') {
+      events.push({ ts, type: 'approve', msg: `${name} approved ✓ — ${role}`, time: timeAgo(ts) })
+    } else if (r.status === 'rejected') {
+      events.push({ ts, type: 'reject', msg: `${name} rejected — ${role}`, time: timeAgo(ts) })
+    } else {
+      events.push({ ts, type: 'apply', msg: `New registration: ${name} — ${role}`, time: timeAgo(ts) })
+    }
+  })
+
+  // Merge with static fallback events and return most recent 8
+  return [...events, ...STATIC_ACTIVITY]
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 8)
+    .map(e => ({ ...e, time: e.ts > 0 ? timeAgo(e.ts) : e.time }))
+}
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 function Badge({ label, color, bg, border }: { label:string; color:string; bg?:string; border?:string }) {
@@ -216,6 +249,7 @@ function DashboardTab({ regs, clients, msgs, time, onRoute }: { regs:any[]; clie
   const greeting = h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night'
   const unread = msgs.filter(m=>!m.read).length
   const activeJobs = getActiveJobs(getAllJobsWithAdminJobs())
+  const liveActivity = buildLiveActivity(regs)
   const stats = [
     { label:'Active Promoters',  value:regs.filter(r=>r.role==='promoter'&&r.status==='approved').length, color:G3, sub:'registered',            id:'registrations' },
     { label:'Active Jobs',       value:activeJobs.length,                                                 color:GL, sub:'live on jobs board',    id:'jobs'          },
@@ -264,9 +298,9 @@ function DashboardTab({ regs, clients, msgs, time, onRoute }: { regs:any[]; clie
             <div style={{ fontSize:9, letterSpacing:'0.3em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>Live Activity</div>
             <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:6, height:6, borderRadius:'50%', background:GL }} /><span style={{ fontSize:10, color:W55, fontFamily:FD }}>Live</span></div>
           </div>
-          {ACTIVITY.map((a,i)=>(
-            <div key={i} style={{ display:'flex', gap:10, padding:'9px 0', borderBottom:i<ACTIVITY.length-1?`1px solid ${BB}`:'none' }}>
-              <div style={{ width:6, height:6, borderRadius:'50%', background:TYPE_CLR[a.type], marginTop:4, flexShrink:0 }} />
+          {liveActivity.map((a,i)=>(
+            <div key={i} style={{ display:'flex', gap:10, padding:'9px 0', borderBottom:i<liveActivity.length-1?`1px solid ${BB}`:'none' }}>
+              <div style={{ width:6, height:6, borderRadius:'50%', background:TYPE_CLR[a.type]??GL, marginTop:4, flexShrink:0 }} />
               <div>
                 <div style={{ fontSize:12, color:W, lineHeight:1.4, fontFamily:FD }}>{a.msg}</div>
                 <div style={{ fontSize:10, color:W28, marginTop:2, fontFamily:FD }}>{a.time}</div>
@@ -322,7 +356,7 @@ function RegistrationsTab({ regs, onDetail, onApprove, onReject }: { regs:any[];
                 <td data-label="Actions" style={{ padding:'12px 16px' }}>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                     <button onClick={()=>onDetail(r)} style={{ fontSize:11, color:GL, background:'none', border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700 }}>View →</button>
-                    {isPending(r.status)&&<><button onClick={()=>onApprove(r.id)} style={{ fontSize:10, color:B, background:G3, border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'3px 9px', borderRadius:3 }}>✓</button><button onClick={()=>onReject(r.id)} style={{ fontSize:10, color:C_REJECTED, background:hex2rgba(G5,0.35), border:`1px solid ${hex2rgba(G2,0.45)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'3px 9px', borderRadius:3 }}>✗</button></>}
+                    {isPending(r.status)&&<><button onClick={()=>onApprove(r.id)} style={{ fontSize:10, color:B, background:G3, border:'none', cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, letterSpacing:'0.06em' }}>Approve</button><button onClick={()=>onReject(r.id)} style={{ fontSize:10, color:C_REJECTED, background:hex2rgba(G5,0.35), border:`1px solid ${hex2rgba(G2,0.45)}`, cursor:'pointer', fontFamily:FD, fontWeight:700, padding:'5px 12px', borderRadius:3, letterSpacing:'0.06em' }}>Reject</button></>}
                   </div>
                 </td>
               </tr>
@@ -529,6 +563,17 @@ const PAYROLL_MOCK = [
 const gross=(r:any)=>r.hours*r.rate
 const net  =(r:any)=>gross(r)-r.deductions
 
+function downloadExcel(rows: string[][], filename: string) {
+  const tsv = rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join('\t')).join('\r\n')
+  triggerDownload(new Blob(['\uFEFF'+tsv],{type:'application/vnd.ms-excel;charset=utf-8;'}),filename)
+}
+
+function buildTablePDF(title: string, headers: string[], rows: (string|number)[][]): string {
+  const ths = headers.map(h=>`<th>${h}</th>`).join('')
+  const trs = rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')
+  return `<h1 style="font-family:Georgia;color:#b36b00;margin-bottom:6px">${title}</h1><p style="font-size:11px;color:#666;margin-bottom:16px">Honey Group · Generated ${new Date().toLocaleDateString('en-ZA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+}
+
 function ReportsTab({ regs }: { regs:any[] }) {
   const [hourlyRate,setHourlyRate]=useState('120')
   const [hours,     setHours     ]=useState('8')
@@ -538,63 +583,90 @@ function ReportsTab({ regs }: { regs:any[] }) {
   const flash=(msg:string)=>{setNotice(msg);setTimeout(()=>setNotice(''),4000)}
   const activeJobs=getActiveJobs(getAllJobsWithAdminJobs())
 
-  const handlePayrollCSV=()=>{
-    const headers=['ID','Promoter','Email','Bank','Job','Date','Hours','Rate','Gross','Deductions','Net','Status']
-    const rows=PAYROLL_MOCK.map(r=>[r.id,r.promoter,r.email,r.bank,r.job,r.date,r.hours,r.rate,gross(r),r.deductions,net(r),r.status])
-    downloadCSV([headers,...rows] as string[][],`honey-group-payroll-${todayStr()}.csv`)
-    flash('✓ Payroll CSV downloading…')
-  }
-  const handleCampaignPDF=()=>{
-    const rows=PAYROLL_MOCK.map(r=>`<tr><td>${r.promoter}</td><td>${r.job}</td><td>${r.date}</td><td>${r.hours}h</td><td>R${r.rate}/hr</td><td>R${net(r)}</td><td>${r.status}</td></tr>`).join('')
-    const html=`<h1>Campaign Report — Honey Group</h1><p>Generated: ${new Date().toLocaleDateString('en-ZA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p><table><thead><tr><th>Promoter</th><th>Job</th><th>Date</th><th>Hours</th><th>Rate</th><th>Net Pay</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:24px;font-size:11px;color:#888">Honey Group · Confidential · ${new Date().toISOString()}</p>`
-    downloadPDF(html,`honey-group-campaign-${todayStr()}`)
-    flash('✓ Campaign report downloading — open the file and print/save as PDF')
-  }
-  const handleJobsCSV=()=>{
+  // ── Data builders ──────────────────────────────────────────────────────────
+  const payrollHeaders=['ID','Promoter','Email','Bank','Job','Date','Hours','Rate','Gross','Deductions','Net','Status']
+  const payrollRows=PAYROLL_MOCK.map(r=>[r.id,r.promoter,r.email,r.bank,r.job,r.date,r.hours,r.rate,gross(r),r.deductions,net(r),r.status])
+
+  const attendanceHeaders=['ID','Promoter','Job','Date','Hours','Rate (R/hr)','Gross (R)']
+  const attendanceRows=PAYROLL_MOCK.map(r=>[r.id,r.promoter,r.job,r.date,r.hours,r.rate,gross(r)])
+
+  const eftApproved=PAYROLL_MOCK.filter(r=>r.status==='approved')
+  const eftHeaders=['Promoter','Email','Bank','Net Payout (R)','Job','Date']
+  const eftRows=eftApproved.map(r=>[r.promoter,r.email,r.bank,net(r),r.job,r.date])
+
+  const getJobsData=()=>{
     const stored=localStorage.getItem('hg_admin_jobs'); const jobs=stored?JSON.parse(stored):[]
-    const headers=['ID','Title','Company','Location','Date','Pay','Slots','Slots Left','Status']
-    const rows=jobs.length>0?jobs.map((j:any)=>[j.id,j.title,j.company||j.client,j.location||`${j.venue},${j.city}`,j.jobDate||j.date,j.pay||`R${j.hourlyRate}/hr`,j.slots||j.totalSlots,j.slotsLeft??(j.totalSlots-j.filledSlots),j.status]):[['No jobs data yet — add jobs via the Jobs page to export them']]
-    downloadCSV([headers,...rows] as string[][],`honey-group-jobs-${todayStr()}.csv`)
-    flash('✓ Jobs CSV downloading…')
+    const headers=['ID','Title','Client','Location','Date','Pay','Slots','Slots Left','Status']
+    const rows=jobs.length>0?jobs.map((j:any)=>[j.id,j.title,j.company||j.client,j.location||`${j.venue},${j.city}`,j.jobDate||j.date,j.pay||`R${j.hourlyRate}/hr`,j.slots||j.totalSlots,j.slotsLeft??(j.totalSlots-j.filledSlots),j.status]):[['No jobs data — add jobs first']]
+    return {headers,rows}
   }
-  const handlePromotersCSV=()=>{
+
+  const getPromotersData=()=>{
     const stored=localStorage.getItem('hg_promoters_cache'); const users=stored?JSON.parse(stored):[]
-    const headers=['ID','Name','Email','City','Status','Joined']
-    const rows=users.length>0?users.map((u:any)=>[u.id,u.fullName||u.name,u.email,u.city,u.status,u.createdAt?.slice(0,10)??'']):[['Connect to API to export live promoter data']]
-    downloadCSV([headers,...rows] as string[][],`honey-group-promoters-${todayStr()}.csv`)
-    flash('✓ Promoters CSV downloading…')
+    const headers=['ID','Name','Email','City','Reliability Score','Status','Joined']
+    const rows=users.length>0?users.map((u:any)=>[u.id,u.fullName||u.name,u.email,u.city,u.reliabilityScore??'',u.status,u.createdAt?.slice(0,10)??'']):[['Connect to API to export live data']]
+    return {headers,rows}
   }
-  const handleEFTCSV=()=>{
-    const approved=PAYROLL_MOCK.filter(r=>r.status==='approved')
-    if(!approved.length){flash('No approved records to export');return}
-    const headers=['Promoter','Email','Bank','Net Payout (R)','Job','Date']
-    const rows=approved.map(r=>[r.promoter,r.email,r.bank,net(r),r.job,r.date])
-    downloadCSV([headers,...rows] as string[][],`honey-group-eft-batch-${todayStr()}.csv`)
-    flash(`✓ EFT batch CSV downloading — ${approved.length} records`)
-  }
-  const handleAttendanceCSV=()=>{
-    const headers=['ID','Promoter','Job','Date','Hours','Rate (R/hr)','Gross (R)']
-    const rows=PAYROLL_MOCK.map(r=>[r.id,r.promoter,r.job,r.date,r.hours,r.rate,gross(r)])
-    downloadCSV([headers,...rows] as string[][],`honey-group-attendance-${todayStr()}.csv`)
-    flash('✓ Attendance CSV downloading…')
-  }
-  const handleEstimateCSV=()=>{
-    const headers=['Description','Value']
-    const rows=[['Hourly Rate',`R${hourlyRate}`],['Hours Per Shift',`${hours}h`],['No. of Promoters',numPromos],['Total Payout',`R${calcTotal.toLocaleString('en-ZA')}`],['Generated',new Date().toISOString()]]
-    downloadCSV([headers,...rows] as string[][],`honey-group-payout-estimate-${todayStr()}.csv`)
-    flash('✓ Estimate CSV downloading…')
-  }
+
+  const campaignSections=Object.entries(PAYROLL_MOCK.reduce((acc:any,r)=>{(acc[r.job]=acc[r.job]||[]).push(r);return acc},{})).map(([job,recs]:any)=>{
+    const totalNet=recs.reduce((s:number,r:any)=>s+net(r),0)
+    const rows=recs.map((r:any)=>`<tr><td>${r.promoter}</td><td>${r.date}</td><td>${r.hours}h</td><td>R${r.rate}/hr</td><td style="color:#b36b00;font-weight:700">R${net(r)}</td><td style="text-transform:capitalize">${r.status}</td></tr>`).join('')
+    return `<h2 style="font-size:15px;color:#b36b00;border-left:3px solid #b36b00;padding-left:10px;margin:24px 0 12px">${job}</h2><table><thead><tr><th>Promoter</th><th>Date</th><th>Hours</th><th>Rate</th><th>Net Pay</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><p style="text-align:right;font-size:12px;font-weight:700;margin-top:6px">Campaign total: R${totalNet}</p>`
+  }).join('')
 
   const inp:React.CSSProperties={ width:'100%', background:BB2, border:`1px solid ${BB}`, padding:'11px 14px', fontFamily:FD, fontSize:14, color:W, outline:'none', borderRadius:3, boxSizing:'border-box' as any }
   const lbl:React.CSSProperties={ fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' as any, color:W55, display:'block', marginBottom:8, fontFamily:FD }
 
-  const exportCards=[
-    {icon:'📄',title:'Full Payroll Register',   desc:'All promoter payouts — ready for accounting.',  format:'CSV',color:G3, onClick:handlePayrollCSV  },
-    {icon:'📋',title:'Campaign Client Report',   desc:'Per-client attendance and payout summary.',     format:'PDF',color:GL, onClick:handleCampaignPDF },
-    {icon:'💼',title:'Jobs Register',            desc:'All active and archived jobs.',                 format:'CSV',color:G4, onClick:handleJobsCSV     },
-    {icon:'👥',title:'Promoter Roster',          desc:'Full promoter list with city and status.',      format:'CSV',color:G3, onClick:handlePromotersCSV},
-    {icon:'🏦',title:'EFT Batch File',           desc:'Approved payroll records — bank-ready.',        format:'CSV',color:GL, onClick:handleEFTCSV      },
-    {icon:'📊',title:'Attendance Summary',       desc:'Shift-level check-in/out log.',                 format:'CSV',color:G4, onClick:handleAttendanceCSV},
+  // Each card has: icon, title, desc, color, and an array of { label, action }
+  const cards=[
+    {
+      icon:'📄', title:'Full Payroll Register', desc:'All promoter payouts with bank details, hours, rates, and net pay.', color:G3,
+      btns:[
+        {label:'CSV',   fn:()=>{downloadCSV([payrollHeaders,...payrollRows] as string[][],`honey-group-payroll-${todayStr()}.csv`);flash('✓ Payroll CSV downloaded')}},
+        {label:'Excel', fn:()=>{downloadExcel([payrollHeaders,...payrollRows] as string[][],`honey-group-payroll-${todayStr()}.xls`);flash('✓ Payroll Excel downloaded')}},
+        {label:'PDF',   fn:()=>{downloadPDF(buildTablePDF('Full Payroll Register',payrollHeaders,payrollRows),`honey-group-payroll-${todayStr()}`);flash('✓ Payroll PDF — print/save from your browser')}},
+      ]
+    },
+    {
+      icon:'📋', title:'Campaign Client Report', desc:'Per-client attendance and payout summary grouped by job.', color:GL,
+      btns:[
+        {label:'CSV',   fn:()=>{downloadCSV([payrollHeaders,...payrollRows] as string[][],`honey-group-campaign-${todayStr()}.csv`);flash('✓ Campaign CSV downloaded')}},
+        {label:'Excel', fn:()=>{downloadExcel([payrollHeaders,...payrollRows] as string[][],`honey-group-campaign-${todayStr()}.xls`);flash('✓ Campaign Excel downloaded')}},
+        {label:'PDF',   fn:()=>{downloadPDF(`<h1 style="font-family:Georgia;color:#b36b00">Campaign Report — Honey Group</h1><p style="font-size:11px;color:#666">Generated ${new Date().toLocaleDateString('en-ZA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>${campaignSections}`,`honey-group-campaign-${todayStr()}`);flash('✓ Campaign PDF — print/save from your browser')}},
+      ]
+    },
+    {
+      icon:'💼', title:'Jobs Register', desc:'All active and archived jobs with slots, rates, and status.', color:G4,
+      btns:[
+        {label:'CSV',   fn:()=>{const d=getJobsData();downloadCSV([d.headers,...d.rows] as string[][],`honey-group-jobs-${todayStr()}.csv`);flash('✓ Jobs CSV downloaded')}},
+        {label:'Excel', fn:()=>{const d=getJobsData();downloadExcel([d.headers,...d.rows] as string[][],`honey-group-jobs-${todayStr()}.xls`);flash('✓ Jobs Excel downloaded')}},
+        {label:'PDF',   fn:()=>{const d=getJobsData();downloadPDF(buildTablePDF('Jobs Register',d.headers,d.rows),`honey-group-jobs-${todayStr()}`);flash('✓ Jobs PDF — print/save from your browser')}},
+      ]
+    },
+    {
+      icon:'👥', title:'Promoter Roster', desc:'Full promoter list with city, reliability scores, and onboarding status.', color:G3,
+      btns:[
+        {label:'CSV',   fn:()=>{const d=getPromotersData();downloadCSV([d.headers,...d.rows] as string[][],`honey-group-promoters-${todayStr()}.csv`);flash('✓ Promoters CSV downloaded')}},
+        {label:'Excel', fn:()=>{const d=getPromotersData();downloadExcel([d.headers,...d.rows] as string[][],`honey-group-promoters-${todayStr()}.xls`);flash('✓ Promoters Excel downloaded')}},
+        {label:'PDF',   fn:()=>{const d=getPromotersData();downloadPDF(buildTablePDF('Promoter Roster',d.headers,d.rows),`honey-group-promoters-${todayStr()}`);flash('✓ Promoters PDF — print/save from your browser')}},
+      ]
+    },
+    {
+      icon:'🏦', title:'EFT Batch File', desc:'Bank-ready payment batch — approved payroll records only.', color:GL,
+      btns:[
+        {label:'CSV',   fn:()=>{if(!eftApproved.length){flash('No approved records');return}downloadCSV([eftHeaders,...eftRows] as string[][],`honey-group-eft-${todayStr()}.csv`);flash(`✓ EFT CSV — ${eftApproved.length} records`)}},
+        {label:'Excel', fn:()=>{if(!eftApproved.length){flash('No approved records');return}downloadExcel([eftHeaders,...eftRows] as string[][],`honey-group-eft-${todayStr()}.xls`);flash(`✓ EFT Excel — ${eftApproved.length} records`)}},
+        {label:'PDF',   fn:()=>{if(!eftApproved.length){flash('No approved records');return}downloadPDF(buildTablePDF('EFT Batch File',eftHeaders,eftRows),`honey-group-eft-${todayStr()}`);flash('✓ EFT PDF — print/save from your browser')}},
+      ]
+    },
+    {
+      icon:'📊', title:'Attendance Summary', desc:'Shift-level check-in/out records with hours worked per promoter.', color:G4,
+      btns:[
+        {label:'CSV',   fn:()=>{downloadCSV([attendanceHeaders,...attendanceRows] as string[][],`honey-group-attendance-${todayStr()}.csv`);flash('✓ Attendance CSV downloaded')}},
+        {label:'Excel', fn:()=>{downloadExcel([attendanceHeaders,...attendanceRows] as string[][],`honey-group-attendance-${todayStr()}.xls`);flash('✓ Attendance Excel downloaded')}},
+        {label:'PDF',   fn:()=>{downloadPDF(buildTablePDF('Attendance Summary',attendanceHeaders,attendanceRows),`honey-group-attendance-${todayStr()}`);flash('✓ Attendance PDF — print/save from your browser')}},
+      ]
+    },
   ]
 
   const summary=[
@@ -607,38 +679,44 @@ function ReportsTab({ regs }: { regs:any[] }) {
   ]
 
   return (
-    <div className="hg-page" style={{ padding:'40px 48px' }}>
+    <div style={{ padding:'40px 48px' }}>
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>System · Reporting</div>
         <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Reports &amp; Exports</h1>
-        <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>Downloads go directly to your device — CSV files open in Excel/Sheets, PDF report opens as printable HTML.</p>
+        <p style={{ fontSize:13, color:W55, marginTop:4, fontFamily:FD }}>Download platform data as CSV, Excel, or printable PDF directly to your device.</p>
       </div>
 
       {notice&&<div style={{ padding:'12px 16px', background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.45)}`, borderRadius:4, marginBottom:20, fontSize:13, color:GL, fontFamily:FD, fontWeight:700 }}>{notice}</div>}
 
-      {/* Export cards */}
-      <div className="hg-card-grid-3" style={{ marginBottom:28 }}>
-        {exportCards.map((card,i)=>(
-          <button key={i} onClick={card.onClick}
-            style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, padding:'20px 20px 16px', cursor:'pointer', transition:'all 0.18s', textAlign:'left', position:'relative', overflow:'hidden', display:'block', width:'100%' }}
-            onMouseEnter={e=>{e.currentTarget.style.background=GM;e.currentTarget.style.borderColor=hex2rgba(card.color,0.5)}}
-            onMouseLeave={e=>{e.currentTarget.style.background=D2;e.currentTarget.style.borderColor=BB}}>
+      {/* Export cards — 3 columns, 3 buttons each */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:28 }}>
+        {cards.map((card,i)=>(
+          <div key={i}
+            style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, padding:'20px 20px 18px', position:'relative', overflow:'hidden', transition:'border-color 0.18s' }}
+            onMouseEnter={e=>(e.currentTarget.style.borderColor=hex2rgba(card.color,0.5))}
+            onMouseLeave={e=>(e.currentTarget.style.borderColor=BB)}>
             <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${card.color},${hex2rgba(card.color,0.3)})` }} />
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-              <span style={{ fontSize:20 }}>{card.icon}</span>
-              <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:FD, color:card.color, background:hex2rgba(card.color,0.12), border:`1px solid ${hex2rgba(card.color,0.4)}`, padding:'3px 9px', borderRadius:3 }}>{card.format}</span>
-            </div>
+            <div style={{ fontSize:20, marginBottom:10 }}>{card.icon}</div>
             <div style={{ fontSize:13, fontWeight:700, color:W, fontFamily:FD, marginBottom:6 }}>{card.title}</div>
-            <div style={{ fontSize:12, color:W55, fontFamily:FD, lineHeight:1.6, marginBottom:12 }}>{card.desc}</div>
-            <div style={{ fontSize:11, fontWeight:700, color:card.color, fontFamily:FD, letterSpacing:'0.06em' }}>↓ Download {card.format}</div>
-          </button>
+            <div style={{ fontSize:12, color:W55, fontFamily:FD, lineHeight:1.6, marginBottom:14 }}>{card.desc}</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {card.btns.map((btn,j)=>(
+                <button key={j} onClick={btn.fn}
+                  style={{ padding:'6px 12px', background:j===0?`linear-gradient(135deg,${card.color},${hex2rgba(card.color,0.8)})`:'transparent', border:`1px solid ${card.color}`, color:j===0?B:card.color, fontFamily:FD, fontSize:9, fontWeight:700, letterSpacing:'0.1em', cursor:'pointer', textTransform:'uppercase' as const, borderRadius:3, transition:'all 0.18s', whiteSpace:'nowrap' as const }}
+                  onMouseEnter={e=>{e.currentTarget.style.opacity='0.82'}}
+                  onMouseLeave={e=>{e.currentTarget.style.opacity='1'}}>
+                  ↓ {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
       {/* Payout Calculator */}
-      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, padding:'24px 24px', marginBottom:24 }}>
+      <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, padding:'24px', marginBottom:24 }}>
         <div style={{ fontSize:10, letterSpacing:'0.28em', textTransform:'uppercase', color:GL, marginBottom:20, fontWeight:700, fontFamily:FD }}>◈ Promoter Payout Calculator</div>
-        <div className="hg-calc-row" style={{ marginBottom:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, marginBottom:16, alignItems:'flex-end' }}>
           {[{label:'Hourly Rate (R)',val:hourlyRate,set:setHourlyRate},{label:'Hours per Shift',val:hours,set:setHours},{label:'No. of Promoters',val:numPromos,set:setNumPromos}].map(f=>(
             <div key={f.label}>
               <label style={lbl}>{f.label}</label>
@@ -646,17 +724,21 @@ function ReportsTab({ regs }: { regs:any[] }) {
                 onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
             </div>
           ))}
-          <div className="hg-calc-total" style={{ background:`linear-gradient(135deg,${hex2rgba(G3,0.28)},${hex2rgba(G,0.18)})`, border:`1px solid ${hex2rgba(GL,0.5)}`, borderRadius:4, padding:'16px 18px' }}>
+          <div style={{ background:`linear-gradient(135deg,${hex2rgba(G3,0.28)},${hex2rgba(G,0.18)})`, border:`1px solid ${hex2rgba(GL,0.5)}`, borderRadius:4, padding:'16px 18px' }}>
             <div style={{ fontSize:9, letterSpacing:'0.2em', textTransform:'uppercase', color:W55, fontFamily:FD, marginBottom:8 }}>Total Payout</div>
-            <div className="hg-calc-val" style={{ fontFamily:FD, fontSize:26, fontWeight:700, color:GL }}>R {calcTotal.toLocaleString('en-ZA')}</div>
+            <div style={{ fontFamily:FD, fontSize:26, fontWeight:700, color:GL }}>R {calcTotal.toLocaleString('en-ZA')}</div>
           </div>
         </div>
-        <button onClick={handleEstimateCSV}
-          style={{ padding:'9px 18px', background:'transparent', border:`1px solid ${G3}`, color:G3, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', borderRadius:3, letterSpacing:'0.08em', transition:'all 0.2s' }}
-          onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G3,0.15)}
-          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-          ↓ Export Estimate as CSV
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={()=>{const h=['Description','Value'];const r=[['Hourly Rate',`R${hourlyRate}`],['Hours Per Shift',`${hours}h`],['No. of Promoters',numPromos],['Total Payout',`R${calcTotal.toLocaleString('en-ZA')}`],['Generated',new Date().toISOString()]];downloadCSV([h,...r] as string[][],`honey-group-estimate-${todayStr()}.csv`);flash('✓ Estimate CSV downloaded')}}
+            style={{ padding:'9px 16px', background:'transparent', border:`1px solid ${G3}`, color:G3, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', borderRadius:3, letterSpacing:'0.08em', transition:'all 0.2s' }}
+            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(G3,0.15)}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>↓ CSV</button>
+          <button onClick={()=>{const h=['Description','Value'];const r=[['Hourly Rate',`R${hourlyRate}`],['Hours Per Shift',`${hours}h`],['No. of Promoters',numPromos],['Total Payout',`R${calcTotal.toLocaleString('en-ZA')}`]];downloadExcel([h,...r] as string[][],`honey-group-estimate-${todayStr()}.xls`);flash('✓ Estimate Excel downloaded')}}
+            style={{ padding:'9px 16px', background:'transparent', border:`1px solid ${GL}`, color:GL, fontFamily:FD, fontSize:11, fontWeight:700, cursor:'pointer', borderRadius:3, letterSpacing:'0.08em', transition:'all 0.2s' }}
+            onMouseEnter={e=>e.currentTarget.style.background=hex2rgba(GL,0.15)}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>↓ Excel</button>
+        </div>
       </div>
 
       {/* Summary table */}
@@ -678,7 +760,7 @@ function ReportsTab({ regs }: { regs:any[] }) {
   )
 }
 
-// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
+// ─── SETTINGS TAB// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
 function SettingsTab() {
   const [saved,    setSaved   ]=useState(false)
   const [platName, setPlatName]=useState('Honey Group Promotions')
@@ -758,30 +840,54 @@ export default function AdminDashboard() {
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
     if (!token) { setRegs(MOCK_REGISTRATIONS); return }
+    // Fetch all users from DB — this is the real source of truth
     fetch(`${API_URL}/admin/registrations`,{headers:{Authorization:`Bearer ${token}`}})
       .then(r=>r.ok?r.json():[])
       .then((data:any[])=>{
-        const apiRegs=data.map((u:any)=>({id:u.id,name:u.fullName,email:u.email,role:u.role?.toLowerCase()==='business'?'business':'promoter',date:u.createdAt?String(u.createdAt).slice(0,10):new Date().toISOString().slice(0,10),status:normalizeStatus(u.status||'pending_review'),city:u.city||'Not specified',phone:u.phone||'Not provided',source:'real',_raw:u}))
-        const apiEmails=new Set(apiRegs.map((r:any)=>r.email))
-        setRegs([...apiRegs,...MOCK_REGISTRATIONS.filter(m=>!apiEmails.has(m.email))])
+        const apiRegs=data.map((u:any)=>({
+          id:u.id,
+          name:u.fullName || u.contactName || 'Unknown',
+          email:u.email,
+          role:u.role?.toLowerCase()==='business'?'business':'promoter',
+          date:u.createdAt?String(u.createdAt).slice(0,10):new Date().toISOString().slice(0,10),
+          status:normalizeStatus(u.status||'pending_review'),
+          city:u.city||'Not specified',
+          phone:u.phone||'Not provided',
+          source:'real',
+          _raw:u
+        }))
+        // Only add mock fallbacks that don't clash with real DB emails
+        const apiEmails=new Set(apiRegs.map((r:any)=>r.email?.toLowerCase()))
+        const mockFallbacks=MOCK_REGISTRATIONS.filter((m:any)=>!apiEmails.has(m.email?.toLowerCase()))
+        setRegs([...apiRegs,...mockFallbacks])
       })
       .catch(()=>setRegs(MOCK_REGISTRATIONS))
   },[])
 
-  // Sync business registrations into clients list
+  // Sync approved business users from API into the clients list
   useEffect(() => {
-    const syncLocalBiz=()=>{
-      try {
-        const stored=localStorage.getItem('hg_registrations'); if(!stored) return
-        const bizRegs:any[]=JSON.parse(stored).filter((r:any)=>r.role==='BUSINESS')
-        if(!bizRegs.length) return
-        setClients(prev=>{const existingEmails=new Set(prev.map(c=>c.email?.toLowerCase()));const newOnes=bizRegs.filter(r=>!existingEmails.has(r.email?.toLowerCase())).map(r=>bizToClient(r,'local'));return newOnes.length?[...newOnes,...prev]:prev})
-      } catch {}
-    }
-    syncLocalBiz()
-    const onStorage=()=>syncLocalBiz()
-    window.addEventListener('storage',onStorage)
-    return ()=>window.removeEventListener('storage',onStorage)
+    const token = localStorage.getItem('hg_token')
+    if (!token) return
+    fetch(`${API_URL}/users?role=BUSINESS`,{headers:{Authorization:`Bearer ${token}`}})
+      .then(r=>r.ok?r.json():[])
+      .then((data:any[])=>{
+        if(!data.length) return
+        setClients(prev=>{
+          const existingEmails=new Set(prev.map(c=>c.email?.toLowerCase()))
+          const newOnes=data
+            .filter((u:any)=>!existingEmails.has(u.email?.toLowerCase()))
+            .map((u:any)=>bizToClient(u,'api'))
+          // Also update status of existing clients from the API
+          const updated=prev.map(c=>{
+            const apiUser=data.find((u:any)=>u.email?.toLowerCase()===c.email?.toLowerCase())
+            if(!apiUser) return c
+            const newStatus=apiUser.status==='approved'?'active':apiUser.status==='rejected'?'inactive':c.status
+            return {...c,status:newStatus}
+          })
+          return newOnes.length?[...newOnes,...updated]:updated
+        })
+      })
+      .catch(()=>{})
   },[])
 
   const handleRoute=(id:string)=>{
@@ -790,9 +896,19 @@ export default function AdminDashboard() {
     navigate('/admin?tab='+id)
   }
   const updateStatus=(id:string,status:'approved'|'rejected')=>{
+    // Optimistic UI update
     setRegs(p=>p.map(r=>r.id!==id?r:{...r,status}))
     setClients(prev=>prev.map(c=>c.id!==id?c:{...c,status:status==='approved'?'active':'inactive'}))
     setDetail(null)
+    // Call the real API — this updates the PostgreSQL database
+    const token = localStorage.getItem('hg_token')
+    if (token) {
+      fetch(`${API_URL}/admin/users/${id}/approve`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: status }),
+      }).catch(() => {})
+    }
   }
 
   return (

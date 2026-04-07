@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllJobsWithAdminJobs, getActiveJobs } from './jobsData';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 const B   = '#080808'
 const BC  = '#161616'
 const BC2 = '#111111'
@@ -95,7 +97,7 @@ function StatusBadge({ status }: { status:string }) {
 }
 
 // ── Full card (desktop / tablet) ──────────────────────────────────────────────
-function JobCardFull({ job, onView, onApply, appliedIds, session }: any) {
+function JobCardFull({ job, onView, onApply, appliedIds, session, canApply }: any) {
   const [hovered,setHovered]=useState(false)
   const filled=job.slots-job.slotsLeft; const pct=Math.round((filled/job.slots)*100)
   const almostFull=job.slotsLeft<=2; const isApplied=appliedIds.has(job.id); const accent=job.accentLine||G
@@ -131,7 +133,7 @@ function JobCardFull({ job, onView, onApply, appliedIds, session }: any) {
             <button onClick={()=>onView(job.id)} style={{ padding:'7px 12px', border:`1px solid ${accent}44`, background:'transparent', color:WM, fontFamily:FB, fontSize:9, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
               onMouseEnter={e=>{e.currentTarget.style.borderColor=accent;e.currentTarget.style.color=accent}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=`${accent}44`;e.currentTarget.style.color=WM}}>Details</button>
-            <button onClick={()=>onApply(job)} style={{ padding:'7px 14px', border:'none', background:isApplied?G:accent, color:B, fontFamily:FB, fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', borderRadius:2 }}>{isApplied?'Applied ✓':'Apply →'}</button>
+            {canApply && <button onClick={()=>onApply(job)} style={{ padding:'7px 14px', border:'none', background:isApplied?G:accent, color:B, fontFamily:FB, fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', borderRadius:2 }}>{isApplied?'Applied ✓':'Apply →'}</button>}
           </div>
         </div>
       </div>
@@ -140,7 +142,7 @@ function JobCardFull({ job, onView, onApply, appliedIds, session }: any) {
 }
 
 // ── Compact card (mobile Shein-style) ─────────────────────────────────────────
-function JobCardCompact({ job, onView, onApply, appliedIds }: any) {
+function JobCardCompact({ job, onView, onApply, appliedIds, canApply }: any) {
   const isApplied=appliedIds.has(job.id); const accent=job.accentLine||G
   const almostFull=job.slotsLeft<=2
   return (
@@ -195,11 +197,11 @@ function JobCardCompact({ job, onView, onApply, appliedIds }: any) {
         <div style={{ display:'flex', gap:5, alignItems:'center' }}>
           <StatusBadge status={job.status} />
           <div style={{ flex:1 }} />
-          <button
+          {canApply && <button
             onClick={e=>{e.stopPropagation();onApply(job)}}
             style={{ padding:'6px 10px', border:'none', background:isApplied?G:accent, color:B, fontFamily:FB, fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', cursor:'pointer', borderRadius:2, flexShrink:0 }}>
             {isApplied?'✓':'Apply'}
-          </button>
+          </button>}
         </div>
       </div>
     </div>
@@ -309,16 +311,94 @@ export default function JobsPage() {
 
   useEffect(()=>{ injectStyles() },[])
   useEffect(()=>{ const s=localStorage.getItem('hg_session');if(s){try{setSession(JSON.parse(s))}catch{}} },[])
+
+  // FIX: fetch from API so admin-created jobs appear immediately; past-date jobs removed by getActiveJobs()
   useEffect(()=>{
-    const load=()=>setAllJobs(getAllJobsWithAdminJobs())
-    load(); window.addEventListener('storage',load); const interval=setInterval(load,2000)
-    return ()=>{ window.removeEventListener('storage',load); clearInterval(interval) }
+    const ACCENT=[GL,G3,G2,G,G4,GL,G3,G2,G,G4,GL,G3,G2,G,G4,GL,G3,G2,G,G4,GL,G3,G2,G]
+    const mergeAndSet=(apiJobs:any[]=[])=>{
+      const mapped=apiJobs.map((j:any,idx:number)=>({
+        id:j.id, title:j.title, company:j.client||j.brand||'',
+        companyInitial:(j.client||'?').charAt(0), companyColor:ACCENT[idx%ACCENT.length],
+        location:[j.venue,j.city].filter(Boolean).join(', ')||j.address||'',
+        type:j.filters?.category||'Brand Activation',
+        pay:`R ${Number(j.hourlyRate).toLocaleString('en-ZA')}`, payPer:'/hr', hourlyRate:j.hourlyRate,
+        date:j.date?new Date(j.date).toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):'',
+        jobDate:j.date||new Date().toISOString(),
+        approvedAt:j.createdAt||new Date().toISOString(),
+        slots:j.totalSlots||1, totalSlots:j.totalSlots||1,
+        slotsLeft:(j.totalSlots||1)-(j.filledSlots||0), filledSlots:j.filledSlots||0,
+        duration:j.startTime&&j.endTime?`${j.startTime}–${j.endTime}`:'',
+        tags:[j.filters?.gender,j.filters?.category].filter(Boolean),
+        accentLine:ACCENT[idx%ACCENT.length],
+        gradient:'linear-gradient(135deg,rgba(232,168,32,0.10) 0%,rgba(196,151,58,0.04) 100%)',
+        status:(j.status||'OPEN').toLowerCase(),
+        terms:j.termsAndConditions||'',
+        filters:j.filters,
+      }))
+      const apiIds=new Set(mapped.map((j:any)=>j.id))
+      const staticJobs=getAllJobsWithAdminJobs().filter((j:any)=>!apiIds.has(j.id))
+      setAllJobs([...mapped,...staticJobs])
+    }
+    mergeAndSet([])
+    const fetchJobs=async()=>{
+      try{
+        const token=localStorage.getItem('hg_token')
+        const headers:Record<string,string>={}
+        if(token) headers['Authorization']=`Bearer ${token}`
+        let res=await fetch(`${API_URL}/jobs`,{headers})
+        // Retry without token - GET /jobs is now a public endpoint
+        if(!res.ok && token) res=await fetch(`${API_URL}/jobs`)
+        if(res.ok){ const data=await res.json(); mergeAndSet(data) }
+      }catch{}
+    }
+    fetchJobs()
+    window.addEventListener('storage',fetchJobs)
+    const interval=setInterval(fetchJobs,30000)
+    return()=>{ window.removeEventListener('storage',fetchJobs); clearInterval(interval) }
+  },[])
+
+  // Load existing applications so already-applied jobs show "Applied" state on load
+  useEffect(()=>{
+    const token=localStorage.getItem('hg_token')
+    if(!token) return
+    fetch(`${API_URL}/applications/my`,{headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}})
+      .then(r=>r.ok?r.json():[]).then((apps:any[])=>setAppliedIds(new Set(apps.map((a:any)=>a.jobId)))).catch(()=>{})
   },[])
 
   const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3500)}
-  const handleApply=(job:any)=>{if(!session){navigate('/login');return};setTermsJob(job)}
+  const canApply = !session || session.role === 'promoter'
+  const handleApply=(job:any)=>{
+    if(!session){navigate('/login');return}
+    if(session.role && session.role !== 'promoter'){showToast('Only promoters can apply for jobs.');return}
+    setTermsJob(job)
+  }
   const handleTermsAccepted=()=>{if(!termsJob)return;setPaymentJob(termsJob);setTermsJob(null)}
-  const handlePaymentSuccess=()=>{if(!paymentJob)return;setAppliedIds(prev=>new Set([...prev,paymentJob.id]));showToast(`✓ Applied for "${paymentJob.title}"`);setPaymentJob(null)}
+
+  // FIX: POST to /api/applications so it reflects on business + promoter dashboards
+  const handlePaymentSuccess=async()=>{
+    if(!paymentJob) return
+    const token=localStorage.getItem('hg_token')
+    if(token){
+      const isStaticJob=/^JB-\d+$/.test(paymentJob.id)
+      if(!isStaticJob){
+        try{
+          const res=await fetch(`${API_URL}/applications`,{
+            method:'POST',
+            headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+            body:JSON.stringify({jobId:paymentJob.id}),
+          })
+          if(!res.ok && res.status!==409){
+            const err=await res.json().catch(()=>({error:'Failed'}))
+            showToast(err.error||'Application failed. Please try again.')
+            setPaymentJob(null); return
+          }
+        }catch{ showToast('Could not submit. Check your connection.'); setPaymentJob(null); return }
+      }
+    }
+    setAppliedIds(prev=>new Set([...prev,paymentJob.id]))
+    showToast(`✓ Applied for "${paymentJob.title}"`)
+    setPaymentJob(null)
+  }
 
   const activeJobs=getActiveJobs(allJobs)
   const filtered=activeJobs
@@ -391,10 +471,10 @@ export default function JobsPage() {
               {filtered.map((job:any)=>(
                 <div key={job.id}>
                   {/* Desktop/tablet full card */}
-                  <JobCardFull job={job} appliedIds={appliedIds} session={session}
+                  <JobCardFull job={job} appliedIds={appliedIds} session={session} canApply={canApply}
                     onView={(id: string)=>navigate(`/jobs/${id}`)} onApply={handleApply} />
                   {/* Mobile compact card */}
-                  <JobCardCompact job={job} appliedIds={appliedIds}
+                  <JobCardCompact job={job} appliedIds={appliedIds} canApply={canApply}
                     onView={(id: string)=>navigate(`/jobs/${id}`)} onApply={handleApply} />
                 </div>
               ))}

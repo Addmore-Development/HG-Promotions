@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '../AdminLayout'
-import { injectAdminMobileStyles } from '../adminMobileStyles'
+// adminMobileStyles not used
 
 const G   = '#D4880A'
 const GL  = '#E8A820'
@@ -16,9 +16,9 @@ const BB  = 'rgba(212,136,10,0.16)'
 const BB2 = 'rgba(212,136,10,0.06)'
 const W   = '#CEC5B2'
 const W85 = 'rgba(210,198,180,0.95)'
-const W55 = 'rgba(192,178,158,0.80)'
+const W55 = 'rgba(220,208,188,0.90)'
 const W35 = 'rgba(168,152,130,0.55)'
-const W28 = 'rgba(172,158,136,0.65)'
+const W28 = 'rgba(200,185,162,0.80)'
 const FD  = "'Playfair Display', Georgia, serif"
 const MONO = "'DM Mono', 'Courier New', monospace"
 
@@ -32,17 +32,7 @@ function hex2rgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-function broadcastUserUpdate(id: string, patch: Record<string, any>) {
-  try {
-    const existing: any[] = JSON.parse(localStorage.getItem('hg_client_updates') || '[]')
-    const filtered = existing.filter((e: any) => e.id !== id)
-    localStorage.setItem('hg_client_updates', JSON.stringify([
-      { id, ...patch, updatedAt: new Date().toISOString() },
-      ...filtered.slice(0, 49),
-    ]))
-    window.dispatchEvent(new Event('storage'))
-  } catch { /* silent */ }
-}
+// broadcastUserUpdate removed — status changes go directly through the API
 
 type Role   = 'promoter' | 'client' | 'admin'
 type Status = 'active' | 'inactive' | 'suspended' | 'pending'
@@ -133,7 +123,7 @@ export default function FullCRUDUsers() {
   const [statusF,  setStatusF ] = useState<Status | 'all'>('all')
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => { injectAdminMobileStyles() }, [])
+  // mobile styles removed — using inline styles throughout
 
   const mergeUsers = (incoming: User[]) => {
     setUsers(prev => {
@@ -145,33 +135,19 @@ export default function FullCRUDUsers() {
 
   useEffect(() => {
     const token = localStorage.getItem('hg_token')
-    if (!token) { syncFromLocalStorage(); return }
+    if (!token) return
     setSyncing(true)
+    // Fetch all users directly from PostgreSQL via the API
     fetch(`${API_URL}/users`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } })
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
-        const apiUsers = data.filter((u: any) => (u.role || '').toUpperCase() !== 'ADMIN').map((u: any) => mapApiUser(u, 'api'))
+        const apiUsers = data
+          .filter((u: any) => (u.role || '').toUpperCase() !== 'ADMIN')
+          .map((u: any) => mapApiUser(u, 'api'))
         mergeUsers(apiUsers)
       })
-      .catch(() => syncFromLocalStorage())
+      .catch(() => {})
       .finally(() => setSyncing(false))
-  }, [])
-
-  const syncFromLocalStorage = () => {
-    try {
-      const stored = localStorage.getItem('hg_registrations')
-      if (!stored) return
-      const regs: any[] = JSON.parse(stored)
-      const localUsers = regs.filter((r: any) => r.role !== 'ADMIN').map((r: any) => mapApiUser(r, 'local'))
-      if (!localUsers.length) return
-      mergeUsers(localUsers)
-    } catch { /* silent */ }
-  }
-
-  useEffect(() => {
-    syncFromLocalStorage()
-    window.addEventListener('storage', syncFromLocalStorage)
-    return () => window.removeEventListener('storage', syncFromLocalStorage)
   }, [])
 
   const openCreate = () => { setForm(EMPTY); setEditing(null); setModal('create') }
@@ -189,10 +165,7 @@ export default function FullCRUDUsers() {
       setUsers(prev => prev.map(u => u.id === editing.id ? { ...u, ...form } : u))
       const token = localStorage.getItem('hg_token')
       if (token && editing.source === 'api') fetch(`${API_URL}/users/${editing.id}`, { method:'PUT', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({ fullName:form.name, phone:form.phone, city:form.city, status:form.status }) }).catch(()=>{})
-      if (form.status !== editing.status) {
-        const apiStatus = form.status === 'active' ? 'approved' : form.status === 'inactive' ? 'rejected' : form.status
-        broadcastUserUpdate(editing.id, { status: apiStatus })
-      }
+
     }
     closeModal()
   }
@@ -211,7 +184,6 @@ export default function FullCRUDUsers() {
     const token = localStorage.getItem('hg_token')
     const apiDecision = status === 'active' ? 'approved' : 'rejected'
     if (token) fetch(`${API_URL}/admin/users/${id}/approve`, { method:'PUT', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({ decision: apiDecision }) }).catch(()=>{})
-    broadcastUserUpdate(id, { status: apiDecision })
   }
 
   const F = (key: keyof typeof form, val: string) => setForm(prev => ({ ...prev, [key]: val }))
@@ -235,13 +207,13 @@ export default function FullCRUDUsers() {
 
   return (
     <AdminLayout>
-      <div className="hg-page" style={{ padding:'40px 48px' }}>
+      <div style={{ padding:'32px 36px', minWidth:0, boxSizing:'border-box' as const }}>
 
         {/* ── HEADER ── */}
-        <div className="hg-page-header">
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:24 }}>
           <div>
             <div style={{ fontSize:9, letterSpacing:'0.38em', textTransform:'uppercase', color:GL, marginBottom:8, fontWeight:700, fontFamily:FD }}>People · Users</div>
-            <h1 style={{ fontFamily:FD, fontSize:30, fontWeight:700, color:W }}>Manage Users</h1>
+            <h1 style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W }}>Manage Users</h1>
             <p style={{ fontSize:13, color:W55, marginTop:6, fontFamily:FD }}>
               <strong style={{ color:W85 }}>{users.length}</strong> users ·{' '}
               <span style={{ color:GL }}>{counts.promoter} promoters</span> ·{' '}
@@ -255,7 +227,7 @@ export default function FullCRUDUsers() {
         </div>
 
         {/* ── STATS ── */}
-        <div className="hg-stat-grid hg-stat-grid-5" style={{ background:BB, marginBottom:28 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:1, background:BB, marginBottom:24 }}>
           {[
             { label:'Total Users',    value:counts.all,      color:GL },
             { label:'Promoters',      value:counts.promoter, color:GL },
@@ -263,28 +235,28 @@ export default function FullCRUDUsers() {
             { label:'Pending Review', value:counts.pending,  color:G4 },
             { label:'Active',         value:counts.active,   color:G3 },
           ].map((s, i) => (
-            <div key={i} style={{ background:'rgba(20,16,5,0.6)', padding:'18px 20px', position:'relative' }}>
+            <div key={i} style={{ background:'rgba(20,16,5,0.6)', padding:'16px 18px', position:'relative' }}>
               <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${s.color},${hex2rgba(s.color,0.3)})` }} />
-              <div className="hg-stat-val" style={{ fontFamily:FD, fontSize:28, fontWeight:700, color:W, lineHeight:1 }}>{s.value}</div>
+              <div style={{ fontFamily:FD, fontSize:26, fontWeight:700, color:W, lineHeight:1 }}>{s.value}</div>
               <div style={{ fontSize:9, color:W55, marginTop:5, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:FD }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* ── FILTERS ── */}
-        <div className="hg-filter-row" style={{ marginBottom:24 }}>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:20 }}>
           <div style={{ position:'relative' }}>
             <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:W35, fontSize:12, pointerEvents:'none' }}>⌕</span>
             <input placeholder="Search name, email or city…" value={search} onChange={e=>setSearch(e.target.value)}
-              style={{ background:D2, border:`1px solid ${BB}`, padding:'9px 14px 9px 30px', color:W, fontFamily:FD, fontSize:12, outline:'none', width:240, borderRadius:3 }}
+              style={{ background:D2, border:`1px solid ${BB}`, padding:'8px 14px 8px 30px', color:W, fontFamily:FD, fontSize:12, outline:'none', width:220, borderRadius:3 }}
               onFocus={e=>e.currentTarget.style.borderColor=GL} onBlur={e=>e.currentTarget.style.borderColor=BB} />
           </div>
-          <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
             {(['all','promoter','client','admin'] as const).map(r => (
               <FilterBtn key={r} label={r==='all'?`All (${counts.all})`:r} active={roleF===r} color={r==='all'?GL:ROLE_COLOR[r]} onClick={()=>setRoleF(r)} />
             ))}
           </div>
-          <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
             {(['all','active','pending','inactive','suspended'] as const).map(s => (
               <FilterBtn key={s} label={s==='all'?'All Status':s} active={statusF===s} color={s==='all'?GL:STATUS_CLR[s]} onClick={()=>setStatusF(s)} />
             ))}
@@ -292,19 +264,23 @@ export default function FullCRUDUsers() {
         </div>
 
         {/* ── TABLE ── */}
-        <div className="hg-table-wrap" style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4 }}>
-          <table className="hg-table-cards" style={{ width:'100%', borderCollapse:'collapse', minWidth:800 }}>
+        <div style={{ background:D2, border:`1px solid ${BB}`, borderRadius:4, overflowX:'auto', width:'100%' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', minWidth:860 }}>
             <thead>
               <tr style={{ borderBottom:`1px solid ${BB}`, background:D1 }}>
-                <th style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>User</th>
-                <th style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Role</th>
-                <th className="hg-col-hide-md" style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>City</th>
-                <th className="hg-col-hide-md" style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Joined</th>
-                <th className="hg-col-hide-sm" style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Jobs</th>
-                <th className="hg-col-hide-sm" style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Payout</th>
-                <th style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Status</th>
-                <th className="hg-col-hide-sm" style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Source</th>
-                <th style={{ padding:'13px 18px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:W35, fontFamily:FD }}>Actions</th>
+                {[
+                  { label:'User',    w:190 },
+                  { label:'Role',    w:85  },
+                  { label:'City',    w:105 },
+                  { label:'Joined',  w:85  },
+                  { label:'Jobs',    w:55  },
+                  { label:'Payout',  w:100 },
+                  { label:'Status',  w:85  },
+                  { label:'Source',  w:75  },
+                  { label:'Actions', w:160 },
+                ].map(h => (
+                  <th key={h.label} style={{ padding:'11px 14px', textAlign:'left', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:W55, fontFamily:FD, width:h.w, whiteSpace:'nowrap' as const }}>{h.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -315,72 +291,72 @@ export default function FullCRUDUsers() {
                   onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                   onClick={() => openView(u)}>
 
-                  <td data-label="User" style={{ padding:'14px 18px' }}>
+                  <td data-label="User" style={{ padding:'11px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:`linear-gradient(145deg,${G5}CC,${hex2rgba(ROLE_COLOR[u.role],0.28)})`, border:`1px solid ${hex2rgba(ROLE_COLOR[u.role],0.35)}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, color:ROLE_COLOR[u.role], fontWeight:700, fontFamily:FD }}>
                         {initials(u.name)}
                       </div>
                       <div>
                         <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{u.name}</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:W85, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{u.name}</div>
                           {u.status === 'pending' && <div style={{ width:6, height:6, borderRadius:'50%', background:GL, flexShrink:0 }} />}
                         </div>
-                        <div style={{ fontSize:11, color:W55, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:160 }}>{u.email}</div>
+                        <div style={{ fontSize:11, color:W55, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{u.email}</div>
                       </div>
                     </div>
                   </td>
 
-                  <td data-label="Role" style={{ padding:'14px 18px' }}>
+                  <td data-label="Role" style={{ padding:'11px 14px' }}>
                     <Badge label={u.role} color={ROLE_COLOR[u.role]} bg={hex2rgba(ROLE_COLOR[u.role],0.12)} border={hex2rgba(ROLE_COLOR[u.role],0.4)} />
                   </td>
 
-                  <td data-label="City" className="hg-col-hide-md" style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD }}>{u.city}</td>
+                  <td style={{ padding:'11px 14px', fontSize:12, color:W55, fontFamily:FD, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.city}</td>
 
-                  <td data-label="Joined" className="hg-col-hide-md" style={{ padding:'14px 18px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
+                  <td style={{ padding:'11px 14px', fontSize:12, color:W55, fontFamily:FD, whiteSpace:'nowrap' }}>
                     {u.joined ? new Date(u.joined).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'2-digit'}) : '—'}
                   </td>
 
-                  <td data-label="Jobs" className="hg-col-hide-sm" style={{ padding:'14px 18px', fontSize:13, color:W85, fontWeight:700, fontFamily:FD }}>{u.jobs}</td>
+                  <td style={{ padding:'11px 14px', fontSize:13, color:W85, fontWeight:700, fontFamily:FD, textAlign:'center' }}>{u.jobs}</td>
 
-                  <td data-label="Payout" className="hg-col-hide-sm" style={{ padding:'14px 18px', fontSize:13, fontWeight:700, fontFamily:FD, color:u.role==='promoter'?GL:W35 }}>
+                  <td style={{ padding:'11px 14px', fontSize:13, fontWeight:700, fontFamily:FD, color:u.role==='promoter'?GL:W55 }}>
                     {u.role === 'promoter' ? `R${u.payouts.toLocaleString('en-ZA')}` : '—'}
                   </td>
 
-                  <td data-label="Status" style={{ padding:'14px 18px' }}>
+                  <td style={{ padding:'11px 14px' }}>
                     <Badge label={u.status} color={STATUS_CLR[u.status]} bg={STATUS_BG[u.status]} border={STATUS_BORDER[u.status]} />
                   </td>
 
-                  <td data-label="Source" className="hg-col-hide-sm" style={{ padding:'14px 18px' }}>
-                    <span style={{ fontSize:9, fontWeight:700, fontFamily:FD, color:u.source==='api'?GL:u.source==='local'?G4:W35 }}>
+                  <td style={{ padding:'11px 14px' }}>
+                    <span style={{ fontSize:9, fontWeight:700, fontFamily:FD, color:u.source==='api'?GL:u.source==='local'?G4:W55 }}>
                       {u.source==='api'?'● Live':u.source==='local'?'◎ Local':'○ Demo'}
                     </span>
                   </td>
 
-                  <td data-label="Actions" style={{ padding:'10px 18px', verticalAlign:'middle' }} onClick={e=>e.stopPropagation()}>
-                    <div className="hg-user-actions" style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      <div style={{ display:'flex', gap:6 }}>
+                  <td style={{ padding:'10px 14px', verticalAlign:'middle' }} onClick={e=>e.stopPropagation()}>
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      <div style={{ display:'flex', gap:4 }}>
                         <button onClick={()=>openEdit(u)}
-                          style={{ flex:1, padding:'5px 10px', fontSize:10, fontWeight:700, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
+                          style={{ padding:'4px 10px', fontSize:10, fontWeight:700, color:GL, background:hex2rgba(GL,0.10), border:`1px solid ${hex2rgba(GL,0.35)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, whiteSpace:'nowrap' }}
                           onMouseEnter={e=>{e.currentTarget.style.background=hex2rgba(GL,0.20);e.currentTarget.style.borderColor=GL}}
                           onMouseLeave={e=>{e.currentTarget.style.background=hex2rgba(GL,0.10);e.currentTarget.style.borderColor=hex2rgba(GL,0.35)}}>
                           ✎ Edit
                         </button>
                         <button onClick={()=>setDeleting(u.id)}
-                          style={{ flex:1, padding:'5px 10px', fontSize:10, fontWeight:600, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:'1px solid rgba(139,90,26,0.40)', borderRadius:3, cursor:'pointer', fontFamily:FD, transition:'all 0.15s', whiteSpace:'nowrap' }}
+                          style={{ padding:'4px 8px', fontSize:10, fontWeight:600, color:'rgba(232,180,140,0.85)', background:'rgba(139,90,26,0.12)', border:'1px solid rgba(139,90,26,0.40)', borderRadius:3, cursor:'pointer', fontFamily:FD }}
                           onMouseEnter={e=>{e.currentTarget.style.background='rgba(139,90,26,0.25)'}}
                           onMouseLeave={e=>{e.currentTarget.style.background='rgba(139,90,26,0.12)'}}>
-                          🗑 Del
+                          🗑
                         </button>
                       </div>
                       {u.status === 'pending' && (
-                        <div style={{ display:'flex', gap:6 }}>
+                        <div style={{ display:'flex', gap:4 }}>
                           <button onClick={()=>updateUserStatus(u.id,'active')}
-                            style={{ flex:1, padding:'5px 8px', fontSize:10, fontWeight:700, color:B, background:`linear-gradient(135deg,${G3},${hex2rgba(G3,0.8)})`, border:`1px solid ${G3}`, borderRadius:3, cursor:'pointer', fontFamily:FD, whiteSpace:'nowrap' }}>
-                            ✓ OK
+                            style={{ padding:'4px 8px', fontSize:9, fontWeight:700, color:B, background:`linear-gradient(135deg,${G3},${hex2rgba(G3,0.8)})`, border:`1px solid ${G3}`, borderRadius:3, cursor:'pointer', fontFamily:FD, whiteSpace:'nowrap' }}>
+                            Approve
                           </button>
                           <button onClick={()=>updateUserStatus(u.id,'inactive')}
-                            style={{ flex:1, padding:'5px 8px', fontSize:10, fontWeight:700, color:'#C8B898', background:hex2rgba(G2,0.20), border:`1px solid ${hex2rgba(G2,0.55)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, whiteSpace:'nowrap' }}>
-                            ✗
+                            style={{ padding:'4px 8px', fontSize:9, fontWeight:700, color:'#C8B898', background:hex2rgba(G2,0.20), border:`1px solid ${hex2rgba(G2,0.55)}`, borderRadius:3, cursor:'pointer', fontFamily:FD, whiteSpace:'nowrap' }}>
+                            Reject
                           </button>
                         </div>
                       )}

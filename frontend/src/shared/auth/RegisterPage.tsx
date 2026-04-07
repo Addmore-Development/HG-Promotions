@@ -78,6 +78,57 @@ const formatSAPhone = (raw: string): string => {
 const validateCIPC = (reg: string): boolean =>
   /^\d{4}\/\d{6}\/\d{2}$/.test(reg)
 
+// SA provinces and cities for address validation
+const SA_PROVINCES = [
+  'gauteng', 'western cape', 'kwazulu-natal', 'eastern cape', 'limpopo',
+  'mpumalanga', 'north west', 'free state', 'northern cape',
+]
+const SA_CITY_KEYWORDS = [
+  'johannesburg', 'cape town', 'durban', 'pretoria', 'port elizabeth',
+  'bloemfontein', 'east london', 'nelspruit', 'polokwane', 'kimberley',
+  'pietermaritzburg', 'rustenburg', 'george', 'vanderbijlpark',
+  'soweto', 'sandton', 'randburg', 'roodepoort', 'benoni', 'boksburg',
+  'germiston', 'springs', 'midrand', 'centurion', 'tshwane', 'ekurhuleni',
+  'stellenbosch', 'paarl', 'bellville', 'mitchells plain', 'khayelitsha',
+  'tygervalley', 'hillbrow', 'braamfontein', 'rosebank', 'fourways',
+  'alexandra', 'lenasia', 'soweto', 'mamelodi', 'soshanguve', 'thohoyandou',
+  'tzaneen', 'phalaborwa', 'makhado', 'bela-bela', 'musina', 'thabazimbi',
+  'witbank', 'emalahleni', 'secunda', 'standerton', 'ermelo', 'barberton',
+  'mbombela', 'white river', 'hazyview', 'piet retief', 'balfour',
+  'mthatha', 'king william\'s town', 'bisho', 'queenstown', 'aliwal north',
+  'grahamstown', 'graaf-reinet', 'humansdorp', 'uitenhage', 'jeffreys bay',
+  'pinetown', 'umlazi', 'chatsworth', 'inanda', 'stanger', 'tongaat',
+  'amanzimtoti', 'isipingo', 'verulam', 'ballito', 'margate', 'eshowe',
+  'vryheid', 'ladysmith', 'newcastle', 'dundee', 'kokstad', 'richmond',
+  'klerksdorp', 'potchefstroom', 'mahikeng', 'lichtenburg', 'brits',
+  'stilfontein', 'orkney', 'carletonville', 'vereeniging', 'vanderbijlpark',
+  'heidelberg', 'nigel', 'brakpan', 'tembisa', 'soweto', 'kagiso',
+  'mossel bay', 'knysna', 'plettenberg bay', 'beaufort west', 'worcester',
+  'ceres', 'robertson', 'swellendam', 'hermanus', 'gordons bay',
+  'strand', 'somerset west', 'franschhoek', 'malmesbury',
+]
+
+const validateSAAddress = (address: string): boolean => {
+  if (!address.trim() || address.trim().length < 10) return false
+  const lower = address.toLowerCase()
+  // Check for SA postal code (4 digits at end or anywhere)
+  const hasPostalCode = /\b\d{4}\b/.test(address)
+  // Check for known SA city or province
+  const hasSACity = SA_CITY_KEYWORDS.some(c => lower.includes(c))
+  const hasSAProvince = SA_PROVINCES.some(p => lower.includes(p))
+  // Check for international indicators to block
+  const internationalKeywords = [
+    'usa', 'united states', 'uk', 'united kingdom', 'england', 'australia',
+    'canada', 'germany', 'france', 'china', 'india', 'nigeria', 'kenya',
+    'zimbabwe', 'zambia', 'mozambique', 'botswana', 'namibia', 'swaziland',
+    'lesotho', 'new york', 'london', 'sydney', 'toronto', 'berlin', 'paris',
+  ]
+  const hasInternational = internationalKeywords.some(k => lower.includes(k))
+  if (hasInternational) return false
+  // Must have SA postal code OR a known SA city/province
+  return hasPostalCode || hasSACity || hasSAProvince
+}
+
 const validateEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
@@ -371,11 +422,7 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done,       setDone]       = useState(false)
 
-  // Local storage for offline registration
-  const [registrations, setRegistrations] = useState<any[]>(() => {
-    const saved = localStorage.getItem('pending_registrations');
-    return saved ? JSON.parse(saved) : [];
-  });
+
 
   // ── Promoter personal
   const [firstName,    setFirstName]    = useState('')
@@ -406,32 +453,33 @@ export default function RegisterPage() {
   const toggleLanguage = (lang: string) => setPromoLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
 
   // ── Business
-  const [companyName,  setCompanyName]  = useState('')
-  const [contactName,  setContactName]  = useState('')
-  const [bizPhone,     setBizPhone]     = useState('')
-  const [regNumber,    setRegNumber]    = useState('')
-  const [vatNumber,    setVatNumber]    = useState('')
-  const [bizAddress,   setBizAddress]   = useState('')
-  const [bizIndustry,  setBizIndustry]  = useState('')
-  const [bizEmail,     setBizEmail]     = useState('')
-  const [bizPassword,  setBizPassword]  = useState('')
-  const [bizConfirmPw, setBizConfirmPw] = useState('')
-  const [cipcDoc,      setCipcDoc]      = useState<File | null>(null)
-  const [taxPin,       setTaxPin]       = useState<File | null>(null)
-  const [bizBankProof, setBizBankProof] = useState<File | null>(null)
+  const [companyName,       setCompanyName]       = useState('')
+  const [contactName,       setContactName]       = useState('')
+  const [bizPhone,          setBizPhone]          = useState('')
+  const [regNumber,         setRegNumber]         = useState('')
+  const [vatNumber,         setVatNumber]         = useState('')
+  const [bizAddress,        setBizAddress]        = useState('')
+  const [bizIndustry,       setBizIndustry]       = useState('')
+  const [bizCategories,     setBizCategories]     = useState<string[]>([])
+  const [bizOtherCategory,  setBizOtherCategory]  = useState('')
+  const [bizLanguages,      setBizLanguages]      = useState<string[]>([])
+  const [bizOtherLanguage,  setBizOtherLanguage]  = useState('')
+  const [bizEmail,          setBizEmail]          = useState('')
+  const [bizPassword,       setBizPassword]       = useState('')
+  const [bizConfirmPw,      setBizConfirmPw]      = useState('')
+  const [cipcDoc,           setCipcDoc]           = useState<File | null>(null)
+  const [taxPin,            setTaxPin]            = useState<File | null>(null)
+  const [bizBankProof,      setBizBankProof]      = useState<File | null>(null)
+
+  const toggleBizCategory = (cat: string) => setBizCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
+  const toggleBizLanguage = (lang: string) => setBizLanguages(prev => prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang])
 
   const isPromoter  = role === 'promoter'
   const TOTAL_STEPS = 3
 
-  const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}); setPromoCategories([]); setPromoLanguages([]) }
+  const switchRole = (r: Role) => { setRole(r); setStep(0); setErrors({}); setPromoCategories([]); setPromoLanguages([]); setBizCategories([]); setBizLanguages([]); setBizOtherCategory(''); setBizOtherLanguage('') }
 
-  /* ─── ADD REGISTRATION TO LOCAL STORAGE ───────────────────── */
-  const addRegistration = (reg: any) => {
-    const newReg = { ...reg, id: Date.now().toString(), submittedAt: new Date().toISOString() };
-    const updated = [...registrations, newReg];
-    setRegistrations(updated);
-    localStorage.setItem('pending_registrations', JSON.stringify(updated));
-  };
+
 
   /* ─── VALIDATION ──────────────────────────────────────────── */
   const validateStep = (): boolean => {
@@ -444,12 +492,15 @@ export default function RegisterPage() {
         if (!validateSAPhone(phone)) errs.phone = 'Enter a valid SA phone number e.g. +27 71 000 0000'
         if (!validateSAID(idNumber)) errs.idNumber = 'Must be 13 digits in SA ID format (YYMMDD followed by 7 digits)'
         if (!address.trim()) errs.address = 'Required'
+        else if (!validateSAAddress(address)) errs.address = 'Please enter a valid South African address (include city and postal code)'
       }
       if (step === 1) {
         if (!headshotFile) errs.headshot = 'Headshot photo is required'
         if (!fullBodyFile) errs.fullBody = 'Full body photo is required'
         if (!bankName.trim()) errs.bankName = 'Required'
         if (!accountNo.trim()) errs.accountNo = 'Required'
+        else if (!/^\d+$/.test(accountNo.replace(/\s/g, ''))) errs.accountNo = 'Account number must contain digits only'
+        else if (accountNo.replace(/\s/g, '').length > 16) errs.accountNo = 'Account number cannot exceed 16 digits'
         if (!bankProof) errs.bankProof = 'Bank proof document is required'
         // CV is optional — no validation error
       }
@@ -466,6 +517,7 @@ export default function RegisterPage() {
         if (!validateSAPhone(bizPhone)) errs.bizPhone = 'Enter a valid SA phone number'
         if (!validateCIPC(regNumber)) errs.regNumber = 'Format: 2024/000000/07'
         if (!bizAddress.trim()) errs.bizAddress = 'Required'
+        else if (!validateSAAddress(bizAddress)) errs.bizAddress = 'Please enter a valid South African address (include city and postal code)'
         if (!bizIndustry.trim()) errs.bizIndustry = 'Please select your industry'
       }
       if (step === 1) {
@@ -525,6 +577,8 @@ export default function RegisterPage() {
               name: companyName, email: bizEmail.toLowerCase(), password: bizPassword,
               role: 'BUSINESS', phone: bizPhone.replace(/\s/g, ''), consentPopia: true,
               companyName, contactName, companyReg: regNumber, vatNumber, city: bizAddress, industry: bizIndustry,
+              categories: bizCategories.length > 0 ? [...bizCategories.filter(c => c !== 'Other'), ...(bizCategories.includes('Other') && bizOtherCategory ? [bizOtherCategory] : [])].join(', ') : undefined,
+              languages: bizLanguages.length > 0 ? [...bizLanguages.filter(l => l !== 'Other'), ...(bizLanguages.includes('Other') && bizOtherLanguage ? [bizOtherLanguage] : [])].join(', ') : undefined,
             }),
           })
           if (res.ok) {
@@ -571,6 +625,8 @@ export default function RegisterPage() {
       }
 
       setDone(true)
+
+      // Registration saved to database via API — no localStorage needed
     } catch (err: any) {
       setErrors({ submit: err.message || 'Registration failed. Please try again.' })
     } finally {
@@ -653,7 +709,7 @@ export default function RegisterPage() {
               </div>
               <Field label="SA Phone Number" placeholder="+27 71 000 0000" value={phone} onChange={v => setPhone(formatSAPhone(v))} focused={focused === 'phone'} onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)} error={errors.phone} hint="South African mobile number" />
               <Field label="SA ID Number" placeholder="9001015009087" value={idNumber} onChange={setIdNumber} focused={focused === 'idNumber'} onFocus={() => setFocused('idNumber')} onBlur={() => setFocused(null)} error={errors.idNumber} hint="13 digits · format YYMMDD followed by 7 digits" />
-              <Field label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address} onChange={setAddress} focused={focused === 'address'} onFocus={() => setFocused('address')} onBlur={() => setFocused(null)} error={errors.address} />
+              <Field label="Residential Address" placeholder="123 Main Street, Johannesburg, 2000" value={address} onChange={setAddress} focused={focused === 'address'} onFocus={() => setFocused('address')} onBlur={() => setFocused(null)} error={errors.address} hint="South African addresses only — include city and postal code" />
               <SectionDivider label="Professional Profile" />
               <div>
                 {chipSectionLabel('Category / Type of Work', promoCategories.length)}
@@ -738,7 +794,7 @@ export default function RegisterPage() {
                   </select>
                   {errors.bankName && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: 5 }}>{errors.bankName}</p>}
                 </div>
-                <Field label="Account Number" placeholder="000 000 0000" value={accountNo} onChange={setAccountNo} focused={focused === 'accountNo'} onFocus={() => setFocused('accountNo')} onBlur={() => setFocused(null)} error={errors.accountNo} />
+                <Field label="Account Number" placeholder="e.g. 1234567890" value={accountNo} onChange={v => { const digits = v.replace(/\D/g, '').slice(0, 16); setAccountNo(digits) }} focused={focused === 'accountNo'} onFocus={() => setFocused('accountNo')} onBlur={() => setFocused(null)} error={errors.accountNo} hint={`Digits only · max 16 digits · ${accountNo.length}/16`} />
               </div>
               <FileUploadZone label="Bank Statement / Proof of Account" accept=".pdf,.jpg,.jpeg,.png" file={bankProof} onChange={setBankProof} hint="PDF or image · Max 10 MB" required />
               {errors.bankProof && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER }}>{errors.bankProof}</p>}
@@ -798,14 +854,80 @@ export default function RegisterPage() {
                 <Field label="CIPC Reg Number" placeholder="2024/000000/07" value={regNumber} onChange={setRegNumber} focused={focused === 'regNumber'} onFocus={() => setFocused('regNumber')} onBlur={() => setFocused(null)} error={errors.regNumber} hint="Format: YYYY/NNNNNN/NN" />
                 <Field label="VAT Number (Optional)" placeholder="4410000000" value={vatNumber} onChange={setVatNumber} focused={focused === 'vatNumber'} onFocus={() => setFocused('vatNumber')} onBlur={() => setFocused(null)} />
               </div>
-              <Field label="Business Address" placeholder="1 Business Park, Sandton, 2196" value={bizAddress} onChange={setBizAddress} focused={focused === 'bizAddress'} onFocus={() => setFocused('bizAddress')} onBlur={() => setFocused(null)} error={errors.bizAddress} />
+              <Field label="Business Address" placeholder="1 Business Park, Sandton, 2196" value={bizAddress} onChange={setBizAddress} focused={focused === 'bizAddress'} onFocus={() => setFocused('bizAddress')} onBlur={() => setFocused(null)} error={errors.bizAddress} hint="South African addresses only — include city and postal code" />
               <div>
-                <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Industry / Sector <span style={{ color: GOLD }}>*</span></label>
+                <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD_DIM, marginBottom: 8 }}>Primary Industry / Sector <span style={{ color: GOLD }}>*</span></label>
                 <select value={bizIndustry} onChange={e => setBizIndustry(e.target.value)} style={selectStyle}>
                   <option value="">— Select your industry —</option>
                   {INDUSTRY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
                 {errors.bizIndustry && <p style={{ fontFamily: FB, fontSize: 11, color: AMBER, marginTop: 5 }}>{errors.bizIndustry}</p>}
+              </div>
+
+              {/* Business Categories — multi-select */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: GOLD_DIM }}>Categories of Promotions Needed</span>
+                  {bizCategories.length > 0 && <span style={{ fontFamily: FB, fontSize: 11, color: GOLD, fontWeight: 600 }}>{bizCategories.length} selected</span>}
+                </div>
+                <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, marginBottom: 10, lineHeight: 1.5 }}>Select all promotion types your business requires</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                  {PROMOTER_CATEGORIES.map(cat => (
+                    <Chip key={cat} label={cat} active={bizCategories.includes(cat)} onClick={() => toggleBizCategory(cat)} />
+                  ))}
+                </div>
+                {bizCategories.includes('Other') && (
+                  <div style={{ marginTop: 8 }}>
+                    <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: GOLD_DIM, marginBottom: 6 }}>Describe your other category</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Agricultural shows, Mining expos..."
+                      value={bizOtherCategory}
+                      onChange={e => setBizOtherCategory(e.target.value)}
+                      style={{ width: '100%', background: 'rgba(196,151,58,0.03)', border: `1px solid ${BLACK_BORDER}`, padding: '11px 14px', fontFamily: FB, fontSize: 13, color: WHITE, outline: 'none' }}
+                      onFocus={e => e.currentTarget.style.borderColor = GOLD}
+                      onBlur={e => e.currentTarget.style.borderColor = BLACK_BORDER}
+                    />
+                  </div>
+                )}
+                {bizCategories.length > 0 && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: GOLD_FAINT, border: `1px solid ${GOLD}33` }}>
+                    <p style={{ fontFamily: FB, fontSize: 12, color: GOLD }}>{[...bizCategories.filter(c => c !== 'Other'), ...(bizCategories.includes('Other') && bizOtherCategory ? [bizOtherCategory] : ['Other'])].join(' · ')}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Business Languages — multi-select */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: GOLD_DIM }}>Languages Required</span>
+                  {bizLanguages.length > 0 && <span style={{ fontFamily: FB, fontSize: 11, color: GOLD, fontWeight: 600 }}>{bizLanguages.length} selected</span>}
+                </div>
+                <p style={{ fontFamily: FB, fontSize: 11, color: GOLD_PALE, marginBottom: 10, lineHeight: 1.5 }}>Languages your promoters need to speak</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {[...SA_LANGUAGES, 'Other'].map(lang => (
+                    <Chip key={lang} label={lang} active={bizLanguages.includes(lang)} onClick={() => toggleBizLanguage(lang)} />
+                  ))}
+                </div>
+                {bizLanguages.includes('Other') && (
+                  <div style={{ marginTop: 8 }}>
+                    <label style={{ display: 'block', fontFamily: FB, fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: GOLD_DIM, marginBottom: 6 }}>Specify other language(s)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Portuguese, French, Mandarin..."
+                      value={bizOtherLanguage}
+                      onChange={e => setBizOtherLanguage(e.target.value)}
+                      style={{ width: '100%', background: 'rgba(196,151,58,0.03)', border: `1px solid ${BLACK_BORDER}`, padding: '11px 14px', fontFamily: FB, fontSize: 13, color: WHITE, outline: 'none' }}
+                      onFocus={e => e.currentTarget.style.borderColor = GOLD}
+                      onBlur={e => e.currentTarget.style.borderColor = BLACK_BORDER}
+                    />
+                  </div>
+                )}
+                {bizLanguages.length > 0 && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: GOLD_FAINT, border: `1px solid ${GOLD}33` }}>
+                    <p style={{ fontFamily: FB, fontSize: 12, color: GOLD }}>{[...bizLanguages.filter(l => l !== 'Other'), ...(bizLanguages.includes('Other') && bizOtherLanguage ? [bizOtherLanguage] : bizLanguages.includes('Other') ? ['Other'] : [])].join(' · ')}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

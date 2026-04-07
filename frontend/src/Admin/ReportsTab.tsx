@@ -185,8 +185,9 @@ export default function ReportsTab({ regs }: Props) {
     {
       icon:'✦', color:G3, title:'Campaign Reports', desc:'Attendance and performance data per campaign, ready for client delivery.',
       btns:[
-        { label:'PDF',  action:()=>doExport('Campaign PDF', exportCampaignPDF) },
-        { label:'CSV',  action:()=>doExport('Campaign CSV', exportCampaignCSV) },
+        { label:'CSV',   action:()=>doExport('Campaign CSV',   exportCampaignCSV)   },
+        { label:'Excel', action:()=>doExport('Campaign Excel', ()=>downloadExcel('hg-campaign-report.xlsx', MOCK_CAMPAIGN_DATA, ['Campaign','Promoters','Hours','Payout','Status'])) },
+        { label:'PDF',   action:()=>doExport('Campaign PDF',   exportCampaignPDF)   },
       ]
     },
     {
@@ -194,13 +195,15 @@ export default function ReportsTab({ regs }: Props) {
       btns:[
         { label:'CSV',   action:()=>doExport('Roster CSV',   exportRosterCSV)   },
         { label:'Excel', action:()=>doExport('Roster Excel', exportRosterExcel) },
+        { label:'PDF',   action:()=>doExport('Roster PDF',   ()=>downloadPDF('Promoter Roster', MOCK_PROMOTER_DATA.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''))) },
       ]
     },
     {
       icon:'⬡', color:GL, title:'Attendance Log', desc:'Geo-verified check-in/out records with timestamps for all shifts.',
       btns:[
-        { label:'CSV', action:()=>doExport('Attendance CSV', exportAttendanceCSV) },
-        { label:'PDF', action:()=>doExport('Attendance PDF', exportAttendancePDF) },
+        { label:'CSV',   action:()=>doExport('Attendance CSV',   exportAttendanceCSV)   },
+        { label:'Excel', action:()=>doExport('Attendance Excel', ()=>downloadExcel('hg-attendance-log.xlsx', MOCK_ATTENDANCE_DATA, ['Promoter','Job','Date','Check-in','Check-out','Hours','Status'])) },
+        { label:'PDF',   action:()=>doExport('Attendance PDF',   exportAttendancePDF)   },
       ]
     },
     {
@@ -208,6 +211,23 @@ export default function ReportsTab({ regs }: Props) {
       btns:[
         { label:'CSV',   action:()=>doExport('Payout CSV',   exportPayoutCSV)   },
         { label:'Excel', action:()=>doExport('Payout Excel', exportPayoutExcel) },
+        { label:'PDF',   action:()=>doExport('Payout PDF',   ()=>downloadPDF('Promoter Payout', MOCK_PAYOUT_DATA.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''))) },
+      ]
+    },
+    {
+      icon:'📄', color:G3, title:'Full Payroll Register', desc:'All promoter payout records with bank details, hours, rates, and net pay.',
+      btns:[
+        { label:'CSV',   action:()=>doExport('Payroll CSV',   exportPayoutCSV)   },
+        { label:'Excel', action:()=>doExport('Payroll Excel', exportPayoutExcel) },
+        { label:'PDF',   action:()=>doExport('Payroll PDF',   exportCampaignPDF) },
+      ]
+    },
+    {
+      icon:'🏦', color:GL, title:'EFT Batch File', desc:'Bank-ready payment batch — approved payroll records only.',
+      btns:[
+        { label:'CSV',   action:()=>doExport('EFT CSV',   ()=>downloadCSV('hg-eft-batch.csv', MOCK_PAYOUT_DATA, ['Promoter','Email','Bank','Account','Net Payout','Job','Date'])) },
+        { label:'Excel', action:()=>doExport('EFT Excel', ()=>downloadExcel('hg-eft-batch.xlsx', MOCK_PAYOUT_DATA, ['Promoter','Email','Bank','Account','Net Payout','Job','Date'])) },
+        { label:'PDF',   action:()=>doExport('EFT PDF',   ()=>downloadPDF('EFT Batch', MOCK_PAYOUT_DATA.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''))) },
       ]
     },
   ]
@@ -268,17 +288,31 @@ export default function ReportsTab({ regs }: Props) {
       </div>
 
       {/* EXPORT CARDS */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:BB, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:20 }}>
         {cards.map((c,i)=>(
-          <div key={i} style={{ background:'rgba(20,16,5,0.6)', padding:28 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+          <div key={i} style={{ background:'rgba(20,16,5,0.6)', border:`1px solid ${BB}`, borderRadius:4, padding:24, position:'relative', overflow:'hidden' }}
+            onMouseEnter={e=>(e.currentTarget.style.borderColor=hex2rgba(c.color,0.5))}
+            onMouseLeave={e=>(e.currentTarget.style.borderColor=BB)}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,${c.color},${hex2rgba(c.color,0.3)})` }} />
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
               <span style={{ fontSize:18, color:c.color }}>{c.icon}</span>
               <div style={{ fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:GL, fontWeight:700, fontFamily:FD }}>{c.title}</div>
             </div>
-            <p style={{ fontSize:13, color:W55, marginBottom:18, lineHeight:1.6, fontFamily:FD }}>{c.desc}</p>
-            <div style={{ display:'flex', gap:8 }}>
-              <Btn small onClick={c.btns[0].action} color={c.color}>{c.btns[0].label}</Btn>
-              <Btn small onClick={c.btns[1].action} color={c.color} outline>{c.btns[1].label}</Btn>
+            <p style={{ fontSize:12, color:W55, marginBottom:18, lineHeight:1.6, fontFamily:FD }}>{c.desc}</p>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {c.btns.map((btn,j)=>(
+                <button key={j} onClick={btn.action} style={{
+                  padding:'6px 12px', background: j===0?`linear-gradient(135deg,${c.color},${hex2rgba(c.color,0.8)})`:'transparent',
+                  border:`1px solid ${c.color}`, color:j===0?B:c.color,
+                  fontFamily:FD, fontSize:9, fontWeight:700, letterSpacing:'0.1em',
+                  cursor:'pointer', textTransform:'uppercase' as const, borderRadius:3, whiteSpace:'nowrap' as const,
+                  transition:'all 0.18s',
+                }}
+                  onMouseEnter={e=>{e.currentTarget.style.opacity='0.82';e.currentTarget.style.transform='translateY(-1px)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='translateY(0)'}}>
+                  ↓ {btn.label}
+                </button>
+              ))}
             </div>
           </div>
         ))}
